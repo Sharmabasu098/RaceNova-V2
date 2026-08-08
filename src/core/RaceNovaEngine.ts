@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { World } from "../world/World";
 import { PlayerCar } from "../player/PlayerCar";
+import { CarController } from "../player/CarController";
+import { SwipeController } from "../player/SwipeController";
 
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
@@ -10,21 +12,17 @@ export class RaceNovaEngine {
 
   private readonly world: World;
   private readonly playerCar: PlayerCar;
+  private readonly carController: CarController;
+  private readonly swipeController: SwipeController;
 
   constructor(container: HTMLElement) {
-    // -------------------------
     // Scene
-    // -------------------------
-
     this.scene = new THREE.Scene();
 
     this.scene.background =
       new THREE.Color(0x87ceeb);
 
-    // -------------------------
     // Camera
-    // -------------------------
-
     this.camera =
       new THREE.PerspectiveCamera(
         60,
@@ -42,14 +40,11 @@ export class RaceNovaEngine {
 
     this.camera.lookAt(
       0,
-      0,
+      0.5,
       -20
     );
 
-    // -------------------------
     // Renderer
-    // -------------------------
-
     this.renderer =
       new THREE.WebGLRenderer({
         antialias: true,
@@ -73,23 +68,14 @@ export class RaceNovaEngine {
       this.renderer.domElement
     );
 
-    // -------------------------
     // Clock
-    // -------------------------
-
     this.clock =
       new THREE.Clock();
 
-    // -------------------------
     // Lighting
-    // -------------------------
-
     this.setupLighting();
 
-    // -------------------------
     // World
-    // -------------------------
-
     this.world = new World(
       this.scene,
       {
@@ -99,10 +85,7 @@ export class RaceNovaEngine {
       }
     );
 
-    // -------------------------
     // Player Car
-    // -------------------------
-
     this.playerCar =
       new PlayerCar({
         x: 0,
@@ -115,10 +98,29 @@ export class RaceNovaEngine {
       this.scene
     );
 
-    // -------------------------
-    // Resize
-    // -------------------------
+    // Car Controller
+    this.carController =
+      new CarController(
+        this.playerCar,
+        {
+          laneWidth: 4,
+          laneCount: 3,
+          steeringSpeed: 10
+        }
+      );
 
+    // Swipe Controller
+    this.swipeController =
+      new SwipeController(
+        this.carController,
+        {
+          swipeThreshold: 50,
+          target:
+            this.renderer.domElement
+        }
+      );
+
+    // Resize
     window.addEventListener(
       "resize",
       this.handleResize
@@ -174,18 +176,17 @@ export class RaceNovaEngine {
   private update(
     deltaTime: number
   ): void {
-    // -------------------------
-    // Player
-    // -------------------------
-
+    // Player movement
     this.playerCar.update(
       deltaTime
     );
 
-    // -------------------------
-    // World
-    // -------------------------
+    // Steering
+    this.carController.update(
+      deltaTime
+    );
 
+    // World
     const playerZ =
       this.playerCar.getPosition().z;
 
@@ -193,27 +194,36 @@ export class RaceNovaEngine {
       playerZ
     );
 
-    // -------------------------
-    // Temporary Chase Camera
-    // -------------------------
+    // Chase camera
+    const playerPosition =
+      this.playerCar.getPosition();
 
-    const targetZ =
-      playerZ + 10;
+    const targetCameraX =
+      playerPosition.x;
+
+    const targetCameraZ =
+      playerPosition.z + 10;
 
     this.camera.position.x =
-      this.playerCar.getPosition().x;
+      THREE.MathUtils.damp(
+        this.camera.position.x,
+        targetCameraX,
+        8,
+        deltaTime
+      );
 
     this.camera.position.z =
-      THREE.MathUtils.lerp(
+      THREE.MathUtils.damp(
         this.camera.position.z,
-        targetZ,
-        5 * deltaTime
+        targetCameraZ,
+        5,
+        deltaTime
       );
 
     this.camera.lookAt(
-      this.playerCar.getPosition().x,
+      playerPosition.x,
       0.5,
-      playerZ - 20
+      playerPosition.z - 20
     );
   }
 
@@ -236,9 +246,12 @@ export class RaceNovaEngine {
       this.handleResize
     );
 
+    this.swipeController.dispose();
+    this.carController.dispose();
+
     this.playerCar.dispose();
     this.world.dispose();
 
     this.renderer.dispose();
   }
-  }
+}
