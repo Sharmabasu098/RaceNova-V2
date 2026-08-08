@@ -1,34 +1,67 @@
 import * as THREE from "three";
 import { World } from "../world/World";
+import { PlayerCar } from "../player/PlayerCar";
 
 export class RaceNovaEngine {
-  private renderer: THREE.WebGLRenderer;
-  private scene: THREE.Scene;
-  private camera: THREE.PerspectiveCamera;
-  private clock: THREE.Clock;
-  private world: World;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly scene: THREE.Scene;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly clock: THREE.Clock;
+
+  private readonly world: World;
+  private readonly playerCar: PlayerCar;
 
   constructor(container: HTMLElement) {
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87ceeb);
+    // -------------------------
+    // Scene
+    // -------------------------
 
-    this.camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
+    this.scene = new THREE.Scene();
+
+    this.scene.background =
+      new THREE.Color(0x87ceeb);
+
+    // -------------------------
+    // Camera
+    // -------------------------
+
+    this.camera =
+      new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth /
+          window.innerHeight,
+        0.1,
+        1000
+      );
+
+    this.camera.position.set(
+      0,
+      5,
+      10
     );
 
-    this.camera.position.set(0, 5, 10);
-    this.camera.lookAt(0, 0, -20);
+    this.camera.lookAt(
+      0,
+      0,
+      -20
+    );
 
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: "high-performance"
-    });
+    // -------------------------
+    // Renderer
+    // -------------------------
+
+    this.renderer =
+      new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference:
+          "high-performance"
+      });
 
     this.renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, 2)
+      Math.min(
+        window.devicePixelRatio,
+        2
+      )
     );
 
     this.renderer.setSize(
@@ -40,9 +73,22 @@ export class RaceNovaEngine {
       this.renderer.domElement
     );
 
-    this.clock = new THREE.Clock();
+    // -------------------------
+    // Clock
+    // -------------------------
+
+    this.clock =
+      new THREE.Clock();
+
+    // -------------------------
+    // Lighting
+    // -------------------------
 
     this.setupLighting();
+
+    // -------------------------
+    // World
+    // -------------------------
 
     this.world = new World(
       this.scene,
@@ -52,6 +98,26 @@ export class RaceNovaEngine {
         roadSegmentCount: 12
       }
     );
+
+    // -------------------------
+    // Player Car
+    // -------------------------
+
+    this.playerCar =
+      new PlayerCar({
+        x: 0,
+        y: 0,
+        z: 0,
+        scale: 1
+      });
+
+    this.playerCar.addToScene(
+      this.scene
+    );
+
+    // -------------------------
+    // Resize
+    // -------------------------
 
     window.addEventListener(
       "resize",
@@ -66,7 +132,9 @@ export class RaceNovaEngine {
         1.5
       );
 
-    this.scene.add(ambientLight);
+    this.scene.add(
+      ambientLight
+    );
 
     const sun =
       new THREE.DirectionalLight(
@@ -92,10 +160,10 @@ export class RaceNovaEngine {
       this.animate
     );
 
-    const delta =
+    const deltaTime =
       this.clock.getDelta();
 
-    this.update(delta);
+    this.update(deltaTime);
 
     this.renderer.render(
       this.scene,
@@ -104,14 +172,48 @@ export class RaceNovaEngine {
   };
 
   private update(
-    _delta: number
+    deltaTime: number
   ): void {
-    // Temporary player position.
-    // Player system will replace this later.
-    const playerZ = 0;
+    // -------------------------
+    // Player
+    // -------------------------
+
+    this.playerCar.update(
+      deltaTime
+    );
+
+    // -------------------------
+    // World
+    // -------------------------
+
+    const playerZ =
+      this.playerCar.getPosition().z;
 
     this.world.update(
       playerZ
+    );
+
+    // -------------------------
+    // Temporary Chase Camera
+    // -------------------------
+
+    const targetZ =
+      playerZ + 10;
+
+    this.camera.position.x =
+      this.playerCar.getPosition().x;
+
+    this.camera.position.z =
+      THREE.MathUtils.lerp(
+        this.camera.position.z,
+        targetZ,
+        5 * deltaTime
+      );
+
+    this.camera.lookAt(
+      this.playerCar.getPosition().x,
+      0.5,
+      playerZ - 20
     );
   }
 
@@ -127,4 +229,16 @@ export class RaceNovaEngine {
       window.innerHeight
     );
   };
-}
+
+  public dispose(): void {
+    window.removeEventListener(
+      "resize",
+      this.handleResize
+    );
+
+    this.playerCar.dispose();
+    this.world.dispose();
+
+    this.renderer.dispose();
+  }
+  }
