@@ -24,7 +24,11 @@ export class RoadManager {
   }
 
   private createSegments(): void {
-    for (let i = 0; i < this.config.segmentCount; i++) {
+    for (
+      let i = 0;
+      i < this.config.segmentCount;
+      i++
+    ) {
       const segment = new RoadSegment({
         width: this.config.roadWidth,
         length: this.config.segmentLength
@@ -46,9 +50,12 @@ export class RoadManager {
 
     for (const segment of this.segments) {
       const distanceBehind =
-        playerZ - segment.mesh.position.z;
+        segment.mesh.position.z - playerZ;
 
-      if (distanceBehind > this.config.segmentLength) {
+      if (
+        distanceBehind >
+        this.config.segmentLength
+      ) {
         segment.mesh.position.z -= totalLength;
       }
     }
