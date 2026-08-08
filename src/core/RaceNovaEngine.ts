@@ -1,10 +1,12 @@
 import * as THREE from "three";
+import { World } from "../world/World";
 
 export class RaceNovaEngine {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private clock: THREE.Clock;
+  private world: World;
 
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene();
@@ -18,7 +20,7 @@ export class RaceNovaEngine {
     );
 
     this.camera.position.set(0, 5, 10);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.lookAt(0, 0, -20);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -34,71 +36,51 @@ export class RaceNovaEngine {
       window.innerHeight
     );
 
-    container.appendChild(this.renderer.domElement);
+    container.appendChild(
+      this.renderer.domElement
+    );
 
     this.clock = new THREE.Clock();
 
     this.setupLighting();
-    this.setupTestWorld();
 
-    window.addEventListener("resize", this.handleResize);
+    this.world = new World(
+      this.scene,
+      {
+        roadWidth: 12,
+        roadSegmentLength: 50,
+        roadSegmentCount: 12
+      }
+    );
+
+    window.addEventListener(
+      "resize",
+      this.handleResize
+    );
   }
 
   private setupLighting(): void {
-    const ambientLight = new THREE.AmbientLight(
-      0xffffff,
-      1.5
-    );
+    const ambientLight =
+      new THREE.AmbientLight(
+        0xffffff,
+        1.5
+      );
 
     this.scene.add(ambientLight);
 
-    const sun = new THREE.DirectionalLight(
-      0xffffff,
-      2
-    );
+    const sun =
+      new THREE.DirectionalLight(
+        0xffffff,
+        2
+      );
 
-    sun.position.set(10, 20, 10);
+    sun.position.set(
+      10,
+      20,
+      10
+    );
 
     this.scene.add(sun);
-  }
-
-  private setupTestWorld(): void {
-    const groundGeometry = new THREE.PlaneGeometry(
-      100,
-      100
-    );
-
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3f7d3f
-    });
-
-    const ground = new THREE.Mesh(
-      groundGeometry,
-      groundMaterial
-    );
-
-    ground.rotation.x = -Math.PI / 2;
-
-    this.scene.add(ground);
-
-    const roadGeometry = new THREE.PlaneGeometry(
-      12,
-      100
-    );
-
-    const roadMaterial = new THREE.MeshStandardMaterial({
-      color: 0x303030
-    });
-
-    const road = new THREE.Mesh(
-      roadGeometry,
-      roadMaterial
-    );
-
-    road.rotation.x = -Math.PI / 2;
-    road.position.y = 0.01;
-
-    this.scene.add(road);
   }
 
   public start(): void {
@@ -106,9 +88,12 @@ export class RaceNovaEngine {
   }
 
   private animate = (): void => {
-    requestAnimationFrame(this.animate);
+    requestAnimationFrame(
+      this.animate
+    );
 
-    const delta = this.clock.getDelta();
+    const delta =
+      this.clock.getDelta();
 
     this.update(delta);
 
@@ -118,13 +103,22 @@ export class RaceNovaEngine {
     );
   };
 
-  private update(_delta: number): void {
-    // Game systems will be connected here.
+  private update(
+    _delta: number
+  ): void {
+    // Temporary player position.
+    // Player system will replace this later.
+    const playerZ = 0;
+
+    this.world.update(
+      playerZ
+    );
   }
 
   private handleResize = (): void => {
     this.camera.aspect =
-      window.innerWidth / window.innerHeight;
+      window.innerWidth /
+      window.innerHeight;
 
     this.camera.updateProjectionMatrix();
 
@@ -133,4 +127,4 @@ export class RaceNovaEngine {
       window.innerHeight
     );
   };
-  }
+}
