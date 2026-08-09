@@ -76,14 +76,15 @@ export class RaceNovaEngine {
     this.setupLighting();
 
     // World
-    this.world = new World(
-      this.scene,
-      {
-        roadWidth: 12,
-        roadSegmentLength: 50,
-        roadSegmentCount: 12
-      }
-    );
+     this.world = new World(
+  this.scene,
+  {
+    roadWidth: 12,
+    roadSegmentLength: 50,
+    roadSegmentCount: 14,
+    laneCount: 3
+  }
+);
 
     // Player Car
     this.playerCar =
