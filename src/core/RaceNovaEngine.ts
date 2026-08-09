@@ -81,8 +81,11 @@ export class RaceNovaEngine {
   {
     roadWidth: 12,
     roadSegmentLength: 50,
-    roadSegmentCount: 14,
-    laneCount: 3
+    roadSegmentCount: 18,
+    laneCount: 3,
+
+    curveStrength: 8,
+    curveFrequency: 0.055
   }
 );
 
