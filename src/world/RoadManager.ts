@@ -34,6 +34,7 @@ export class RoadManager {
         length: this.config.segmentLength
       });
 
+      // Road extends forward in -Z direction
       segment.setZ(
         -i * this.config.segmentLength
       );
@@ -48,15 +49,26 @@ export class RoadManager {
       this.config.segmentLength *
       this.config.segmentCount;
 
-    for (const segment of this.segments) {
-      const distanceBehind =
-        segment.mesh.position.z - playerZ;
+    /*
+     * Player moves toward -Z.
+     *
+     * When a road segment is far behind
+     * the player, recycle it to the front.
+     */
+    const recycleDistance =
+      this.config.segmentLength;
 
-      if (
-        distanceBehind >
-        this.config.segmentLength
-      ) {
-        segment.mesh.position.z -= totalLength;
+    for (const segment of this.segments) {
+      const segmentZ =
+        segment.mesh.position.z;
+
+      const isBehindPlayer =
+        segmentZ >
+        playerZ + recycleDistance;
+
+      if (isBehindPlayer) {
+        segment.mesh.position.z -=
+          totalLength;
       }
     }
   }
