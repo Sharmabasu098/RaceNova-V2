@@ -6,7 +6,7 @@ export interface WorldConfig {
   roadSegmentCount?: number;
   laneCount?: number;
 
-  // V2.2
+  // Future curve support
   curveStrength?: number;
   curveFrequency?: number;
 }
@@ -14,7 +14,7 @@ export interface WorldConfig {
 interface RoadSegment {
   group: THREE.Group;
   index: number;
-  z: number;
+  logicalIndex: number;
 }
 
 export class World {
@@ -25,11 +25,6 @@ export class World {
   private readonly segmentCount: number;
   private readonly laneCount: number;
 
-  /*
-   * V2.2:
-   *
-   * Curve is OFF for the first stable-road test.
-   */
   private readonly curveStrength: number;
   private readonly curveFrequency: number;
 
@@ -63,7 +58,7 @@ export class World {
 
     this.segmentCount =
       Math.max(
-        16,
+        20,
         Math.floor(
           config.roadSegmentCount ?? 24
         )
@@ -84,7 +79,7 @@ export class World {
       config.curveFrequency ?? 0.015;
 
     // =====================================================
-    // Root world group
+    // World Group
     // =====================================================
 
     this.worldGroup =
@@ -125,11 +120,10 @@ export class World {
       });
 
     // =====================================================
-    // Create world
+    // Create World
     // =====================================================
 
     this.createGround();
-
     this.createRoadSegments();
   }
 
@@ -139,11 +133,12 @@ export class World {
 
   private createGround(): void {
     /*
-     * Large ground area.
+     * Very large ground.
      *
-     * We keep it much longer than the visible road
-     * so the first test does not expose ground edges.
+     * This prevents the ground itself from ending
+     * during the straight-road test.
      */
+
     const groundLength =
       Math.max(
         5000,
@@ -170,7 +165,7 @@ export class World {
     ground.position.set(
       0,
       -0.10,
-      -groundLength / 2 + 100
+      -groundLength / 2
     );
 
     ground.receiveShadow = true;
@@ -181,19 +176,20 @@ export class World {
   }
 
   // =========================================================
-  // Create road segments
+  // Create Road Segments
   // =========================================================
 
   private createRoadSegments(): void {
     /*
-     * IMPORTANT:
+     * Segment centers:
      *
-     * Segment 0 center = 0
-     * Segment 1 center = -50
-     * Segment 2 center = -100
-     * ...
+     *  0
+     * -50
+     * -100
+     * -150
+     * -200
      *
-     * Therefore every segment touches the next one exactly.
+     * Every segment touches the next segment.
      */
 
     for (
@@ -204,20 +200,10 @@ export class World {
       const group =
         this.createRoadSegment();
 
-      const z =
-        -i *
-        this.segmentLength;
-
-      group.position.set(
-        0,
-        0,
-        z
-      );
-
       const segment: RoadSegment = {
         group,
         index: i,
-        z
+        logicalIndex: i
       };
 
       this.segments.push(
@@ -228,19 +214,24 @@ export class World {
         group
       );
     }
+
+    /*
+     * Initial placement.
+     */
+    this.updateSegments(0);
   }
 
   // =========================================================
-  // Create single road segment
+  // Create One Road Segment
   // =========================================================
 
   private createRoadSegment(): THREE.Group {
     const group =
       new THREE.Group();
 
-    // =====================================================
-    // Road
-    // =====================================================
+    // -----------------------------------------------------
+    // Road surface
+    // -----------------------------------------------------
 
     const roadGeometry =
       new THREE.BoxGeometry(
@@ -263,17 +254,17 @@ export class World {
       road
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // Lane width
-    // =====================================================
+    // -----------------------------------------------------
 
     const laneWidth =
       this.roadWidth /
       this.laneCount;
 
-    // =====================================================
+    // -----------------------------------------------------
     // Lane markings
-    // =====================================================
+    // -----------------------------------------------------
 
     for (
       let lane = 1;
@@ -290,9 +281,9 @@ export class World {
       );
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // Edge lines
-    // =====================================================
+    // -----------------------------------------------------
 
     this.createEdgeLine(
       group,
@@ -306,9 +297,9 @@ export class World {
         0.10
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // Barriers
-    // =====================================================
+    // -----------------------------------------------------
 
     this.createBarrier(
       group,
@@ -326,7 +317,7 @@ export class World {
   }
 
   // =========================================================
-  // Lane markings
+  // Lane Markings
   // =========================================================
 
   private createLaneMarkings(
@@ -379,7 +370,7 @@ export class World {
   }
 
   // =========================================================
-  // Edge line
+  // Edge Line
   // =========================================================
 
   private createEdgeLine(
@@ -418,9 +409,7 @@ export class World {
     group: THREE.Group,
     x: number
   ): void {
-    // -----------------------------------------------------
     // Rail
-    // -----------------------------------------------------
 
     const railGeometry =
       new THREE.BoxGeometry(
@@ -445,9 +434,7 @@ export class World {
       rail
     );
 
-    // -----------------------------------------------------
     // Posts
-    // -----------------------------------------------------
 
     const postGeometry =
       new THREE.BoxGeometry(
@@ -492,7 +479,7 @@ export class World {
   }
 
   // =========================================================
-  // Curve helper
+  // Curve X
   // =========================================================
 
   private getCurveX(
@@ -514,7 +501,7 @@ export class World {
   }
 
   // =========================================================
-  // Curve slope
+  // Curve Slope
   // =========================================================
 
   private getCurveSlope(
@@ -537,7 +524,101 @@ export class World {
   }
 
   // =========================================================
-  // V2.2 ROAD RECYCLING
+  // Calculate Current Logical Segment
+  // =========================================================
+
+  private getPlayerSegment(
+    playerZ: number
+  ): number {
+    return Math.floor(
+      -playerZ /
+        this.segmentLength
+    );
+  }
+
+  // =========================================================
+  // Update Segments
+  // =========================================================
+
+  private updateSegments(
+    playerZ: number
+  ): void {
+    const playerSegment =
+      this.getPlayerSegment(
+        playerZ
+      );
+
+    /*
+     * Keep many segments ahead of the player.
+     *
+     * The player is positioned around segment 0.
+     */
+    const firstLogicalIndex =
+      playerSegment - 2;
+
+    for (
+      let i = 0;
+      i < this.segments.length;
+      i++
+    ) {
+      const segment =
+        this.segments[i];
+
+      const logicalIndex =
+        firstLogicalIndex + i;
+
+      segment.logicalIndex =
+        logicalIndex;
+
+      const centerZ =
+        -(
+          logicalIndex *
+          this.segmentLength
+        );
+
+      this.applyTransform(
+        segment,
+        centerZ
+      );
+    }
+  }
+
+  // =========================================================
+  // Apply Transform
+  // =========================================================
+
+  private applyTransform(
+    segment: RoadSegment,
+    worldZ: number
+  ): void {
+    const x =
+      this.getCurveX(
+        worldZ
+      );
+
+    const slope =
+      this.getCurveSlope(
+        worldZ
+      );
+
+    segment.group.position.set(
+      x,
+      0,
+      worldZ
+    );
+
+    segment.group.rotation.x =
+      0;
+
+    segment.group.rotation.z =
+      0;
+
+    segment.group.rotation.y =
+      Math.atan(slope);
+  }
+
+  // =========================================================
+  // Public Update
   // =========================================================
 
   public update(
@@ -550,107 +631,38 @@ export class World {
     }
 
     /*
-     * Find the front-most road segment.
+     * Recalculate only when the player
+     * enters a new logical road segment.
      *
-     * Smaller Z = farther ahead.
+     * This prevents unnecessary transforms
+     * every frame.
      */
-    let frontMostZ =
-      Infinity;
 
-    for (
-      const segment of this.segments
+    const playerSegment =
+      this.getPlayerSegment(
+        playerZ
+      );
+
+    const firstSegment =
+      this.segments.length > 0
+        ? this.segments[0].logicalIndex
+        : 0;
+
+    const expectedFirst =
+      playerSegment - 2;
+
+    if (
+      firstSegment !==
+      expectedFirst
     ) {
-      if (
-        segment.z <
-        frontMostZ
-      ) {
-        frontMostZ =
-          segment.z;
-      }
-    }
-
-    /*
-     * A segment is behind the player
-     * when its center has moved sufficiently
-     * toward positive Z.
-     */
-    const recycleDistance =
-      this.segmentLength * 1.5;
-
-    for (
-      const segment of this.segments
-    ) {
-      const distanceBehind =
-        playerZ -
-        segment.z;
-
-      if (
-        distanceBehind >
-        recycleDistance
-      ) {
-        /*
-         * Move this exact same segment
-         * to the front of the road.
-         */
-        frontMostZ -=
-          this.segmentLength;
-
-        segment.z =
-          frontMostZ;
-
-        this.applySegmentTransform(
-          segment
-        );
-      }
+      this.updateSegments(
+        playerZ
+      );
     }
   }
 
   // =========================================================
-  // Apply segment transform
-  // =========================================================
-
-  private applySegmentTransform(
-    segment: RoadSegment
-  ): void {
-    const x =
-      this.getCurveX(
-        segment.z
-      );
-
-    const slope =
-      this.getCurveSlope(
-        segment.z
-      );
-
-    segment.group.position.x =
-      x;
-
-    segment.group.position.y =
-      0;
-
-    segment.group.position.z =
-      segment.z;
-
-    /*
-     * Straight road:
-     *
-     * rotationY = 0
-     *
-     * Curve mode:
-     * rotation follows the road direction.
-     */
-    segment.group.rotation.x =
-      0;
-
-    segment.group.rotation.z =
-      0;
-
-    segment.group.rotation.y =
-      Math.atan(slope);
-  }
-
-  // =========================================================
-  // Road center
+  // Road Center
   // =========================================================
 
   public getRoadCenterX(
@@ -662,7 +674,7 @@ export class World {
   }
 
   // =========================================================
-  // Road width
+  // Road Width
   // =========================================================
 
   public getRoadWidth(): number {
@@ -670,7 +682,7 @@ export class World {
   }
 
   // =========================================================
-  // Lane width
+  // Lane Width
   // =========================================================
 
   public getLaneWidth(): number {
@@ -681,7 +693,7 @@ export class World {
   }
 
   // =========================================================
-  // Lane count
+  // Lane Count
   // =========================================================
 
   public getLaneCount(): number {
@@ -730,4 +742,4 @@ export class World {
     this.markingMaterial.dispose();
     this.barrierMaterial.dispose();
   }
-}
+          }
