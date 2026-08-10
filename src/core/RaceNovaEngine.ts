@@ -79,7 +79,7 @@ export class RaceNovaEngine {
      this.world = new World(
   this.scene,
   {
-    roadWidth: 12,
+    roadWidth: 24,
     roadSegmentLength: 50,
     roadSegmentCount: 18,
     laneCount: 3,
