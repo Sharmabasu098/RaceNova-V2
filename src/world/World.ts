@@ -6,7 +6,7 @@ export interface WorldConfig {
   roadSegmentCount?: number;
   laneCount?: number;
 
-  // V2.1
+  // V2.2
   curveStrength?: number;
   curveFrequency?: number;
 }
@@ -14,7 +14,7 @@ export interface WorldConfig {
 interface RoadSegment {
   group: THREE.Group;
   index: number;
-  logicalIndex: number;
+  z: number;
 }
 
 export class World {
@@ -25,16 +25,13 @@ export class World {
   private readonly segmentCount: number;
   private readonly laneCount: number;
 
+  /*
+   * V2.2:
+   *
+   * Curve is OFF for the first stable-road test.
+   */
   private readonly curveStrength: number;
   private readonly curveFrequency: number;
-
-  /*
-   * Very small overlap.
-   *
-   * This prevents visible hairline gaps
-   * between neighbouring road pieces.
-   */
-  private readonly physicalSegmentLength: number;
 
   private readonly segments: RoadSegment[] = [];
 
@@ -80,30 +77,14 @@ export class World {
         )
       );
 
-    /*
-     * V2.1:
-     *
-     * Curve is disabled by default.
-     *
-     * This gives us a completely stable
-     * continuous highway first.
-     *
-     * Later we can safely introduce curves.
-     */
     this.curveStrength =
       config.curveStrength ?? 0;
 
     this.curveFrequency =
       config.curveFrequency ?? 0.015;
 
-    /*
-     * Slight overlap prevents tiny visual gaps.
-     */
-    this.physicalSegmentLength =
-      this.segmentLength + 0.20;
-
     // =====================================================
-    // World group
+    // Root world group
     // =====================================================
 
     this.worldGroup =
@@ -150,11 +131,6 @@ export class World {
     this.createGround();
 
     this.createRoadSegments();
-
-    /*
-     * Initial deterministic placement.
-     */
-    this.update(0);
   }
 
   // =========================================================
@@ -162,29 +138,39 @@ export class World {
   // =========================================================
 
   private createGround(): void {
+    /*
+     * Large ground area.
+     *
+     * We keep it much longer than the visible road
+     * so the first test does not expose ground edges.
+     */
     const groundLength =
-      this.segmentLength *
-      (this.segmentCount + 8);
+      Math.max(
+        5000,
+        this.segmentLength *
+          this.segmentCount *
+          4
+      );
 
-    const groundGeometry =
-      new THREE.BoxGeometry(
-        140,
-        0.20,
+    const geometry =
+      new THREE.PlaneGeometry(
+        160,
         groundLength
       );
 
     const ground =
       new THREE.Mesh(
-        groundGeometry,
+        geometry,
         this.grassMaterial
       );
 
+    ground.rotation.x =
+      -Math.PI / 2;
+
     ground.position.set(
       0,
-      -0.15,
-      -(
-        groundLength / 2
-      ) + 25
+      -0.10,
+      -groundLength / 2 + 100
     );
 
     ground.receiveShadow = true;
@@ -199,6 +185,17 @@ export class World {
   // =========================================================
 
   private createRoadSegments(): void {
+    /*
+     * IMPORTANT:
+     *
+     * Segment 0 center = 0
+     * Segment 1 center = -50
+     * Segment 2 center = -100
+     * ...
+     *
+     * Therefore every segment touches the next one exactly.
+     */
+
     for (
       let i = 0;
       i < this.segmentCount;
@@ -207,10 +204,20 @@ export class World {
       const group =
         this.createRoadSegment();
 
+      const z =
+        -i *
+        this.segmentLength;
+
+      group.position.set(
+        0,
+        0,
+        z
+      );
+
       const segment: RoadSegment = {
         group,
         index: i,
-        logicalIndex: 0
+        z
       };
 
       this.segments.push(
@@ -224,7 +231,7 @@ export class World {
   }
 
   // =========================================================
-  // Create one road segment
+  // Create single road segment
   // =========================================================
 
   private createRoadSegment(): THREE.Group {
@@ -232,14 +239,14 @@ export class World {
       new THREE.Group();
 
     // =====================================================
-    // Main road
+    // Road
     // =====================================================
 
     const roadGeometry =
       new THREE.BoxGeometry(
         this.roadWidth,
         0.15,
-        this.physicalSegmentLength
+        this.segmentLength
       );
 
     const road =
@@ -290,29 +297,29 @@ export class World {
     this.createEdgeLine(
       group,
       -this.roadWidth / 2 +
-        0.12
+        0.10
     );
 
     this.createEdgeLine(
       group,
       this.roadWidth / 2 -
-        0.12
+        0.10
     );
 
     // =====================================================
-    // Road barriers
+    // Barriers
     // =====================================================
 
     this.createBarrier(
       group,
       -this.roadWidth / 2 -
-        0.55
+        0.60
     );
 
     this.createBarrier(
       group,
       this.roadWidth / 2 +
-        0.55
+        0.60
     );
 
     return group;
@@ -329,12 +336,9 @@ export class World {
     const dashLength = 5;
     const gapLength = 5;
 
-    const usableLength =
-      this.segmentLength;
-
     const count =
       Math.floor(
-        usableLength /
+        this.segmentLength /
           (dashLength + gapLength)
       );
 
@@ -386,7 +390,7 @@ export class World {
       new THREE.BoxGeometry(
         0.18,
         0.04,
-        this.physicalSegmentLength
+        this.segmentLength
       );
 
     const line =
@@ -422,7 +426,7 @@ export class World {
       new THREE.BoxGeometry(
         0.25,
         0.25,
-        this.physicalSegmentLength
+        this.segmentLength
       );
 
     const rail =
@@ -449,14 +453,14 @@ export class World {
       new THREE.BoxGeometry(
         0.35,
         0.70,
-        1.20
+        0.30
       );
 
     const postSpacing = 5;
 
     const postCount =
-      Math.ceil(
-        this.physicalSegmentLength /
+      Math.floor(
+        this.segmentLength /
           postSpacing
       );
 
@@ -472,7 +476,7 @@ export class World {
         );
 
       const z =
-        -this.physicalSegmentLength / 2 +
+        -this.segmentLength / 2 +
         i * postSpacing;
 
       post.position.set(
@@ -488,7 +492,7 @@ export class World {
   }
 
   // =========================================================
-  // Smooth curve X
+  // Curve helper
   // =========================================================
 
   private getCurveX(
@@ -533,7 +537,7 @@ export class World {
   }
 
   // =========================================================
-  // World update
+  // V2.2 ROAD RECYCLING
   // =========================================================
 
   public update(
@@ -545,112 +549,108 @@ export class World {
       return;
     }
 
-    // =====================================================
-    // Determine player road segment
-    // =====================================================
-
-    const currentSegment =
-      Math.floor(
-        -playerZ /
-          this.segmentLength
-      );
-
     /*
-     * Keep an equal number of segments
-     * in front and behind the player.
+     * Find the front-most road segment.
+     *
+     * Smaller Z = farther ahead.
      */
-    const center =
-      Math.floor(
-        this.segmentCount / 2
-      );
-
-    // =====================================================
-    // Position segments
-    // =====================================================
+    let frontMostZ =
+      Infinity;
 
     for (
-      let i = 0;
-      i < this.segments.length;
-      i++
+      const segment of this.segments
     ) {
-      const segment =
-        this.segments[i];
+      if (
+        segment.z <
+        frontMostZ
+      ) {
+        frontMostZ =
+          segment.z;
+      }
+    }
 
-      /*
-       * Logical segment number.
-       *
-       * This is the important part of V2.1.
-       *
-       * Every road piece is always exactly
-       * one segmentLength away from its neighbour.
-       */
-      const logicalIndex =
-        currentSegment +
-        (i - center);
+    /*
+     * A segment is behind the player
+     * when its center has moved sufficiently
+     * toward positive Z.
+     */
+    const recycleDistance =
+      this.segmentLength * 1.5;
 
-      segment.logicalIndex =
-        logicalIndex;
+    for (
+      const segment of this.segments
+    ) {
+      const distanceBehind =
+        playerZ -
+        segment.z;
 
-      // ---------------------------------------------------
-      // Z position
-      // ---------------------------------------------------
+      if (
+        distanceBehind >
+        recycleDistance
+      ) {
+        /*
+         * Move this exact same segment
+         * to the front of the road.
+         */
+        frontMostZ -=
+          this.segmentLength;
 
-      const targetZ =
-        -logicalIndex *
-        this.segmentLength;
+        segment.z =
+          frontMostZ;
 
-      // ---------------------------------------------------
-      // X position
-      // ---------------------------------------------------
-
-      const targetX =
-        this.getCurveX(
-          targetZ
+        this.applySegmentTransform(
+          segment
         );
-
-      // ---------------------------------------------------
-      // Rotation
-      // ---------------------------------------------------
-
-      const slope =
-        this.getCurveSlope(
-          targetZ
-        );
-
-      const targetRotationY =
-        Math.atan(
-          slope
-        );
-
-      /*
-       * V2.1 uses deterministic transforms.
-       *
-       * No per-frame interpolation.
-       * No accumulating movement.
-       * No random offsets.
-       */
-      segment.group.position.x =
-        targetX;
-
-      segment.group.position.y =
-        0;
-
-      segment.group.position.z =
-        targetZ;
-
-      segment.group.rotation.x =
-        0;
-
-      segment.group.rotation.z =
-        0;
-
-      segment.group.rotation.y =
-        targetRotationY;
+      }
     }
   }
 
   // =========================================================
-  // Get road center
+  // Apply segment transform
+  // =========================================================
+
+  private applySegmentTransform(
+    segment: RoadSegment
+  ): void {
+    const x =
+      this.getCurveX(
+        segment.z
+      );
+
+    const slope =
+      this.getCurveSlope(
+        segment.z
+      );
+
+    segment.group.position.x =
+      x;
+
+    segment.group.position.y =
+      0;
+
+    segment.group.position.z =
+      segment.z;
+
+    /*
+     * Straight road:
+     *
+     * rotationY = 0
+     *
+     * Curve mode:
+     * rotation follows the road direction.
+     */
+    segment.group.rotation.x =
+      0;
+
+    segment.group.rotation.z =
+      0;
+
+    segment.group.rotation.y =
+      Math.atan(slope);
+  }
+
+  // =========================================================
+  // Road center
   // =========================================================
 
   public getRoadCenterX(
@@ -662,7 +662,7 @@ export class World {
   }
 
   // =========================================================
-  // Get road width
+  // Road width
   // =========================================================
 
   public getRoadWidth(): number {
@@ -670,7 +670,7 @@ export class World {
   }
 
   // =========================================================
-  // Get lane width
+  // Lane width
   // =========================================================
 
   public getLaneWidth(): number {
@@ -681,7 +681,7 @@ export class World {
   }
 
   // =========================================================
-  // Get lane count
+  // Lane count
   // =========================================================
 
   public getLaneCount(): number {
@@ -724,5 +724,10 @@ export class World {
     );
 
     this.segments.length = 0;
+
+    this.roadMaterial.dispose();
+    this.grassMaterial.dispose();
+    this.markingMaterial.dispose();
+    this.barrierMaterial.dispose();
   }
-      }
+}
