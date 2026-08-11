@@ -83,7 +83,8 @@ export class RaceNovaEngine {
     roadSegmentLength: 50,
     roadSegmentCount: 24,
     laneCount: 3,
-    curveStrength: 0
+    curveStrength: 8,
+    curveFrequency: 0.008
   }
 );
 
