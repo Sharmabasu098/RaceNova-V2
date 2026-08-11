@@ -103,14 +103,20 @@ export class RaceNovaEngine {
 
     // Car Controller
     this.carController =
-      new CarController(
-        this.playerCar,
-        {
-          laneWidth: 4,
-          laneCount: 3,
-          steeringSpeed: 10
-        }
-      );
+  new CarController(
+    this.playerCar,
+    {
+      laneWidth: 4,
+      laneCount: 3,
+      steeringSpeed: 10,
+
+      getRoadCenterX:
+        (worldZ: number) =>
+          this.world.getRoadCenterX(
+            worldZ
+          )
+    }
+  );
 
     // Swipe Controller
     this.swipeController =
