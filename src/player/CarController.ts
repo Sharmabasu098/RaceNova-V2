@@ -5,6 +5,16 @@ export interface CarControllerConfig {
   laneWidth?: number;
   laneCount?: number;
   steeringSpeed?: number;
+
+  /*
+   * Function supplied by World.
+   *
+   * It returns the road center X
+   * at the player's current Z position.
+   */
+  getRoadCenterX?: (
+    worldZ: number
+  ) => number;
 }
 
 export class CarController {
@@ -14,8 +24,22 @@ export class CarController {
   private readonly laneCount: number;
   private readonly steeringSpeed: number;
 
+  private readonly getRoadCenterX: (
+    worldZ: number
+  ) => number;
+
   private currentLane: number;
-  private targetX: number;
+
+  /*
+   * Lane offset relative to road center.
+   *
+   * Example for 3 lanes:
+   *
+   * lane 0 = -4
+   * lane 1 =  0
+   * lane 2 = +4
+   */
+  private targetLaneOffset: number;
 
   private leftPressed = false;
   private rightPressed = false;
@@ -26,27 +50,65 @@ export class CarController {
   ) {
     this.playerCar = playerCar;
 
-    this.laneWidth = config.laneWidth ?? 4;
-    this.laneCount = Math.max(
-      1,
-      Math.floor(config.laneCount ?? 3)
-    );
+    this.laneWidth =
+      config.laneWidth ?? 4;
+
+    this.laneCount =
+      Math.max(
+        1,
+        Math.floor(
+          config.laneCount ?? 3
+        )
+      );
 
     this.steeringSpeed =
       config.steeringSpeed ?? 10;
 
+    /*
+     * If World is not supplied,
+     * use a straight-road fallback.
+     */
+    this.getRoadCenterX =
+      config.getRoadCenterX ??
+      (() => 0);
+
     this.currentLane =
-      Math.floor(this.laneCount / 2);
+      Math.floor(
+        this.laneCount / 2
+      );
 
-    this.targetX =
-      this.getLaneX(this.currentLane);
+    this.targetLaneOffset =
+      this.getLaneOffset(
+        this.currentLane
+      );
 
-    this.playerCar.setX(this.targetX);
+    /*
+     * Start car at the correct
+     * center position.
+     */
+    const initialZ =
+      this.playerCar.getPosition().z;
+
+    const initialRoadCenter =
+      this.getRoadCenterX(
+        initialZ
+      );
+
+    this.playerCar.setX(
+      initialRoadCenter +
+      this.targetLaneOffset
+    );
 
     this.attachKeyboardControls();
   }
 
-  private getLaneX(lane: number): number {
+  // =========================================================
+  // Lane Offset
+  // =========================================================
+
+  private getLaneOffset(
+    lane: number
+  ): number {
     const centerLane =
       (this.laneCount - 1) / 2;
 
@@ -55,6 +117,10 @@ export class CarController {
       this.laneWidth
     );
   }
+
+  // =========================================================
+  // Keyboard Controls
+  // =========================================================
 
   private attachKeyboardControls(): void {
     window.addEventListener(
@@ -116,16 +182,28 @@ export class CarController {
     }
   };
 
+  // =========================================================
+  // Move Left
+  // =========================================================
+
   public moveLeft(): void {
-    if (this.currentLane <= 0) {
+    if (
+      this.currentLane <= 0
+    ) {
       return;
     }
 
     this.currentLane -= 1;
 
-    this.targetX =
-      this.getLaneX(this.currentLane);
+    this.targetLaneOffset =
+      this.getLaneOffset(
+        this.currentLane
+      );
   }
+
+  // =========================================================
+  // Move Right
+  // =========================================================
 
   public moveRight(): void {
     if (
@@ -137,38 +215,93 @@ export class CarController {
 
     this.currentLane += 1;
 
-    this.targetX =
-      this.getLaneX(this.currentLane);
+    this.targetLaneOffset =
+      this.getLaneOffset(
+        this.currentLane
+      );
   }
+
+  // =========================================================
+  // Update
+  // =========================================================
 
   public update(
     deltaTime: number
   ): void {
-    if (deltaTime <= 0) {
+    if (
+      deltaTime <= 0
+    ) {
       return;
     }
 
+    const position =
+      this.playerCar.getPosition();
+
+    /*
+     * Get the road center at the
+     * player's CURRENT Z position.
+     */
+    const roadCenterX =
+      this.getRoadCenterX(
+        position.z
+      );
+
+    /*
+     * Final target position:
+     *
+     * Road center
+     * +
+     * selected lane offset
+     */
+    const targetX =
+      roadCenterX +
+      this.targetLaneOffset;
+
     const currentX =
-      this.playerCar.getPosition().x;
+      position.x;
 
     const newX =
       THREE.MathUtils.damp(
         currentX,
-        this.targetX,
+        targetX,
         this.steeringSpeed,
         deltaTime
       );
 
-    this.playerCar.setX(newX);
+    this.playerCar.setX(
+      newX
+    );
   }
+
+  // =========================================================
+  // Get Current Lane
+  // =========================================================
 
   public getCurrentLane(): number {
     return this.currentLane;
   }
 
+  // =========================================================
+  // Get Target Lane Offset
+  // =========================================================
+
   public getTargetX(): number {
-    return this.targetX;
+    const playerZ =
+      this.playerCar
+        .getPosition()
+        .z;
+
+    return (
+      this.getRoadCenterX(
+        playerZ
+      ) +
+      this.targetLaneOffset
+    );
   }
+
+  // =========================================================
+  // Dispose
+  // =========================================================
 
   public dispose(): void {
     window.removeEventListener(
@@ -181,4 +314,4 @@ export class CarController {
       this.handleKeyUp
     );
   }
-        }
+}
