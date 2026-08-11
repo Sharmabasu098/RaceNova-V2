@@ -5,12 +5,6 @@ export interface CarControllerConfig {
   laneWidth?: number;
   laneCount?: number;
   steeringSpeed?: number;
-
-  getRoadCenterX?: (
-    worldZ: number
-  ) => number;
-
-  getRoadWidth?: () => number;
 }
 
 export class CarController {
@@ -20,22 +14,11 @@ export class CarController {
   private readonly laneCount: number;
   private readonly steeringSpeed: number;
 
-  private readonly getRoadCenterX: (
-    worldZ: number
-  ) => number;
-
-  private readonly getRoadWidth: () => number;
-
   private currentLane: number;
-  private targetLaneOffset: number;
+  private targetX: number;
 
   private leftPressed = false;
   private rightPressed = false;
-
-  private readonly maxSteeringAngle =
-    THREE.MathUtils.degToRad(14);
-
-  private readonly steeringRotationSpeed = 10;
 
   constructor(
     playerCar: PlayerCar,
@@ -46,58 +29,33 @@ export class CarController {
     this.laneWidth =
       config.laneWidth ?? 4;
 
-    this.laneCount =
-      Math.max(
-        1,
-        Math.floor(
-          config.laneCount ?? 3
-        )
-      );
+    this.laneCount = Math.max(
+      1,
+      Math.floor(config.laneCount ?? 3)
+    );
 
     this.steeringSpeed =
       config.steeringSpeed ?? 10;
 
-    this.getRoadCenterX =
-      config.getRoadCenterX ??
-      (() => 0);
-
-    this.getRoadWidth =
-      config.getRoadWidth ??
-      (() => 12);
-
+    // Start in center lane
     this.currentLane =
-      Math.floor(
-        this.laneCount / 2
-      );
+      Math.floor(this.laneCount / 2);
 
-    this.targetLaneOffset =
-      this.getLaneOffset(
-        this.currentLane
-      );
-
-    const initialZ =
-      this.playerCar.getPosition().z;
-
-    const roadCenterX =
-      this.getRoadCenterX(
-        initialZ
-      );
+    this.targetX =
+      this.getLaneX(this.currentLane);
 
     this.playerCar.setX(
-      roadCenterX +
-      this.targetLaneOffset
+      this.targetX
     );
-
-    this.playerCar.setRotationY(0);
 
     this.attachKeyboardControls();
   }
 
   // =========================================================
-  // Lane offset
+  // Lane X position
   // =========================================================
 
-  private getLaneOffset(
+  private getLaneX(
     lane: number
   ): number {
     const centerLane =
@@ -110,7 +68,7 @@ export class CarController {
   }
 
   // =========================================================
-  // Keyboard
+  // Keyboard controls
   // =========================================================
 
   private attachKeyboardControls(): void {
@@ -180,7 +138,7 @@ export class CarController {
   };
 
   // =========================================================
-  // Lane movement
+  // Move left
   // =========================================================
 
   public moveLeft(): void {
@@ -192,11 +150,15 @@ export class CarController {
 
     this.currentLane -= 1;
 
-    this.targetLaneOffset =
-      this.getLaneOffset(
+    this.targetX =
+      this.getLaneX(
         this.currentLane
       );
   }
+
+  // =========================================================
+  // Move right
+  // =========================================================
 
   public moveRight(): void {
     if (
@@ -208,134 +170,35 @@ export class CarController {
 
     this.currentLane += 1;
 
-    this.targetLaneOffset =
-      this.getLaneOffset(
+    this.targetX =
+      this.getLaneX(
         this.currentLane
       );
   }
 
   // =========================================================
-  // Road-relative target
-  // =========================================================
-
-  private getTargetX(): number {
-    const playerZ =
-      this.playerCar
-        .getPosition()
-        .z;
-
-    const roadCenterX =
-      this.getRoadCenterX(
-        playerZ
-      );
-
-    let targetX =
-      roadCenterX +
-      this.targetLaneOffset;
-
-    // -------------------------------------------------------
-    // Safety boundary
-    // -------------------------------------------------------
-
-    const roadWidth =
-      this.getRoadWidth();
-
-    /*
-     * Player car is approximately 2.2 world units wide.
-     *
-     * Keep half of that width away from
-     * the road edge.
-     */
-    const carHalfWidth = 1.1;
-
-    const safeHalfRoadWidth =
-      Math.max(
-        0,
-        roadWidth / 2 -
-          carHalfWidth
-      );
-
-    const minimumX =
-      roadCenterX -
-      safeHalfRoadWidth;
-
-    const maximumX =
-      roadCenterX +
-      safeHalfRoadWidth;
-
-    targetX =
-      THREE.MathUtils.clamp(
-        targetX,
-        minimumX,
-        maximumX
-      );
-
-    return targetX;
-  }
-
-  // =========================================================
-  // Estimate road heading
-  // =========================================================
-
-  private getRoadHeading(
-    worldZ: number
-  ): number {
-    const sampleDistance = 1;
-
-    const centerBefore =
-      this.getRoadCenterX(
-        worldZ +
-        sampleDistance
-      );
-
-    const centerAfter =
-      this.getRoadCenterX(
-        worldZ -
-        sampleDistance
-      );
-
-    /*
-     * Approximate dx/dz.
-     */
-    const slope =
-      (
-        centerAfter -
-        centerBefore
-      ) /
-      (
-        -2 *
-        sampleDistance
-      );
-
-    return Math.atan(slope);
-  }
-
-  // =========================================================
-  // Update
+  // Update steering
   // =========================================================
 
   public update(
     deltaTime: number
   ): void {
     if (
-      deltaTime <= 0
+      deltaTime <= 0 ||
+      !Number.isFinite(deltaTime)
     ) {
       return;
     }
 
-    const position =
-      this.playerCar.getPosition();
-
     const currentX =
-      position.x;
-
-    const targetX =
-      this.getTargetX();
+      this.playerCar
+        .getPosition()
+        .x;
 
     const newX =
       THREE.MathUtils.damp(
         currentX,
-        targetX,
+        this.targetX,
         this.steeringSpeed,
         deltaTime
       );
@@ -343,70 +206,57 @@ export class CarController {
     this.playerCar.setX(
       newX
     );
-
-    // -------------------------------------------------------
-    // Steering rotation
-    // -------------------------------------------------------
-
-    const lateralVelocity =
-      (
-        newX -
-        currentX
-      ) /
-      deltaTime;
-
-    const roadHeading =
-      this.getRoadHeading(
-        position.z
-      );
-
-    /*
-     * Lane-change steering.
-     *
-     * Faster lateral movement =
-     * slightly stronger steering angle.
-     */
-    const laneSteering =
-      THREE.MathUtils.clamp(
-        lateralVelocity * 0.08,
-        -this.maxSteeringAngle,
-        this.maxSteeringAngle
-      );
-
-    const targetRotation =
-      roadHeading +
-      laneSteering;
-
-    const currentRotation =
-      this.playerCar.getRotationY();
-
-    const newRotation =
-      THREE.MathUtils.damp(
-        currentRotation,
-        targetRotation,
-        this.steeringRotationSpeed,
-        deltaTime
-      );
-
-    this.playerCar.setRotationY(
-      newRotation
-    );
   }
 
   // =========================================================
-  // Getters
+  // Current lane
   // =========================================================
 
   public getCurrentLane(): number {
     return this.currentLane;
   }
 
+  // =========================================================
+  // Target X
+  // =========================================================
+
   public getTargetX(): number {
-    return this.getTargetXInternal();
+    return this.targetX;
   }
 
-  private getTargetXInternal(): number {
-    return this.getTargetX();
+  // =========================================================
+  // Lane center X
+  // =========================================================
+
+  public getLaneCenterX(
+    lane: number
+  ): number {
+    const safeLane =
+      THREE.MathUtils.clamp(
+        Math.floor(lane),
+        0,
+        this.laneCount - 1
+      );
+
+    return this.getLaneX(
+      safeLane
+    );
+  }
+
+  // =========================================================
+  // Get lane width
+  // =========================================================
+
+  public getLaneWidth(): number {
+    return this.laneWidth;
+  }
+
+  // =========================================================
+  // Get lane count
+  // =========================================================
+
+  public getLaneCount(): number {
+    return this.laneCount;
   }
 
   // =========================================================
@@ -424,4 +274,4 @@ export class CarController {
       this.handleKeyUp
     );
   }
-}
+  }
