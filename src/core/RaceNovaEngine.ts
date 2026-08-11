@@ -108,13 +108,7 @@ export class RaceNovaEngine {
     {
       laneWidth: 4,
       laneCount: 3,
-      steeringSpeed: 10,
-
-      getRoadCenterX:
-        (worldZ: number) =>
-          this.world.getRoadCenterX(
-            worldZ
-          )
+      steeringSpeed: 10
     }
   );
 
