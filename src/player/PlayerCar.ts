@@ -209,6 +209,16 @@ export class PlayerCar {
     this.group.position.z = z;
   }
 
+  public setRotationY(
+  rotationY: number
+): void {
+  this.group.rotation.y = rotationY;
+}
+
+public getRotationY(): number {
+  return this.group.rotation.y;
+}
+
   public addToScene(scene: THREE.Scene): void {
     scene.add(this.group);
   }
