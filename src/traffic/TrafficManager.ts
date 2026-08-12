@@ -47,9 +47,6 @@ export class TrafficManager {
   private readonly spawnCooldown = 1.2;
   private spawnTimer = 0;
 
-  private readonly random =
-    Math.random;
-
   constructor(
     scene: THREE.Scene,
     config: TrafficManagerConfig = {}
@@ -129,10 +126,7 @@ export class TrafficManager {
 
     this.spawnTimer += deltaTime;
 
-    // -------------------------------------------------------
     // Update existing traffic
-    // -------------------------------------------------------
-
     for (
       const trafficCar
       of this.trafficCars
@@ -152,18 +146,12 @@ export class TrafficManager {
       );
     }
 
-    // -------------------------------------------------------
-    // Remove cars that are behind player
-    // -------------------------------------------------------
-
+    // Remove distant traffic
     this.removeDistantCars(
       playerZ
     );
 
-    // -------------------------------------------------------
     // Spawn new traffic
-    // -------------------------------------------------------
-
     if (
       this.spawnTimer >=
         this.spawnCooldown &&
@@ -223,7 +211,7 @@ export class TrafficManager {
     const color =
       this.colors[
         Math.floor(
-          this.random() *
+          Math.random() *
           this.colors.length
         )
       ];
@@ -252,7 +240,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Lane selection
+  // Find available lane
   // =========================================================
 
   private findAvailableLane(
@@ -268,7 +256,7 @@ export class TrafficManager {
           index
       );
 
-    // Randomize lane order
+    // Shuffle lanes
     for (
       let i =
         lanes.length - 1;
@@ -277,7 +265,7 @@ export class TrafficManager {
     ) {
       const j =
         Math.floor(
-          this.random() *
+          Math.random() *
           (i + 1)
         );
 
@@ -308,7 +296,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Lane occupied check
+  // Check lane
   // =========================================================
 
   private isLaneOccupied(
@@ -367,7 +355,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Road alignment
+  // Keep traffic on curved road
   // =========================================================
 
   private updateRoadAlignment(
@@ -381,18 +369,10 @@ export class TrafficManager {
         position.z
       );
 
-    /*
-     * Preserve the car's lane offset
-     * while the road curves.
-     */
     const currentOffset =
       position.x -
       roadCenterX;
 
-    /*
-     * Clamp extreme offsets so traffic
-     * cannot drift outside the road.
-     */
     const roadHalfWidth =
       (this.laneWidth *
         this.laneCount) /
@@ -410,34 +390,6 @@ export class TrafficManager {
         safeOffset,
       position.y,
       position.z
-    );
-
-  // =========================================================
-  // Road heading
-  // =========================================================
-
-  private getRoadHeading(
-    worldZ: number
-  ): number {
-    const sample =
-      1;
-
-    const before =
-      this.getRoadCenterX(
-        worldZ + sample
-      );
-
-    const after =
-      this.getRoadCenterX(
-        worldZ - sample
-      );
-
-    const slope =
-      (after - before) /
-      (2 * sample);
-
-    return Math.atan(
-      slope
     );
   }
 
@@ -462,11 +414,6 @@ export class TrafficManager {
           .getPosition()
           .z;
 
-      /*
-       * Player moves toward negative Z.
-       *
-       * Traffic cars move toward positive Z.
-       */
       if (
         trafficZ >
         playerZ +
@@ -508,7 +455,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Random range
+  // Random speed
   // =========================================================
 
   private randomRange(
@@ -517,20 +464,22 @@ export class TrafficManager {
   ): number {
     return (
       min +
-      this.random() *
+      Math.random() *
         (max - min)
     );
   }
 
   // =========================================================
-  // Get traffic
+  // Public access
   // =========================================================
 
-  public getTrafficCars(): readonly TrafficCar[] {
+  public getTrafficCars():
+    readonly TrafficCar[] {
     return this.trafficCars;
   }
 
-  public getTrafficCount(): number {
+  public getTrafficCount():
+    number {
     return this.trafficCars.length;
   }
 
@@ -552,4 +501,4 @@ export class TrafficManager {
 
     this.trafficCars.length = 0;
   }
-      }
+}
