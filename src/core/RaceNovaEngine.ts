@@ -1,8 +1,10 @@
 import * as THREE from "three";
+
 import { World } from "../world/World";
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
+import { TrafficManager } from "../traffic/TrafficManager";
 
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
@@ -14,15 +16,22 @@ export class RaceNovaEngine {
   private readonly playerCar: PlayerCar;
   private readonly carController: CarController;
   private readonly swipeController: SwipeController;
+  private readonly trafficManager: TrafficManager;
 
   constructor(container: HTMLElement) {
+    // =====================================================
     // Scene
+    // =====================================================
+
     this.scene = new THREE.Scene();
 
     this.scene.background =
       new THREE.Color(0x87ceeb);
 
+    // =====================================================
     // Camera
+    // =====================================================
+
     this.camera =
       new THREE.PerspectiveCamera(
         60,
@@ -44,7 +53,10 @@ export class RaceNovaEngine {
       -20
     );
 
+    // =====================================================
     // Renderer
+    // =====================================================
+
     this.renderer =
       new THREE.WebGLRenderer({
         antialias: true,
@@ -64,31 +76,47 @@ export class RaceNovaEngine {
       window.innerHeight
     );
 
+    this.renderer.shadowMap.enabled = true;
+
     container.appendChild(
       this.renderer.domElement
     );
 
+    // =====================================================
     // Clock
+    // =====================================================
+
     this.clock =
       new THREE.Clock();
 
+    // =====================================================
     // Lighting
+    // =====================================================
+
     this.setupLighting();
 
+    // =====================================================
     // World
-     this.world = new World(
-  this.scene,
-  {
-    roadWidth: 12,
-    roadSegmentLength: 50,
-    roadSegmentCount: 24,
-    laneCount: 3,
-    curveStrength: 8,
-    curveFrequency: 0.008
-  }
-);
+    // =====================================================
 
+    this.world = new World(
+      this.scene,
+      {
+        roadWidth: 12,
+        roadSegmentLength: 50,
+        roadSegmentCount: 24,
+        laneCount: 3,
+
+        // Curved road
+        curveStrength: 8,
+        curveFrequency: 0.008
+      }
+    );
+
+    // =====================================================
     // Player Car
+    // =====================================================
+
     this.playerCar =
       new PlayerCar({
         x: 0,
@@ -101,26 +129,24 @@ export class RaceNovaEngine {
       this.scene
     );
 
+    // =====================================================
     // Car Controller
+    // =====================================================
+
     this.carController =
-  new CarController(
-    this.playerCar,
-    {
-      laneWidth: 4,
-      laneCount: 3,
-      steeringSpeed: 10,
+      new CarController(
+        this.playerCar,
+        {
+          laneWidth: 4,
+          laneCount: 3,
+          steeringSpeed: 10
+        }
+      );
 
-      getRoadCenterX: (
-        worldZ: number
-      ) => {
-        return this.world.getRoadCenterX(
-          worldZ
-        );
-      }
-    }
-  );
-
+    // =====================================================
     // Swipe Controller
+    // =====================================================
+
     this.swipeController =
       new SwipeController(
         this.carController,
@@ -131,12 +157,54 @@ export class RaceNovaEngine {
         }
       );
 
+    // =====================================================
+    // Traffic Manager
+    // =====================================================
+
+    this.trafficManager =
+      new TrafficManager(
+        this.scene,
+        {
+          laneWidth: 4,
+          laneCount: 3,
+
+          maxTraffic: 8,
+
+          spawnDistance: 140,
+          despawnDistance: 80,
+
+          minSpeed: 55,
+          maxSpeed: 95,
+
+          /*
+           * TrafficManager asks World where
+           * the road center is at a given Z.
+           *
+           * This keeps traffic aligned with
+           * the curved road.
+           */
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
+        }
+      );
+
+    // =====================================================
     // Resize
+    // =====================================================
+
     window.addEventListener(
       "resize",
       this.handleResize
     );
   }
+
+  // =========================================================
+  // Lighting
+  // =========================================================
 
   private setupLighting(): void {
     const ambientLight =
@@ -161,12 +229,26 @@ export class RaceNovaEngine {
       10
     );
 
-    this.scene.add(sun);
+    sun.castShadow = true;
+
+    this.scene.add(
+      sun
+    );
   }
 
+  // =========================================================
+  // Start
+  // =========================================================
+
   public start(): void {
+    this.clock.start();
+
     this.animate();
   }
+
+  // =========================================================
+  // Main animation loop
+  // =========================================================
 
   private animate = (): void => {
     requestAnimationFrame(
@@ -176,7 +258,9 @@ export class RaceNovaEngine {
     const deltaTime =
       this.clock.getDelta();
 
-    this.update(deltaTime);
+    this.update(
+      deltaTime
+    );
 
     this.renderer.render(
       this.scene,
@@ -184,36 +268,71 @@ export class RaceNovaEngine {
     );
   };
 
+  // =========================================================
+  // Game update
+  // =========================================================
+
   private update(
     deltaTime: number
   ): void {
+    if (
+      deltaTime <= 0
+    ) {
+      return;
+    }
+
+    // =====================================================
     // Player movement
+    // =====================================================
+
     this.playerCar.update(
       deltaTime
     );
 
-    // Steering
+    // =====================================================
+    // Player steering
+    // =====================================================
+
     this.carController.update(
       deltaTime
     );
 
-    // World
+    // =====================================================
+    // Player position
+    // =====================================================
+
+    const playerPosition =
+      this.playerCar.getPosition();
+
     const playerZ =
-      this.playerCar.getPosition().z;
+      playerPosition.z;
+
+    // =====================================================
+    // World
+    // =====================================================
 
     this.world.update(
       playerZ
     );
 
-    // Chase camera
-    const playerPosition =
-      this.playerCar.getPosition();
+    // =====================================================
+    // Traffic
+    // =====================================================
+
+    this.trafficManager.update(
+      deltaTime,
+      playerZ
+    );
+
+    // =====================================================
+    // Chase Camera
+    // =====================================================
 
     const targetCameraX =
       playerPosition.x;
 
     const targetCameraZ =
-      playerPosition.z + 10;
+      playerZ + 10;
 
     this.camera.position.x =
       THREE.MathUtils.damp(
@@ -234,22 +353,42 @@ export class RaceNovaEngine {
     this.camera.lookAt(
       playerPosition.x,
       0.5,
-      playerPosition.z - 20
+      playerZ - 20
     );
   }
 
+  // =========================================================
+  // Resize
+  // =========================================================
+
   private handleResize = (): void => {
-    this.camera.aspect =
-      window.innerWidth /
+    const width =
+      window.innerWidth;
+
+    const height =
       window.innerHeight;
+
+    this.camera.aspect =
+      width / height;
 
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
+      width,
+      height
+    );
+
+    this.renderer.setPixelRatio(
+      Math.min(
+        window.devicePixelRatio,
+        2
+      )
     );
   };
+
+  // =========================================================
+  // Dispose
+  // =========================================================
 
   public dispose(): void {
     window.removeEventListener(
@@ -257,12 +396,30 @@ export class RaceNovaEngine {
       this.handleResize
     );
 
+    // Swipe
     this.swipeController.dispose();
+
+    // Steering
     this.carController.dispose();
 
+    // Traffic
+    this.trafficManager.dispose();
+
+    // Player
     this.playerCar.dispose();
+
+    // World
     this.world.dispose();
 
+    // Renderer
     this.renderer.dispose();
+
+    if (
+      this.renderer.domElement.parentElement
+    ) {
+      this.renderer.domElement.parentElement.removeChild(
+        this.renderer.domElement
+      );
+    }
   }
-}
+        }
