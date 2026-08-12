@@ -297,4 +297,5 @@ export class CarController {
       this.handleKeyUp
     );
   }
-        }
+}
+    
