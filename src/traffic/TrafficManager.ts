@@ -412,19 +412,6 @@ export class TrafficManager {
       position.z
     );
 
-    /*
-     * Rotate traffic toward the road.
-     */
-    const heading =
-      this.getRoadHeading(
-        position.z
-      );
-
-    trafficCar.setRotationY(
-      heading
-    );
-  }
-
   // =========================================================
   // Road heading
   // =========================================================
