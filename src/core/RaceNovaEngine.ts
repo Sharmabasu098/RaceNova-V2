@@ -107,7 +107,6 @@ export class RaceNovaEngine {
         roadSegmentCount: 24,
         laneCount: 3,
 
-        // Curved road
         curveStrength: 8,
         curveFrequency: 0.008
       }
@@ -139,7 +138,20 @@ export class RaceNovaEngine {
         {
           laneWidth: 4,
           laneCount: 3,
-          steeringSpeed: 10
+          steeringSpeed: 10,
+
+          /*
+           * IMPORTANT:
+           *
+           * Player steering now uses the
+           * actual curved road center.
+           */
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
         }
       );
 
@@ -176,13 +188,6 @@ export class RaceNovaEngine {
           minSpeed: 55,
           maxSpeed: 95,
 
-          /*
-           * TrafficManager asks World where
-           * the road center is at a given Z.
-           *
-           * This keeps traffic aligned with
-           * the curved road.
-           */
           getRoadCenterX: (
             worldZ: number
           ) =>
@@ -247,7 +252,7 @@ export class RaceNovaEngine {
   }
 
   // =========================================================
-  // Main animation loop
+  // Animation
   // =========================================================
 
   private animate = (): void => {
@@ -269,7 +274,7 @@ export class RaceNovaEngine {
   };
 
   // =========================================================
-  // Game update
+  // Update
   // =========================================================
 
   private update(
@@ -281,25 +286,25 @@ export class RaceNovaEngine {
       return;
     }
 
-    // =====================================================
-    // Player movement
-    // =====================================================
+    // -----------------------------------------------------
+    // Player forward movement
+    // -----------------------------------------------------
 
     this.playerCar.update(
       deltaTime
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // Player steering
-    // =====================================================
+    // -----------------------------------------------------
 
     this.carController.update(
       deltaTime
     );
 
-    // =====================================================
+    // -----------------------------------------------------
     // Player position
-    // =====================================================
+    // -----------------------------------------------------
 
     const playerPosition =
       this.playerCar.getPosition();
@@ -307,26 +312,26 @@ export class RaceNovaEngine {
     const playerZ =
       playerPosition.z;
 
-    // =====================================================
-    // World
-    // =====================================================
+    // -----------------------------------------------------
+    // Update world
+    // -----------------------------------------------------
 
     this.world.update(
       playerZ
     );
 
-    // =====================================================
-    // Traffic
-    // =====================================================
+    // -----------------------------------------------------
+    // Update traffic
+    // -----------------------------------------------------
 
     this.trafficManager.update(
       deltaTime,
       playerZ
     );
 
-    // =====================================================
-    // Chase Camera
-    // =====================================================
+    // -----------------------------------------------------
+    // Chase camera
+    // -----------------------------------------------------
 
     const targetCameraX =
       playerPosition.x;
@@ -396,22 +401,16 @@ export class RaceNovaEngine {
       this.handleResize
     );
 
-    // Swipe
     this.swipeController.dispose();
 
-    // Steering
     this.carController.dispose();
 
-    // Traffic
     this.trafficManager.dispose();
 
-    // Player
     this.playerCar.dispose();
 
-    // World
     this.world.dispose();
 
-    // Renderer
     this.renderer.dispose();
 
     if (
@@ -422,4 +421,4 @@ export class RaceNovaEngine {
       );
     }
   }
-        }
+}
