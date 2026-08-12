@@ -6,8 +6,10 @@ export interface CarControllerConfig {
   laneCount?: number;
   steeringSpeed?: number;
 
-  // Current road center X at player's Z position
-  getRoadCenterX?: (worldZ: number) => number;
+  // Curved road support
+  getRoadCenterX?: (
+    worldZ: number
+  ) => number;
 }
 
 export class CarController {
@@ -18,13 +20,10 @@ export class CarController {
   private readonly steeringSpeed: number;
 
   private readonly getRoadCenterX:
-    | ((worldZ: number) => number)
-    | null;
+    (worldZ: number) => number;
 
   private currentLane: number;
-
-  private targetRoadOffsetX = 0;
-  private targetX = 0;
+  private targetX: number;
 
   private leftPressed = false;
   private rightPressed = false;
@@ -48,26 +47,24 @@ export class CarController {
     this.steeringSpeed =
       config.steeringSpeed ?? 10;
 
+    /*
+     * If no road callback is provided,
+     * use a straight road.
+     */
     this.getRoadCenterX =
-      config.getRoadCenterX ?? null;
+      config.getRoadCenterX ??
+      (() => 0);
 
-    // Start in center lane
+    /*
+     * Start in center lane.
+     */
     this.currentLane =
       Math.floor(
         this.laneCount / 2
       );
 
-    this.targetRoadOffsetX =
-      this.getLaneOffsetX(
-        this.currentLane
-      );
-
-    const initialRoadCenterX =
-      this.getCurrentRoadCenterX();
-
     this.targetX =
-      initialRoadCenterX +
-      this.targetRoadOffsetX;
+      this.getTargetX();
 
     this.playerCar.setX(
       this.targetX
@@ -77,10 +74,10 @@ export class CarController {
   }
 
   // =========================================================
-  // Lane offset relative to road center
+  // Lane offset
   // =========================================================
 
-  private getLaneOffsetX(
+  private getLaneOffset(
     lane: number
   ): number {
     const centerLane =
@@ -93,14 +90,10 @@ export class CarController {
   }
 
   // =========================================================
-  // Current road center
+  // Target X
   // =========================================================
 
-  private getCurrentRoadCenterX(): number {
-    if (!this.getRoadCenterX) {
-      return 0;
-    }
-
+  private getTargetX(): number {
     const playerZ =
       this.playerCar.getPosition().z;
 
@@ -109,11 +102,12 @@ export class CarController {
         playerZ
       );
 
-    return Number.isFinite(
-      roadCenterX
-    )
-      ? roadCenterX
-      : 0;
+    return (
+      roadCenterX +
+      this.getLaneOffset(
+        this.currentLane
+      )
+    );
   }
 
   // =========================================================
@@ -199,10 +193,8 @@ export class CarController {
 
     this.currentLane -= 1;
 
-    this.targetRoadOffsetX =
-      this.getLaneOffsetX(
-        this.currentLane
-      );
+    this.targetX =
+      this.getTargetX();
   }
 
   // =========================================================
@@ -219,10 +211,8 @@ export class CarController {
 
     this.currentLane += 1;
 
-    this.targetRoadOffsetX =
-      this.getLaneOffsetX(
-        this.currentLane
-      );
+    this.targetX =
+      this.getTargetX();
   }
 
   // =========================================================
@@ -241,17 +231,28 @@ export class CarController {
     /*
      * IMPORTANT:
      *
-     * Road center moves when the road curves.
+     * The road center changes as the player
+     * travels through the curve.
      *
-     * Therefore target X must be recalculated
-     * every frame.
+     * Therefore targetX must be recalculated
+     * continuously.
      */
+    const playerZ =
+      this.playerCar.getPosition().z;
+
     const roadCenterX =
-      this.getCurrentRoadCenterX();
+      this.getRoadCenterX(
+        playerZ
+      );
+
+    const laneOffset =
+      this.getLaneOffset(
+        this.currentLane
+      );
 
     this.targetX =
       roadCenterX +
-      this.targetRoadOffsetX;
+      laneOffset;
 
     const currentX =
       this.playerCar.getPosition().x;
@@ -281,10 +282,6 @@ export class CarController {
     return this.targetX;
   }
 
-  public getTargetRoadOffsetX(): number {
-    return this.targetRoadOffsetX;
-  }
-
   // =========================================================
   // Dispose
   // =========================================================
@@ -300,4 +297,4 @@ export class CarController {
       this.handleKeyUp
     );
   }
-}
+        }
