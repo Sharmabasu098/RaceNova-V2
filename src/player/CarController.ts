@@ -5,22 +5,15 @@ export interface CarControllerConfig {
   laneWidth?: number;
   laneCount?: number;
   steeringSpeed?: number;
-
-  // Curved road support
-  getRoadCenterX?: (
-    worldZ: number
-  ) => number;
+  getRoadCenterX?: (worldZ: number) => number;
 }
 
 export class CarController {
   private readonly playerCar: PlayerCar;
-
   private readonly laneWidth: number;
   private readonly laneCount: number;
   private readonly steeringSpeed: number;
-
-  private readonly getRoadCenterX:
-    (worldZ: number) => number;
+  private readonly getRoadCenterX: (worldZ: number) => number;
 
   private currentLane: number;
   private targetX: number;
@@ -34,52 +27,31 @@ export class CarController {
   ) {
     this.playerCar = playerCar;
 
-    this.laneWidth =
-      config.laneWidth ?? 4;
+    this.laneWidth = config.laneWidth ?? 4;
 
     this.laneCount = Math.max(
       1,
-      Math.floor(
-        config.laneCount ?? 3
-      )
+      Math.floor(config.laneCount ?? 3)
     );
 
     this.steeringSpeed =
       config.steeringSpeed ?? 10;
 
-    /*
-     * If no road callback is provided,
-     * use a straight road.
-     */
     this.getRoadCenterX =
-      config.getRoadCenterX ??
-      (() => 0);
+      config.getRoadCenterX ?? (() => 0);
 
-    /*
-     * Start in center lane.
-     */
     this.currentLane =
-      Math.floor(
-        this.laneCount / 2
-      );
+      Math.floor(this.laneCount / 2);
 
     this.targetX =
-      this.getTargetX();
+      this.calculateTargetX();
 
-    this.playerCar.setX(
-      this.targetX
-    );
+    this.playerCar.setX(this.targetX);
 
     this.attachKeyboardControls();
   }
 
-  // =========================================================
-  // Lane offset
-  // =========================================================
-
-  private getLaneOffset(
-    lane: number
-  ): number {
+  private getLaneOffset(lane: number): number {
     const centerLane =
       (this.laneCount - 1) / 2;
 
@@ -89,30 +61,15 @@ export class CarController {
     );
   }
 
-  // =========================================================
-  // Target X
-  // =========================================================
-
-  private getTargetX(): number {
+  private calculateTargetX(): number {
     const playerZ =
       this.playerCar.getPosition().z;
 
-    const roadCenterX =
-      this.getRoadCenterX(
-        playerZ
-      );
-
     return (
-      roadCenterX +
-      this.getLaneOffset(
-        this.currentLane
-      )
+      this.getRoadCenterX(playerZ) +
+      this.getLaneOffset(this.currentLane)
     );
   }
-
-  // =========================================================
-  // Keyboard
-  // =========================================================
 
   private attachKeyboardControls(): void {
     window.addEventListener(
@@ -129,8 +86,7 @@ export class CarController {
   private handleKeyDown = (
     event: KeyboardEvent
   ): void => {
-    const key =
-      event.key.toLowerCase();
+    const key = event.key.toLowerCase();
 
     if (
       event.key === "ArrowLeft" ||
@@ -162,8 +118,7 @@ export class CarController {
   private handleKeyUp = (
     event: KeyboardEvent
   ): void => {
-    const key =
-      event.key.toLowerCase();
+    const key = event.key.toLowerCase();
 
     if (
       event.key === "ArrowLeft" ||
@@ -180,26 +135,15 @@ export class CarController {
     }
   };
 
-  // =========================================================
-  // Move left
-  // =========================================================
-
   public moveLeft(): void {
-    if (
-      this.currentLane <= 0
-    ) {
+    if (this.currentLane <= 0) {
       return;
     }
 
     this.currentLane -= 1;
-
     this.targetX =
-      this.getTargetX();
+      this.calculateTargetX();
   }
-
-  // =========================================================
-  // Move right
-  // =========================================================
 
   public moveRight(): void {
     if (
@@ -210,49 +154,17 @@ export class CarController {
     }
 
     this.currentLane += 1;
-
     this.targetX =
-      this.getTargetX();
+      this.calculateTargetX();
   }
 
-  // =========================================================
-  // Update
-  // =========================================================
-
-  public update(
-    deltaTime: number
-  ): void {
-    if (
-      deltaTime <= 0
-    ) {
+  public update(deltaTime: number): void {
+    if (deltaTime <= 0) {
       return;
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * The road center changes as the player
-     * travels through the curve.
-     *
-     * Therefore targetX must be recalculated
-     * continuously.
-     */
-    const playerZ =
-      this.playerCar.getPosition().z;
-
-    const roadCenterX =
-      this.getRoadCenterX(
-        playerZ
-      );
-
-    const laneOffset =
-      this.getLaneOffset(
-        this.currentLane
-      );
-
     this.targetX =
-      roadCenterX +
-      laneOffset;
+      this.calculateTargetX();
 
     const currentX =
       this.playerCar.getPosition().x;
@@ -265,14 +177,8 @@ export class CarController {
         deltaTime
       );
 
-    this.playerCar.setX(
-      newX
-    );
+    this.playerCar.setX(newX);
   }
-
-  // =========================================================
-  // Getters
-  // =========================================================
 
   public getCurrentLane(): number {
     return this.currentLane;
@@ -281,10 +187,6 @@ export class CarController {
   public getTargetX(): number {
     return this.targetX;
   }
-
-  // =========================================================
-  // Dispose
-  // =========================================================
 
   public dispose(): void {
     window.removeEventListener(
@@ -298,4 +200,3 @@ export class CarController {
     );
   }
 }
-    
