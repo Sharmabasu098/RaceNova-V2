@@ -5,6 +5,8 @@ import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
 import { TrafficManager } from "../traffic/TrafficManager";
+import { TrafficManager } from "../traffic/TrafficManager";
+import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
@@ -17,6 +19,8 @@ export class RaceNovaEngine {
   private readonly carController: CarController;
   private readonly swipeController: SwipeController;
   private readonly trafficManager: TrafficManager;
+  private readonly trafficCollisionSystem:
+  TrafficCollisionSystem;
 
   constructor(container: HTMLElement) {
     // =====================================================
@@ -198,6 +202,19 @@ export class RaceNovaEngine {
       );
 
     // =====================================================
+// Traffic Collision System
+// =====================================================
+
+this.trafficCollisionSystem =
+  new TrafficCollisionSystem(
+    this.playerCar,
+    {
+      collisionWidth: 1.8,
+      collisionDepth: 3.4
+    }
+  );
+
+    // =====================================================
     // Resize
     // =====================================================
 
@@ -329,6 +346,10 @@ export class RaceNovaEngine {
       playerZ
     );
 
+    this.trafficCollisionSystem.update(
+  this.trafficManager.getTrafficCars()
+);
+
     // -----------------------------------------------------
     // Chase camera
     // -----------------------------------------------------
@@ -406,6 +427,8 @@ export class RaceNovaEngine {
     this.carController.dispose();
 
     this.trafficManager.dispose();
+
+    this.trafficCollisionSystem.dispose();
 
     this.playerCar.dispose();
 
