@@ -340,4 +340,4 @@ export class TrafficCar {
       }
     );
   }
-  }
+}
