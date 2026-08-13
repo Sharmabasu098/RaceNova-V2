@@ -4,8 +4,7 @@ import { World } from "../world/World";
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
-import { TrafficManager } from "../traffic/TrafficManager";
-import { TrafficManager } from "../traffic/TrafficManager";
+import { TrafficManager } from "../traffic/TrafficManager"; 
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 
 export class RaceNovaEngine {
