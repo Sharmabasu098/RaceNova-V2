@@ -6,10 +6,15 @@ export interface PlayerCarConfig {
   z?: number;
   scale?: number;
 
-  // Speed configuration
   maxSpeed?: number;
   acceleration?: number;
   hardSpeedCap?: number;
+
+  // Nitro
+  maxNitro?: number;
+  nitroDuration?: number;
+  nitroBoost?: number;
+  nitroRechargeRate?: number;
 }
 
 export class PlayerCar {
@@ -22,31 +27,25 @@ export class PlayerCar {
   // Speed System
   // =========================================================
 
-  /**
-   * Authoritative gameplay speed in km/h.
-   */
   private speed = 0;
 
-  /**
-   * Normal maximum driving speed.
-   *
-   * Nitro will later be allowed to temporarily
-   * push the car above this value.
-   */
   private readonly maxSpeed: number;
-
-  /**
-   * Absolute safety limit.
-   *
-   * No gameplay system should be able to push
-   * the car above this value.
-   */
   private readonly hardSpeedCap: number;
-
-  /**
-   * Normal acceleration in km/h per second.
-   */
   private readonly acceleration: number;
+
+  // =========================================================
+  // Nitro System
+  // =========================================================
+
+  private readonly maxNitro: number;
+  private nitroAmount: number;
+
+  private readonly nitroDuration: number;
+  private readonly nitroBoost: number;
+  private readonly nitroRechargeRate: number;
+
+  private nitroActive = false;
+  private nitroTimer = 0;
 
   constructor(
     config: PlayerCarConfig = {}
@@ -86,6 +85,37 @@ export class PlayerCar {
       Math.max(
         0,
         config.acceleration ?? 35
+      );
+
+    // =====================================================
+    // Nitro configuration
+    // =====================================================
+
+    this.maxNitro =
+      Math.max(
+        0,
+        config.maxNitro ?? 100
+      );
+
+    this.nitroAmount =
+      this.maxNitro;
+
+    this.nitroDuration =
+      Math.max(
+        0,
+        config.nitroDuration ?? 3
+      );
+
+    this.nitroBoost =
+      Math.max(
+        0,
+        config.nitroBoost ?? 45
+      );
+
+    this.nitroRechargeRate =
+      Math.max(
+        0,
+        config.nitroRechargeRate ?? 0
       );
 
     // =====================================================
@@ -268,34 +298,51 @@ export class PlayerCar {
       return;
     }
 
-    /*
-     * Normal acceleration.
-     *
-     * Nitro will later modify speed through
-     * dedicated methods instead of creating
-     * another movement system.
-     */
+    // =====================================================
+    // Nitro timer
+    // =====================================================
+
+    if (this.nitroActive) {
+      this.nitroTimer -= deltaTime;
+
+      if (
+        this.nitroTimer <= 0
+      ) {
+        this.stopNitro();
+      }
+    }
+
+    // =====================================================
+    // Normal acceleration
+    // =====================================================
+
     this.speed +=
       this.acceleration *
       deltaTime;
 
-    /*
-     * Normal driving speed is capped at
-     * maxSpeed.
-     *
-     * A future Nitro system can temporarily
-     * increase the speed above this value
-     * using setSpeed().
-     */
+    // =====================================================
+    // Speed limit
+    // =====================================================
+
+    const currentMaximum =
+      this.nitroActive
+        ? Math.min(
+            this.maxSpeed +
+              this.nitroBoost,
+            this.hardSpeedCap
+          )
+        : this.maxSpeed;
+
     this.speed =
       Math.min(
         this.speed,
-        this.maxSpeed
+        currentMaximum
       );
 
-    /*
-     * Absolute safety cap.
-     */
+    // =====================================================
+    // Hard safety cap
+    // =====================================================
+
     this.speed =
       THREE.MathUtils.clamp(
         this.speed,
@@ -304,7 +351,7 @@ export class PlayerCar {
       );
 
     // =====================================================
-    // Convert km/h → world units / second
+    // Convert km/h → world units/sec
     // =====================================================
 
     const worldSpeed =
@@ -334,42 +381,43 @@ export class PlayerCar {
       wheel.rotation.x -=
         wheelRotation;
     }
+
+    // =====================================================
+    // Optional Nitro recharge
+    // =====================================================
+
+    if (
+      !this.nitroActive &&
+      this.nitroRechargeRate > 0 &&
+      this.nitroAmount <
+        this.maxNitro
+    ) {
+      this.nitroAmount =
+        Math.min(
+          this.maxNitro,
+          this.nitroAmount +
+            this.nitroRechargeRate *
+              deltaTime
+        );
+    }
   }
 
   // =========================================================
   // Speed API
   // =========================================================
 
-  /**
-   * Returns the authoritative gameplay speed.
-   */
   public getSpeed(): number {
     return this.speed;
   }
 
-  /**
-   * Returns the normal maximum speed.
-   */
   public getMaxSpeed(): number {
     return this.maxSpeed;
   }
 
-  /**
-   * Returns the absolute safety cap.
-   */
   public getHardSpeedCap(): number {
     return this.hardSpeedCap;
   }
 
-  /**
-   * Sets speed while respecting the hard cap.
-   *
-   * This will be used by:
-   * - Collision
-   * - Nitro
-   * - Future Drift
-   * - Future gameplay systems
-   */
   public setSpeed(
     speed: number
   ): void {
@@ -387,11 +435,114 @@ export class PlayerCar {
       );
   }
 
-  /**
-   * Instantly stop the car.
-   */
   public stop(): void {
     this.speed = 0;
+  }
+
+  // =========================================================
+  // Nitro API
+  // =========================================================
+
+  /**
+   * Start Nitro.
+   *
+   * Returns true when Nitro successfully starts.
+   */
+  public activateNitro(): boolean {
+    if (
+      this.nitroActive
+    ) {
+      return false;
+    }
+
+    if (
+      this.nitroAmount <= 0
+    ) {
+      return false;
+    }
+
+    if (
+      this.nitroDuration <= 0
+    ) {
+      return false;
+    }
+
+    this.nitroActive = true;
+    this.nitroTimer =
+      this.nitroDuration;
+
+    /*
+     * Consume the available Nitro.
+     *
+     * M2.2 uses a simple full activation model.
+     * Later we can make it continuous.
+     */
+    this.nitroAmount = 0;
+
+    /*
+     * Immediately increase speed so
+     * Nitro has a visible gameplay effect.
+     */
+    this.speed =
+      Math.min(
+        this.speed +
+          this.nitroBoost,
+        this.hardSpeedCap
+      );
+
+    return true;
+  }
+
+  /**
+   * Stop Nitro immediately.
+   */
+  public stopNitro(): void {
+    this.nitroActive = false;
+    this.nitroTimer = 0;
+
+    /*
+     * When Nitro ends, don't suddenly kill
+     * the car's speed. The normal max speed
+     * will take effect naturally.
+     */
+    this.speed =
+      Math.min(
+        this.speed,
+        this.maxSpeed
+      );
+  }
+
+  public isNitroActive(): boolean {
+    return this.nitroActive;
+  }
+
+  public getNitroAmount(): number {
+    return this.nitroAmount;
+  }
+
+  public getMaxNitro(): number {
+    return this.maxNitro;
+  }
+
+  public getNitroTimer(): number {
+    return this.nitroTimer;
+  }
+
+  public setNitroAmount(
+    amount: number
+  ): void {
+    if (
+      !Number.isFinite(amount)
+    ) {
+      return;
+    }
+
+    this.nitroAmount =
+      THREE.MathUtils.clamp(
+        amount,
+        0,
+        this.maxNitro
+      );
   }
 
   // =========================================================
