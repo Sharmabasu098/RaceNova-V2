@@ -214,6 +214,15 @@ this.trafficCollisionSystem =
   );
 
     // =====================================================
+// Nitro Control
+// =====================================================
+
+window.addEventListener(
+  "keydown",
+  this.handleNitroKeyDown
+);
+
+    // =====================================================
     // Resize
     // =====================================================
 
@@ -389,6 +398,30 @@ if (
   }
 
   // =========================================================
+// Nitro Control
+// =========================================================
+
+private handleNitroKeyDown = (
+  event: KeyboardEvent
+): void => {
+  if (
+    event.key.toLowerCase() !== "n"
+  ) {
+    return;
+  }
+
+  /*
+   * Prevent repeated activation while
+   * the N key is being held down.
+   */
+  if (event.repeat) {
+    return;
+  }
+
+  this.playerCar.activateNitro();
+};
+
+  // =========================================================
   // Resize
   // =========================================================
 
@@ -426,6 +459,11 @@ if (
       "resize",
       this.handleResize
     );
+
+    window.removeEventListener(
+  "keydown",
+  this.handleNitroKeyDown
+);
 
     this.swipeController.dispose();
 
