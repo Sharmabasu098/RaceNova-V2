@@ -302,13 +302,19 @@ this.trafficCollisionSystem =
       return;
     }
 
-    // -----------------------------------------------------
-    // Player forward movement
-    // -----------------------------------------------------
+// -----------------------------------------------------
+// Player forward movement
+// -----------------------------------------------------
 
-    this.playerCar.update(
-      deltaTime
-    );
+if (
+  !this.trafficCollisionSystem.hasCrashed()
+) {
+  this.playerCar.update(
+    deltaTime
+  );
+}
+    
+  
 
     // -----------------------------------------------------
     // Player steering
