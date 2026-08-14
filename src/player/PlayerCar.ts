@@ -5,6 +5,11 @@ export interface PlayerCarConfig {
   y?: number;
   z?: number;
   scale?: number;
+
+  // Speed configuration
+  maxSpeed?: number;
+  acceleration?: number;
+  hardSpeedCap?: number;
 }
 
 export class PlayerCar {
@@ -13,14 +18,43 @@ export class PlayerCar {
   private readonly body: THREE.Mesh;
   private readonly wheels: THREE.Mesh[] = [];
 
-  private speed = 0;
-  private readonly maxSpeed = 128;
-  private readonly acceleration = 35;
+  // =========================================================
+  // Speed System
+  // =========================================================
 
-  constructor(config: PlayerCarConfig = {}) {
+  /**
+   * Authoritative gameplay speed in km/h.
+   */
+  private speed = 0;
+
+  /**
+   * Normal maximum driving speed.
+   *
+   * Nitro will later be allowed to temporarily
+   * push the car above this value.
+   */
+  private readonly maxSpeed: number;
+
+  /**
+   * Absolute safety limit.
+   *
+   * No gameplay system should be able to push
+   * the car above this value.
+   */
+  private readonly hardSpeedCap: number;
+
+  /**
+   * Normal acceleration in km/h per second.
+   */
+  private readonly acceleration: number;
+
+  constructor(
+    config: PlayerCarConfig = {}
+  ) {
     this.group = new THREE.Group();
 
-    const scale = config.scale ?? 1;
+    const scale =
+      config.scale ?? 1;
 
     this.group.position.set(
       config.x ?? 0,
@@ -28,53 +62,89 @@ export class PlayerCar {
       config.z ?? 0
     );
 
-    this.group.scale.setScalar(scale);
+    this.group.scale.setScalar(
+      scale
+    );
 
-    // -------------------------
+    // =====================================================
+    // Speed configuration
+    // =====================================================
+
+    this.maxSpeed =
+      Math.max(
+        1,
+        config.maxSpeed ?? 128
+      );
+
+    this.hardSpeedCap =
+      Math.max(
+        this.maxSpeed,
+        config.hardSpeedCap ?? 180
+      );
+
+    this.acceleration =
+      Math.max(
+        0,
+        config.acceleration ?? 35
+      );
+
+    // =====================================================
     // Car body
-    // -------------------------
+    // =====================================================
 
-    const bodyGeometry = new THREE.BoxGeometry(
-      2.2,
-      0.55,
-      4.2
+    const bodyGeometry =
+      new THREE.BoxGeometry(
+        2.2,
+        0.55,
+        4.2
+      );
+
+    const bodyMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xb51f2a,
+        roughness: 0.65,
+        metalness: 0.15
+      });
+
+    this.body =
+      new THREE.Mesh(
+        bodyGeometry,
+        bodyMaterial
+      );
+
+    this.body.position.y =
+      0.35;
+
+    this.body.castShadow = true;
+    this.body.receiveShadow = true;
+
+    this.group.add(
+      this.body
     );
 
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xb51f2a,
-      roughness: 0.65,
-      metalness: 0.15
-    });
-
-    this.body = new THREE.Mesh(
-      bodyGeometry,
-      bodyMaterial
-    );
-
-    this.body.position.y = 0.35;
-
-    this.group.add(this.body);
-
-    // -------------------------
+    // =====================================================
     // Cabin
-    // -------------------------
+    // =====================================================
 
-    const cabinGeometry = new THREE.BoxGeometry(
-      1.55,
-      0.55,
-      1.75
-    );
+    const cabinGeometry =
+      new THREE.BoxGeometry(
+        1.55,
+        0.55,
+        1.75
+      );
 
-    const cabinMaterial = new THREE.MeshStandardMaterial({
-      color: 0x20252b,
-      roughness: 0.35,
-      metalness: 0.1
-    });
+    const cabinMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x20252b,
+        roughness: 0.35,
+        metalness: 0.1
+      });
 
-    const cabin = new THREE.Mesh(
-      cabinGeometry,
-      cabinMaterial
-    );
+    const cabin =
+      new THREE.Mesh(
+        cabinGeometry,
+        cabinMaterial
+      );
 
     cabin.position.set(
       0,
@@ -82,11 +152,15 @@ export class PlayerCar {
       -0.15
     );
 
-    this.group.add(cabin);
+    cabin.castShadow = true;
 
-    // -------------------------
+    this.group.add(
+      cabin
+    );
+
+    // =====================================================
     // Wheels
-    // -------------------------
+    // =====================================================
 
     const wheelGeometry =
       new THREE.CylinderGeometry(
@@ -102,31 +176,49 @@ export class PlayerCar {
         roughness: 0.85
       });
 
-    const wheelPositions: Array<
-      [number, number, number]
-    > = [
-      [-1.12, 0.25, 1.35],
-      [1.12, 0.25, 1.35],
-      [-1.12, 0.25, -1.35],
-      [1.12, 0.25, -1.35]
-    ];
+    const wheelPositions:
+      Array<
+        [number, number, number]
+      > = [
+        [-1.12, 0.25, 1.35],
+        [1.12, 0.25, 1.35],
+        [-1.12, 0.25, -1.35],
+        [1.12, 0.25, -1.35]
+      ];
 
-    for (const [x, y, z] of wheelPositions) {
-      const wheel = new THREE.Mesh(
-        wheelGeometry,
-        wheelMaterial
+    for (
+      const [x, y, z]
+      of wheelPositions
+    ) {
+      const wheel =
+        new THREE.Mesh(
+          wheelGeometry,
+          wheelMaterial
+        );
+
+      wheel.rotation.z =
+        Math.PI / 2;
+
+      wheel.position.set(
+        x,
+        y,
+        z
       );
 
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(x, y, z);
+      wheel.castShadow = true;
 
-      this.wheels.push(wheel);
-      this.group.add(wheel);
+      this.wheels.push(
+        wheel
+      );
+
+      this.group.add(
+        wheel
+      );
     }
 
-    // -------------------------
-    // Front headlights
-    // -------------------------
+    // =====================================================
+    // Headlights
+    // =====================================================
 
     const headlightGeometry =
       new THREE.BoxGeometry(
@@ -142,11 +234,14 @@ export class PlayerCar {
         roughness: 0.25
       });
 
-    for (const x of [-0.62, 0.62]) {
-      const light = new THREE.Mesh(
-        headlightGeometry,
-        headlightMaterial
-      );
+    for (
+      const x of [-0.62, 0.62]
+    ) {
+      const light =
+        new THREE.Mesh(
+          headlightGeometry,
+          headlightMaterial
+        );
 
       light.position.set(
         x,
@@ -154,90 +249,229 @@ export class PlayerCar {
         -2.08
       );
 
-      this.group.add(light);
+      this.group.add(
+        light
+      );
     }
   }
 
-  public update(deltaTime: number): void {
-    if (deltaTime <= 0) return;
+  // =========================================================
+  // Update
+  // =========================================================
 
+  public update(
+    deltaTime: number
+  ): void {
+    if (
+      deltaTime <= 0
+    ) {
+      return;
+    }
+
+    /*
+     * Normal acceleration.
+     *
+     * Nitro will later modify speed through
+     * dedicated methods instead of creating
+     * another movement system.
+     */
     this.speed +=
-      this.acceleration * deltaTime;
+      this.acceleration *
+      deltaTime;
 
-    this.speed = Math.min(
-      this.speed,
-      this.maxSpeed
-    );
+    /*
+     * Normal driving speed is capped at
+     * maxSpeed.
+     *
+     * A future Nitro system can temporarily
+     * increase the speed above this value
+     * using setSpeed().
+     */
+    this.speed =
+      Math.min(
+        this.speed,
+        this.maxSpeed
+      );
 
-    // km/h → world units/second
+    /*
+     * Absolute safety cap.
+     */
+    this.speed =
+      THREE.MathUtils.clamp(
+        this.speed,
+        0,
+        this.hardSpeedCap
+      );
+
+    // =====================================================
+    // Convert km/h → world units / second
+    // =====================================================
+
     const worldSpeed =
       this.speed / 3.6;
 
+    // =====================================================
+    // Forward movement
+    // =====================================================
+
     this.group.position.z -=
-      worldSpeed * deltaTime;
+      worldSpeed *
+      deltaTime;
 
-    // Simple wheel rotation
+    // =====================================================
+    // Wheel rotation
+    // =====================================================
+
     const wheelRotation =
-      worldSpeed * deltaTime / 0.42;
+      worldSpeed *
+      deltaTime /
+      0.42;
 
-    for (const wheel of this.wheels) {
-      wheel.rotation.x -= wheelRotation;
+    for (
+      const wheel
+      of this.wheels
+    ) {
+      wheel.rotation.x -=
+        wheelRotation;
     }
   }
 
+  // =========================================================
+  // Speed API
+  // =========================================================
+
+  /**
+   * Returns the authoritative gameplay speed.
+   */
   public getSpeed(): number {
     return this.speed;
   }
 
-  public setSpeed(speed: number): void {
-    this.speed = THREE.MathUtils.clamp(
-      speed,
-      0,
-      this.maxSpeed
-    );
+  /**
+   * Returns the normal maximum speed.
+   */
+  public getMaxSpeed(): number {
+    return this.maxSpeed;
   }
+
+  /**
+   * Returns the absolute safety cap.
+   */
+  public getHardSpeedCap(): number {
+    return this.hardSpeedCap;
+  }
+
+  /**
+   * Sets speed while respecting the hard cap.
+   *
+   * This will be used by:
+   * - Collision
+   * - Nitro
+   * - Future Drift
+   * - Future gameplay systems
+   */
+  public setSpeed(
+    speed: number
+  ): void {
+    if (
+      !Number.isFinite(speed)
+    ) {
+      return;
+    }
+
+    this.speed =
+      THREE.MathUtils.clamp(
+        speed,
+        0,
+        this.hardSpeedCap
+      );
+  }
+
+  /**
+   * Instantly stop the car.
+   */
+  public stop(): void {
+    this.speed = 0;
+  }
+
+  // =========================================================
+  // Position
+  // =========================================================
 
   public getPosition(): THREE.Vector3 {
     return this.group.position;
   }
 
-  public setX(x: number): void {
-    this.group.position.x = x;
+  public setX(
+    x: number
+  ): void {
+    this.group.position.x =
+      x;
   }
 
-  public setZ(z: number): void {
-    this.group.position.z = z;
+  public setZ(
+    z: number
+  ): void {
+    this.group.position.z =
+      z;
   }
+
+  // =========================================================
+  // Rotation
+  // =========================================================
 
   public setRotationY(
-  rotationY: number
-): void {
-  this.group.rotation.y = rotationY;
-}
-
-public getRotationY(): number {
-  return this.group.rotation.y;
-}
-
-  public addToScene(scene: THREE.Scene): void {
-    scene.add(this.group);
+    rotationY: number
+  ): void {
+    this.group.rotation.y =
+      rotationY;
   }
+
+  public getRotationY(): number {
+    return this.group.rotation.y;
+  }
+
+  // =========================================================
+  // Scene
+  // =========================================================
+
+  public addToScene(
+    scene: THREE.Scene
+  ): void {
+    scene.add(
+      this.group
+    );
+  }
+
+  // =========================================================
+  // Dispose
+  // =========================================================
 
   public dispose(): void {
-    this.group.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) {
-        return;
-      }
+    this.group.traverse(
+      (object) => {
+        if (
+          !(object instanceof THREE.Mesh)
+        ) {
+          return;
+        }
 
-      object.geometry.dispose();
+        object.geometry.dispose();
 
-      if (Array.isArray(object.material)) {
-        object.material.forEach((material) => {
-          material.dispose();
-        });
-      } else {
-        object.material.dispose();
+        if (
+          Array.isArray(
+            object.material
+          )
+        ) {
+          object.material.forEach(
+            (material) => {
+              material.dispose();
+            }
+          );
+        } else {
+          object.material.dispose();
+        }
       }
-    });
+    );
   }
-  }
+}
