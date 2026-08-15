@@ -42,6 +42,19 @@ export class PlayerCar {
   private nitroActive = false;
   private nitroTimer = 0;
 
+  // =========================================================
+  // Nitro Visual Effect
+  // =========================================================
+
+  private readonly nitroEffectGroup =
+    new THREE.Group();
+
+  private readonly nitroFlames:
+    THREE.Mesh[] = [];
+
+  private nitroLight:
+    THREE.PointLight | null = null;
+
   constructor(
     config: PlayerCarConfig = {}
   ) {
@@ -264,6 +277,210 @@ export class PlayerCar {
         light
       );
     }
+
+    // =====================================================
+    // Nitro Visual Effect
+    // =====================================================
+
+    this.createNitroEffect();
+
+    this.setNitroEffectVisible(
+      false
+    );
+  }
+
+  // =========================================================
+  // Nitro Visual Creation
+  // =========================================================
+
+  private createNitroEffect(): void {
+    this.nitroEffectGroup.name =
+      "NitroEffect";
+
+    /*
+     * Exhaust flame geometry.
+     *
+     * The cone points toward the rear
+     * of the car (+Z direction).
+     */
+    const flameGeometry =
+      new THREE.ConeGeometry(
+        0.22,
+        0.9,
+        12
+      );
+
+    const flameMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xff8a00,
+        emissive: 0xff3d00,
+        emissiveIntensity: 2.5,
+        transparent: true,
+        opacity: 0.9,
+        roughness: 0.25,
+        metalness: 0
+      });
+
+    const exhaustPositions:
+      Array<
+        [number, number, number]
+      > = [
+        [-0.65, 0.34, 2.15],
+        [0.65, 0.34, 2.15]
+      ];
+
+    for (
+      const [x, y, z]
+      of exhaustPositions
+    ) {
+      const flame =
+        new THREE.Mesh(
+          flameGeometry.clone(),
+          flameMaterial.clone()
+        );
+
+      flame.rotation.x =
+        Math.PI / 2;
+
+      flame.position.set(
+        x,
+        y,
+        z
+      );
+
+      flame.scale.set(
+        0.85,
+        1,
+        0.85
+      );
+
+      flame.castShadow = false;
+      flame.receiveShadow = false;
+
+      this.nitroFlames.push(
+        flame
+      );
+
+      this.nitroEffectGroup.add(
+        flame
+      );
+    }
+
+    // =====================================================
+    // Nitro glow light
+    // =====================================================
+
+    this.nitroLight =
+      new THREE.PointLight(
+        0xff5500,
+        0,
+        5
+      );
+
+    this.nitroLight.position.set(
+      0,
+      0.45,
+      2.1
+    );
+
+    this.nitroEffectGroup.add(
+      this.nitroLight
+    );
+
+    this.group.add(
+      this.nitroEffectGroup
+    );
+  }
+
+  // =========================================================
+  // Nitro Visual Visibility
+  // =========================================================
+
+  private setNitroEffectVisible(
+    visible: boolean
+  ): void {
+    this.nitroEffectGroup.visible =
+      visible;
+
+    if (
+      this.nitroLight
+    ) {
+      this.nitroLight.intensity =
+        visible ? 2.2 : 0;
+    }
+  }
+
+  // =========================================================
+  // Nitro Visual Update
+  // =========================================================
+
+  private updateNitroEffect(
+    deltaTime: number
+  ): void {
+    if (
+      !this.nitroActive
+    ) {
+      this.setNitroEffectVisible(
+        false
+      );
+
+      return;
+    }
+
+    this.setNitroEffectVisible(
+      true
+    );
+
+    /*
+     * Pulse the flames so the Nitro
+     * does not look static.
+     */
+    const pulse =
+      0.85 +
+      Math.sin(
+        performance.now() * 0.025
+      ) *
+        0.18;
+
+    for (
+      const flame
+      of this.nitroFlames
+    ) {
+      flame.scale.x =
+        pulse;
+
+      flame.scale.y =
+        0.9 +
+        pulse * 0.35;
+
+      flame.scale.z =
+        pulse;
+
+      /*
+       * Slight flame movement.
+       */
+      flame.rotation.z =
+        Math.sin(
+          performance.now() * 0.015
+        ) *
+        0.08;
+    }
+
+    /*
+     * Pulse the orange glow.
+     */
+    if (
+      this.nitroLight
+    ) {
+      this.nitroLight.intensity =
+        1.8 +
+        Math.sin(
+          performance.now() * 0.03
+        ) *
+          0.7;
+    }
+
+    void deltaTime;
   }
 
   // =========================================================
@@ -283,8 +500,11 @@ export class PlayerCar {
     // Nitro timer
     // =====================================================
 
-    if (this.nitroActive) {
-      this.nitroTimer -= deltaTime;
+    if (
+      this.nitroActive
+    ) {
+      this.nitroTimer -=
+        deltaTime;
 
       if (
         this.nitroTimer <= 0
@@ -295,8 +515,7 @@ export class PlayerCar {
         /*
          * Nitro finished.
          *
-         * Bring speed back to the normal
-         * maximum immediately.
+         * Return to normal maximum.
          */
         this.speed =
           Math.min(
@@ -318,20 +537,15 @@ export class PlayerCar {
     // Speed limit
     // =====================================================
 
-    if (this.nitroActive) {
-      /*
-       * During Nitro the car can go
-       * above the normal 128 km/h limit.
-       */
+    if (
+      this.nitroActive
+    ) {
       this.speed =
         Math.min(
           this.speed,
           this.nitroSpeed
         );
     } else {
-      /*
-       * Normal driving limit.
-       */
       this.speed =
         Math.min(
           this.speed,
@@ -381,6 +595,14 @@ export class PlayerCar {
       wheel.rotation.x -=
         wheelRotation;
     }
+
+    // =====================================================
+    // Nitro visual
+    // =====================================================
+
+    this.updateNitroEffect(
+      deltaTime
+    );
   }
 
   // =========================================================
@@ -391,18 +613,23 @@ export class PlayerCar {
     /*
      * Do nothing if Nitro is already active.
      */
-    if (this.nitroActive) {
+    if (
+      this.nitroActive
+    ) {
       return;
     }
 
     /*
      * Do not activate while stopped.
      */
-    if (this.speed <= 0) {
+    if (
+      this.speed <= 0
+    ) {
       return;
     }
 
     this.nitroActive = true;
+
     this.nitroTimer =
       this.nitroDuration;
 
@@ -420,6 +647,13 @@ export class PlayerCar {
         this.speed,
         this.nitroSpeed
       );
+
+    /*
+     * Show Nitro effect immediately.
+     */
+    this.setNitroEffectVisible(
+      true
+    );
   }
 
   public isNitroActive(): boolean {
@@ -474,21 +708,30 @@ export class PlayerCar {
       );
 
     /*
-     * Collision or external systems can
-     * force the car below normal speed.
+     * Collision or external systems
+     * can force the car below normal speed.
      */
     if (
       this.speed <= 0
     ) {
       this.nitroActive = false;
       this.nitroTimer = 0;
+
+      this.setNitroEffectVisible(
+        false
+      );
     }
   }
 
   public stop(): void {
     this.speed = 0;
+
     this.nitroActive = false;
     this.nitroTimer = 0;
+
+    this.setNitroEffectVisible(
+      false
+    );
   }
 
   // =========================================================
