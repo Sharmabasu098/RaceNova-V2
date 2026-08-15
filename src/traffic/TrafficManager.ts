@@ -26,6 +26,12 @@ export interface TrafficManagerConfig {
   spawnInterval?: number;
 
   /**
+   * Safe following distance between
+   * traffic cars in the same lane.
+   */
+  trafficFollowDistance?: number;
+
+  /**
    * Returns the X position of the road
    * center at a specific world Z.
    */
@@ -51,12 +57,14 @@ export class TrafficManager {
   private readonly minSpawnGap: number;
   private readonly spawnInterval: number;
 
+  private readonly trafficFollowDistance: number;
+
   private readonly getRoadCenterX: (
     worldZ: number
   ) => number;
 
   /**
-   * All TrafficCar objects.
+   * All traffic cars.
    *
    * Inactive cars remain here for reuse.
    */
@@ -70,10 +78,6 @@ export class TrafficManager {
 
   /**
    * Last lane used for spawning.
-   *
-   * This helps distribute traffic across
-   * the three lanes instead of repeatedly
-   * selecting the same lane.
    */
   private lastSpawnLane = -1;
 
@@ -126,7 +130,7 @@ export class TrafficManager {
       );
 
     // =====================================================
-    // Spawn / Despawn
+    // Spawn / despawn
     // =====================================================
 
     this.spawnDistance =
@@ -174,6 +178,16 @@ export class TrafficManager {
       );
 
     // =====================================================
+    // Traffic interaction
+    // =====================================================
+
+    this.trafficFollowDistance =
+      Math.max(
+        5,
+        config.trafficFollowDistance ?? 12
+      );
+
+    // =====================================================
     // Road center
     // =====================================================
 
@@ -198,7 +212,7 @@ export class TrafficManager {
     }
 
     // -------------------------------------------------------
-    // Spawn timer
+    // Spawn
     // -------------------------------------------------------
 
     this.spawnTimer += deltaTime;
@@ -221,7 +235,7 @@ export class TrafficManager {
     }
 
     // -------------------------------------------------------
-    // Update traffic
+    // Update traffic movement
     // -------------------------------------------------------
 
     for (
@@ -235,20 +249,35 @@ export class TrafficManager {
       }
 
       /*
-       * TrafficCar owns its speed and
-       * forward movement.
+       * TrafficCar owns its actual movement.
        *
-       * TrafficManager does NOT modify
-       * its speed every frame.
+       * No acceleration is added here.
        */
       trafficCar.update(
         deltaTime
       );
+    }
 
-      /*
-       * Keep the car aligned with its
-       * assigned lane as the road curves.
-       */
+    // -------------------------------------------------------
+    // Traffic interaction
+    // -------------------------------------------------------
+
+    this.updateTrafficInteraction();
+
+    // -------------------------------------------------------
+    // Lane following
+    // -------------------------------------------------------
+
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+      if (
+        !trafficCar.isActive()
+      ) {
+        continue;
+      }
+
       this.updateTrafficLanePosition(
         trafficCar
       );
@@ -280,10 +309,6 @@ export class TrafficManager {
       playerZ -
       this.spawnDistance;
 
-    /*
-     * Get lanes ordered so that the
-     * previously used lane is not preferred.
-     */
     const lanes =
       this.createDistributedLanes();
 
@@ -304,9 +329,6 @@ export class TrafficManager {
         roadCenterX +
         laneOffset;
 
-      /*
-       * Make sure this position is safe.
-       */
       if (
         !this.canSpawnAt(
           spawnX,
@@ -317,9 +339,9 @@ export class TrafficManager {
       }
 
       /*
-       * Speed is selected ONCE.
+       * Speed is selected only once.
        *
-       * It does not increase over time.
+       * It does not increase automatically.
        */
       const speed =
         this.getRandomSpeed();
@@ -362,7 +384,7 @@ export class TrafficManager {
       }
 
       // -----------------------------------------------------
-      // Create new traffic car
+      // Create new car
       // -----------------------------------------------------
 
       const newTrafficCar =
@@ -392,6 +414,160 @@ export class TrafficManager {
         lane;
 
       return;
+    }
+  }
+
+  // =========================================================
+  // Traffic Interaction
+  // =========================================================
+
+  private updateTrafficInteraction(): void {
+    const activeCars =
+      this.trafficCars.filter(
+        (car) =>
+          car.isActive()
+      );
+
+    /*
+     * Compare every traffic car against
+     * the cars in front of it.
+     */
+    for (
+      const follower of activeCars
+    ) {
+      const followerLane =
+        this.trafficLanes.get(
+          follower
+        );
+
+      if (
+        followerLane === undefined
+      ) {
+        continue;
+      }
+
+      const followerPosition =
+        follower.getPosition();
+
+      let closestLeader:
+        TrafficCar | null = null;
+
+      let closestDistance =
+        Number.POSITIVE_INFINITY;
+
+      for (
+        const leader of activeCars
+      ) {
+        if (
+          leader === follower
+        ) {
+          continue;
+        }
+
+        const leaderLane =
+          this.trafficLanes.get(
+            leader
+          );
+
+        if (
+          leaderLane !==
+          followerLane
+        ) {
+          continue;
+        }
+
+        const leaderPosition =
+          leader.getPosition();
+
+        /*
+         * Traffic moves toward +Z.
+         *
+         * Therefore a leader is the car
+         * with a SMALLER positive distance
+         * ahead in the direction of travel.
+         *
+         * Example:
+         *
+         * follower Z = -100
+         * leader   Z =  -90
+         *
+         * The leader is 10 units ahead.
+         */
+        const forwardDistance =
+          leaderPosition.z -
+          followerPosition.z;
+
+        if (
+          forwardDistance <= 0
+        ) {
+          continue;
+        }
+
+        if (
+          forwardDistance <
+          closestDistance
+        ) {
+          closestDistance =
+            forwardDistance;
+
+          closestLeader =
+            leader;
+        }
+      }
+
+      if (
+        closestLeader === null
+      ) {
+        continue;
+      }
+
+      /*
+       * If the follower gets too close,
+       * keep it behind the leader.
+       *
+       * IMPORTANT:
+       *
+       * We do not increase speed.
+       *
+       * We only reduce the follower speed
+       * when necessary.
+       */
+      if (
+        closestDistance <
+        this.trafficFollowDistance
+      ) {
+        const leaderSpeed =
+          closestLeader.getSpeed();
+
+        const safeSpeed =
+          Math.min(
+            follower.getSpeed(),
+            leaderSpeed
+          );
+
+        follower.setSpeed(
+          safeSpeed
+        );
+
+        /*
+         * Prevent visual overlap.
+         *
+         * Never move the car forward.
+         * Only correct it backwards if
+         * it has already entered the safety zone.
+         */
+        const desiredZ =
+          closestLeader.getPosition().z -
+          this.trafficFollowDistance;
+
+        if (
+          followerPosition.z >
+          desiredZ
+        ) {
+          followerPosition.z =
+            desiredZ;
+        }
+      }
     }
   }
 
@@ -426,12 +602,6 @@ export class TrafficManager {
         assignedLane
       );
 
-    /*
-     * Only X is corrected.
-     *
-     * Z remains completely controlled
-     * by TrafficCar.update().
-     */
     position.x =
       roadCenterX +
       laneOffset;
@@ -470,9 +640,6 @@ export class TrafficManager {
           z
         );
 
-      /*
-       * Same-lane protection.
-       */
       if (
         deltaX <
           this.laneWidth * 0.75 &&
@@ -566,7 +733,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Find Reusable Car
+  // Reusable Car
   // =========================================================
 
   private getInactiveTrafficCar():
@@ -619,10 +786,6 @@ export class TrafficManager {
       lanes.push(i);
     }
 
-    /*
-     * If there is only one lane,
-     * there is nothing to distribute.
-     */
     if (
       this.laneCount <= 1
     ) {
@@ -630,7 +793,7 @@ export class TrafficManager {
     }
 
     /*
-     * Randomize first.
+     * Fisher-Yates shuffle.
      */
     for (
       let i = lanes.length - 1;
@@ -654,12 +817,8 @@ export class TrafficManager {
     }
 
     /*
-     * Move the previously used lane
-     * to the end.
-     *
-     * This prevents repeated spawning
-     * into the same lane when another
-     * lane is available.
+     * Do not repeatedly prefer the
+     * previous lane.
      */
     if (
       this.lastSpawnLane >= 0
@@ -692,12 +851,6 @@ export class TrafficManager {
   // =========================================================
 
   private getRandomSpeed(): number {
-    /*
-     * Speed is generated only once
-     * during spawning.
-     *
-     * TrafficCar does not accelerate.
-     */
     return (
       this.minSpeed +
       Math.random() *
