@@ -6,6 +6,7 @@ import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
 import { TrafficManager } from "../traffic/TrafficManager";
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
+import { RaceHUD } from "../ui/RaceHUD";
 
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
@@ -29,6 +30,7 @@ export class RaceNovaEngine {
   private readonly speedDisplay: HTMLDivElement;
   private readonly nitroButton: HTMLButtonElement;
   private readonly nitroStatus: HTMLDivElement;
+  private readonly raceHUD: RaceHUD;
 
   constructor(container: HTMLElement) {
     // =====================================================
@@ -147,6 +149,11 @@ export class RaceNovaEngine {
     this.playerCar.addToScene(
       this.scene
     );
+
+    this.raceHUD =
+  new RaceHUD(
+    this.playerCar
+  );
 
     // =====================================================
     // Car Controller
@@ -601,6 +608,7 @@ export class RaceNovaEngine {
       this.playerCar.update(
         deltaTime
       );
+      this.raceHUD.update();
     }
 
     // -----------------------------------------------------
@@ -787,6 +795,8 @@ export class RaceNovaEngine {
     this.world.dispose();
 
     this.renderer.dispose();
+
+    this.raceHUD.dispose();
 
     if (
       this.hudContainer.parentElement
