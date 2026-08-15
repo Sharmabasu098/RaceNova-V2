@@ -7,6 +7,20 @@ export interface TrafficCarConfig {
   speed?: number;
   color?: number;
   scale?: number;
+
+  // =====================================================
+  // Lane
+  // =====================================================
+
+  /**
+   * Logical lane index.
+   *
+   * For the default 3-lane road:
+   * 0 = left
+   * 1 = center
+   * 2 = right
+   */
+  lane?: number;
 }
 
 export class TrafficCar {
@@ -16,7 +30,14 @@ export class TrafficCar {
   private readonly wheels: THREE.Mesh[] = [];
 
   private speed: number;
+
   private active = true;
+
+  // =====================================================
+  // Lane
+  // =====================================================
+
+  private lane: number;
 
   constructor(
     config: TrafficCarConfig = {}
@@ -37,8 +58,31 @@ export class TrafficCar {
       scale
     );
 
+    // =====================================================
+    // Speed
+    // =====================================================
+
     this.speed =
-      config.speed ?? 70;
+      Math.max(
+        0,
+        config.speed ?? 70
+      );
+
+    // =====================================================
+    // Lane
+    // =====================================================
+
+    this.lane =
+      Number.isFinite(
+        config.lane
+      )
+        ? Math.max(
+            0,
+            Math.floor(
+              config.lane as number
+            )
+          )
+        : 0;
 
     // =====================================================
     // Body
@@ -54,7 +98,8 @@ export class TrafficCar {
     const bodyMaterial =
       new THREE.MeshStandardMaterial({
         color:
-          config.color ?? 0x2563eb,
+          config.color ??
+          0x2563eb,
         roughness: 0.65,
         metalness: 0.15
       });
@@ -67,6 +112,9 @@ export class TrafficCar {
 
     this.body.position.y =
       0.35;
+
+    this.body.castShadow = true;
+    this.body.receiveShadow = true;
 
     this.group.add(
       this.body
@@ -102,6 +150,8 @@ export class TrafficCar {
       -0.15
     );
 
+    cabin.castShadow = true;
+
     this.group.add(
       cabin
     );
@@ -124,14 +174,15 @@ export class TrafficCar {
         roughness: 0.85
       });
 
-    const wheelPositions: Array<
-      [number, number, number]
-    > = [
-      [-1.12, 0.25, 1.35],
-      [1.12, 0.25, 1.35],
-      [-1.12, 0.25, -1.35],
-      [1.12, 0.25, -1.35]
-    ];
+    const wheelPositions:
+      Array<
+        [number, number, number]
+      > = [
+        [-1.12, 0.25, 1.35],
+        [1.12, 0.25, 1.35],
+        [-1.12, 0.25, -1.35],
+        [1.12, 0.25, -1.35]
+      ];
 
     for (
       const [x, y, z]
@@ -151,6 +202,8 @@ export class TrafficCar {
         y,
         z
       );
+
+      wheel.castShadow = true;
 
       this.wheels.push(
         wheel
@@ -200,9 +253,9 @@ export class TrafficCar {
     }
   }
 
-  // =====================================================
+  // =========================================================
   // Update
-  // =====================================================
+  // =========================================================
 
   public update(
     deltaTime: number
@@ -214,11 +267,20 @@ export class TrafficCar {
       return;
     }
 
+    // =====================================================
+    // Forward movement
+    // =====================================================
+
     const worldSpeed =
       this.speed / 3.6;
 
     this.group.position.z +=
-      worldSpeed * deltaTime;
+      worldSpeed *
+      deltaTime;
+
+    // =====================================================
+    // Wheel rotation
+    // =====================================================
 
     const wheelRotation =
       worldSpeed *
@@ -226,16 +288,17 @@ export class TrafficCar {
       0.42;
 
     for (
-      const wheel of this.wheels
+      const wheel
+      of this.wheels
     ) {
       wheel.rotation.x +=
         wheelRotation;
     }
   }
 
-  // =====================================================
+  // =========================================================
   // Position
-  // =====================================================
+  // =========================================================
 
   public getPosition(): THREE.Vector3 {
     return this.group.position;
@@ -253,9 +316,9 @@ export class TrafficCar {
     );
   }
 
-  // =====================================================
+  // =========================================================
   // Speed
-  // =====================================================
+  // =========================================================
 
   public getSpeed(): number {
     return this.speed;
@@ -264,6 +327,12 @@ export class TrafficCar {
   public setSpeed(
     speed: number
   ): void {
+    if (
+      !Number.isFinite(speed)
+    ) {
+      return;
+    }
+
     this.speed =
       Math.max(
         0,
@@ -271,9 +340,43 @@ export class TrafficCar {
       );
   }
 
-  // =====================================================
+  // =========================================================
+  // Lane
+  // =========================================================
+
+  /**
+   * Returns the logical lane occupied
+   * by this traffic car.
+   */
+  public getLane(): number {
+    return this.lane;
+  }
+
+  /**
+   * Changes the logical lane.
+   *
+   * Position is intentionally not changed here.
+   * TrafficManager owns road/lane positioning.
+   */
+  public setLane(
+    lane: number
+  ): void {
+    if (
+      !Number.isFinite(lane)
+    ) {
+      return;
+    }
+
+    this.lane =
+      Math.max(
+        0,
+        Math.floor(lane)
+      );
+  }
+
+  // =========================================================
   // Active state
-  // =====================================================
+  // =========================================================
 
   public isActive(): boolean {
     return this.active;
@@ -289,9 +392,9 @@ export class TrafficCar {
       active;
   }
 
-  // =====================================================
+  // =========================================================
   // Scene
-  // =====================================================
+  // =========================================================
 
   public addToScene(
     scene: THREE.Scene
@@ -309,9 +412,9 @@ export class TrafficCar {
     );
   }
 
-  // =====================================================
+  // =========================================================
   // Dispose
-  // =====================================================
+  // =========================================================
 
   public dispose(): void {
     this.group.traverse(
