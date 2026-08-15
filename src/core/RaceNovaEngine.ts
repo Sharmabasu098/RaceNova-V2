@@ -4,7 +4,7 @@ import { World } from "../world/World";
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
-import { TrafficManager } from "../traffic/TrafficManager"; 
+import { TrafficManager } from "../traffic/TrafficManager";
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 
 export class RaceNovaEngine {
@@ -19,7 +19,16 @@ export class RaceNovaEngine {
   private readonly swipeController: SwipeController;
   private readonly trafficManager: TrafficManager;
   private readonly trafficCollisionSystem:
-  TrafficCollisionSystem;
+    TrafficCollisionSystem;
+
+  // =========================================================
+  // Mobile HUD
+  // =========================================================
+
+  private readonly hudContainer: HTMLDivElement;
+  private readonly speedDisplay: HTMLDivElement;
+  private readonly nitroButton: HTMLButtonElement;
+  private readonly nitroStatus: HTMLDivElement;
 
   constructor(container: HTMLElement) {
     // =====================================================
@@ -102,18 +111,19 @@ export class RaceNovaEngine {
     // World
     // =====================================================
 
-    this.world = new World(
-      this.scene,
-      {
-        roadWidth: 12,
-        roadSegmentLength: 50,
-        roadSegmentCount: 24,
-        laneCount: 3,
+    this.world =
+      new World(
+        this.scene,
+        {
+          roadWidth: 12,
+          roadSegmentLength: 50,
+          roadSegmentCount: 24,
+          laneCount: 3,
 
-        curveStrength: 8,
-        curveFrequency: 0.008
-      }
-    );
+          curveStrength: 8,
+          curveFrequency: 0.008
+        }
+      );
 
     // =====================================================
     // Player Car
@@ -124,7 +134,14 @@ export class RaceNovaEngine {
         x: 0,
         y: 0,
         z: 0,
-        scale: 1
+        scale: 1,
+
+        maxSpeed: 128,
+        acceleration: 35,
+        hardSpeedCap: 180,
+
+        nitroSpeed: 165,
+        nitroDuration: 3
       });
 
     this.playerCar.addToScene(
@@ -143,12 +160,6 @@ export class RaceNovaEngine {
           laneCount: 3,
           steeringSpeed: 10,
 
-          /*
-           * IMPORTANT:
-           *
-           * Player steering now uses the
-           * actual curved road center.
-           */
           getRoadCenterX: (
             worldZ: number
           ) =>
@@ -201,26 +212,52 @@ export class RaceNovaEngine {
       );
 
     // =====================================================
-// Traffic Collision System
-// =====================================================
+    // Traffic Collision System
+    // =====================================================
 
-this.trafficCollisionSystem =
-  new TrafficCollisionSystem(
-    this.playerCar,
-    {
-      collisionWidth: 1.8,
-      collisionDepth: 3.4
-    }
-  );
+    this.trafficCollisionSystem =
+      new TrafficCollisionSystem(
+        this.playerCar,
+        {
+          collisionWidth: 1.8,
+          collisionDepth: 3.4
+        }
+      );
 
     // =====================================================
-// Nitro Control
-// =====================================================
+    // HUD
+    // =====================================================
 
-window.addEventListener(
-  "keydown",
-  this.handleNitroKeyDown
-);
+    this.hudContainer =
+      document.createElement(
+        "div"
+      );
+
+    this.speedDisplay =
+      document.createElement(
+        "div"
+      );
+
+    this.nitroStatus =
+      document.createElement(
+        "div"
+      );
+
+    this.nitroButton =
+      document.createElement(
+        "button"
+      );
+
+    this.createHUD();
+
+    // =====================================================
+    // Keyboard Nitro
+    // =====================================================
+
+    window.addEventListener(
+      "keydown",
+      this.handleNitroKeyDown
+    );
 
     // =====================================================
     // Resize
@@ -231,6 +268,249 @@ window.addEventListener(
       this.handleResize
     );
   }
+
+  // =========================================================
+  // HUD
+  // =========================================================
+
+  private createHUD(): void {
+    // -----------------------------------------------------
+    // Main HUD container
+    // -----------------------------------------------------
+
+    this.hudContainer.style.position =
+      "fixed";
+
+    this.hudContainer.style.left =
+      "0";
+
+    this.hudContainer.style.top =
+      "0";
+
+    this.hudContainer.style.width =
+      "100%";
+
+    this.hudContainer.style.height =
+      "100%";
+
+    this.hudContainer.style.pointerEvents =
+      "none";
+
+    this.hudContainer.style.zIndex =
+      "1000";
+
+    // -----------------------------------------------------
+    // Speed display
+    // -----------------------------------------------------
+
+    this.speedDisplay.style.position =
+      "absolute";
+
+    this.speedDisplay.style.top =
+      "20px";
+
+    this.speedDisplay.style.left =
+      "20px";
+
+    this.speedDisplay.style.minWidth =
+      "105px";
+
+    this.speedDisplay.style.padding =
+      "10px 14px";
+
+    this.speedDisplay.style.borderRadius =
+      "12px";
+
+    this.speedDisplay.style.background =
+      "rgba(0, 0, 0, 0.55)";
+
+    this.speedDisplay.style.color =
+      "#ffffff";
+
+    this.speedDisplay.style.fontFamily =
+      "Arial, sans-serif";
+
+    this.speedDisplay.style.fontWeight =
+      "700";
+
+    this.speedDisplay.style.fontSize =
+      "22px";
+
+    this.speedDisplay.style.textAlign =
+      "center";
+
+    this.speedDisplay.textContent =
+      "0 km/h";
+
+    // -----------------------------------------------------
+    // Nitro status
+    // -----------------------------------------------------
+
+    this.nitroStatus.style.position =
+      "absolute";
+
+    this.nitroStatus.style.top =
+      "88px";
+
+    this.nitroStatus.style.left =
+      "20px";
+
+    this.nitroStatus.style.color =
+      "#ffffff";
+
+    this.nitroStatus.style.fontFamily =
+      "Arial, sans-serif";
+
+    this.nitroStatus.style.fontWeight =
+      "700";
+
+    this.nitroStatus.style.fontSize =
+      "15px";
+
+    this.nitroStatus.textContent =
+      "NITRO READY";
+
+    // -----------------------------------------------------
+    // Nitro button
+    // -----------------------------------------------------
+
+    this.nitroButton.type =
+      "button";
+
+    this.nitroButton.textContent =
+      "⚡ NITRO";
+
+    this.nitroButton.style.position =
+      "absolute";
+
+    this.nitroButton.style.right =
+      "24px";
+
+    this.nitroButton.style.bottom =
+      "30px";
+
+    this.nitroButton.style.width =
+      "125px";
+
+    this.nitroButton.style.height =
+      "60px";
+
+    this.nitroButton.style.border =
+      "none";
+
+    this.nitroButton.style.borderRadius =
+      "18px";
+
+    this.nitroButton.style.background =
+      "#ff7a00";
+
+    this.nitroButton.style.color =
+      "#ffffff";
+
+    this.nitroButton.style.fontFamily =
+      "Arial, sans-serif";
+
+    this.nitroButton.style.fontSize =
+      "18px";
+
+    this.nitroButton.style.fontWeight =
+      "900";
+
+    this.nitroButton.style.boxShadow =
+      "0 5px 18px rgba(0,0,0,0.35)";
+
+    this.nitroButton.style.pointerEvents =
+      "auto";
+
+    this.nitroButton.style.touchAction =
+      "manipulation";
+
+    this.nitroButton.style.userSelect =
+      "none";
+
+    // -----------------------------------------------------
+    // Mobile touch
+    // -----------------------------------------------------
+
+    this.nitroButton.addEventListener(
+      "pointerdown",
+      this.handleNitroButton
+    );
+
+    // -----------------------------------------------------
+    // Add HUD
+    // -----------------------------------------------------
+
+    this.hudContainer.appendChild(
+      this.speedDisplay
+    );
+
+    this.hudContainer.appendChild(
+      this.nitroStatus
+    );
+
+    this.hudContainer.appendChild(
+      this.nitroButton
+    );
+
+    document.body.appendChild(
+      this.hudContainer
+    );
+  }
+
+  // =========================================================
+  // Nitro Button
+  // =========================================================
+
+  private handleNitroButton = (
+    event: PointerEvent
+  ): void => {
+    event.preventDefault();
+
+    this.activateNitro();
+  };
+
+  // =========================================================
+  // Nitro Activation
+  // =========================================================
+
+  private activateNitro(): void {
+    if (
+      this.trafficCollisionSystem.hasCrashed()
+    ) {
+      return;
+    }
+
+    if (
+      this.playerCar.isNitroActive()
+    ) {
+      return;
+    }
+
+    this.playerCar.activateNitro();
+
+    this.updateHUD();
+  }
+
+  // =========================================================
+  // Keyboard Nitro
+  // =========================================================
+
+  private handleNitroKeyDown = (
+    event: KeyboardEvent
+  ): void => {
+    if (
+      event.key.toLowerCase() !== "n"
+    ) {
+      return;
+    }
+
+    if (event.repeat) {
+      return;
+    }
+
+    this.activateNitro();
+  };
 
   // =========================================================
   // Lighting
@@ -311,19 +591,17 @@ window.addEventListener(
       return;
     }
 
-// -----------------------------------------------------
-// Player forward movement
-// -----------------------------------------------------
+    // -----------------------------------------------------
+    // Player forward movement
+    // -----------------------------------------------------
 
-if (
-  !this.trafficCollisionSystem.hasCrashed()
-) {
-  this.playerCar.update(
-    deltaTime
-  );
-}
-    
-  
+    if (
+      !this.trafficCollisionSystem.hasCrashed()
+    ) {
+      this.playerCar.update(
+        deltaTime
+      );
+    }
 
     // -----------------------------------------------------
     // Player steering
@@ -344,7 +622,7 @@ if (
       playerPosition.z;
 
     // -----------------------------------------------------
-    // Update world
+    // World
     // -----------------------------------------------------
 
     this.world.update(
@@ -352,7 +630,7 @@ if (
     );
 
     // -----------------------------------------------------
-    // Update traffic
+    // Traffic
     // -----------------------------------------------------
 
     this.trafficManager.update(
@@ -360,12 +638,22 @@ if (
       playerZ
     );
 
+    // -----------------------------------------------------
+    // Collision
+    // -----------------------------------------------------
+
     this.trafficCollisionSystem.update(
-  this.trafficManager.getTrafficCars()
-);
+      this.trafficManager.getTrafficCars()
+    );
 
     // -----------------------------------------------------
-    // Chase camera
+    // HUD
+    // -----------------------------------------------------
+
+    this.updateHUD();
+
+    // -----------------------------------------------------
+    // Chase Camera
     // -----------------------------------------------------
 
     const targetCameraX =
@@ -395,31 +683,47 @@ if (
       0.5,
       playerZ - 20
     );
-  }
+  };
 
   // =========================================================
-// Nitro Control
-// =========================================================
+  // HUD Update
+  // =========================================================
 
-private handleNitroKeyDown = (
-  event: KeyboardEvent
-): void => {
-  if (
-    event.key.toLowerCase() !== "n"
-  ) {
-    return;
+  private updateHUD(): void {
+    const speed =
+      Math.round(
+        this.playerCar.getSpeed()
+      );
+
+    this.speedDisplay.textContent =
+      `${speed} km/h`;
+
+    if (
+      this.playerCar.isNitroActive()
+    ) {
+      const remaining =
+        this.playerCar
+          .getNitroTimeRemaining();
+
+      this.nitroStatus.textContent =
+        `⚡ NITRO ${remaining.toFixed(1)}s`;
+
+      this.nitroButton.textContent =
+        `⚡ ${remaining.toFixed(1)}s`;
+
+      this.nitroButton.style.opacity =
+        "0.75";
+    } else {
+      this.nitroStatus.textContent =
+        "NITRO READY";
+
+      this.nitroButton.textContent =
+        "⚡ NITRO";
+
+      this.nitroButton.style.opacity =
+        "1";
+    }
   }
-
-  /*
-   * Prevent repeated activation while
-   * the N key is being held down.
-   */
-  if (event.repeat) {
-    return;
-  }
-
-  this.playerCar.activateNitro();
-};
 
   // =========================================================
   // Resize
@@ -461,9 +765,14 @@ private handleNitroKeyDown = (
     );
 
     window.removeEventListener(
-  "keydown",
-  this.handleNitroKeyDown
-);
+      "keydown",
+      this.handleNitroKeyDown
+    );
+
+    this.nitroButton.removeEventListener(
+      "pointerdown",
+      this.handleNitroButton
+    );
 
     this.swipeController.dispose();
 
@@ -478,6 +787,14 @@ private handleNitroKeyDown = (
     this.world.dispose();
 
     this.renderer.dispose();
+
+    if (
+      this.hudContainer.parentElement
+    ) {
+      this.hudContainer.parentElement.removeChild(
+        this.hudContainer
+      );
+    }
 
     if (
       this.renderer.domElement.parentElement
