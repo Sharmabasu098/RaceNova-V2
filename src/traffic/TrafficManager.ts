@@ -1,16 +1,10 @@
 import * as THREE from "three";
-import {
-  TrafficCar,
-  TrafficCarConfig
-} from "./TrafficCar";
+
+import { TrafficCar } from "./TrafficCar";
 
 export interface TrafficManagerConfig {
   laneWidth?: number;
   laneCount?: number;
-
-  getRoadCenterX?: (
-    worldZ: number
-  ) => number;
 
   maxTraffic?: number;
 
@@ -20,7 +14,9 @@ export interface TrafficManagerConfig {
   minSpeed?: number;
   maxSpeed?: number;
 
-  colors?: number[];
+  getRoadCenterX?: (
+    worldZ: number
+  ) => number;
 }
 
 export class TrafficManager {
@@ -28,9 +24,6 @@ export class TrafficManager {
 
   private readonly laneWidth: number;
   private readonly laneCount: number;
-
-  private readonly getRoadCenterX:
-    (worldZ: number) => number;
 
   private readonly maxTraffic: number;
 
@@ -40,12 +33,25 @@ export class TrafficManager {
   private readonly minSpeed: number;
   private readonly maxSpeed: number;
 
-  private readonly colors: number[];
+  private readonly getRoadCenterX: (
+    worldZ: number
+  ) => number;
 
   private readonly trafficCars: TrafficCar[] = [];
 
-  private readonly spawnCooldown = 1.2;
   private spawnTimer = 0;
+
+  private readonly spawnInterval = 1.2;
+
+  private readonly trafficColors = [
+    0x2563eb,
+    0x16a34a,
+    0xf59e0b,
+    0x9333ea,
+    0xdc2626,
+    0x0891b2,
+    0x475569
+  ];
 
   constructor(
     scene: THREE.Scene,
@@ -56,27 +62,25 @@ export class TrafficManager {
     this.laneWidth =
       config.laneWidth ?? 4;
 
-    this.laneCount = Math.max(
-      1,
-      Math.floor(
-        config.laneCount ?? 3
-      )
-    );
+    this.laneCount =
+      Math.max(
+        1,
+        Math.floor(
+          config.laneCount ?? 3
+        )
+      );
 
-    this.getRoadCenterX =
-      config.getRoadCenterX ??
-      (() => 0);
-
-    this.maxTraffic = Math.max(
-      1,
-      Math.floor(
-        config.maxTraffic ?? 8
-      )
-    );
+    this.maxTraffic =
+      Math.max(
+        1,
+        Math.floor(
+          config.maxTraffic ?? 8
+        )
+      );
 
     this.spawnDistance =
       Math.max(
-        40,
+        20,
         config.spawnDistance ?? 140
       );
 
@@ -88,7 +92,7 @@ export class TrafficManager {
 
     this.minSpeed =
       Math.max(
-        10,
+        0,
         config.minSpeed ?? 55
       );
 
@@ -98,15 +102,9 @@ export class TrafficManager {
         config.maxSpeed ?? 95
       );
 
-    this.colors =
-      config.colors ?? [
-        0x2563eb,
-        0x16a34a,
-        0xf59e0b,
-        0x7c3aed,
-        0xf43f5e,
-        0x64748b
-      ];
+    this.getRoadCenterX =
+      config.getRoadCenterX ??
+      (() => 0);
   }
 
   // =========================================================
@@ -118,15 +116,38 @@ export class TrafficManager {
     playerZ: number
   ): void {
     if (
-      deltaTime <= 0 ||
-      !Number.isFinite(playerZ)
+      deltaTime <= 0
     ) {
       return;
     }
 
-    this.spawnTimer += deltaTime;
+    // -------------------------------------------------------
+    // Spawn timer
+    // -------------------------------------------------------
 
-    // Update existing traffic
+    this.spawnTimer +=
+      deltaTime;
+
+    if (
+      this.spawnTimer >=
+      this.spawnInterval
+    ) {
+      this.spawnTimer = 0;
+
+      if (
+        this.getActiveTrafficCount() <
+        this.maxTraffic
+      ) {
+        this.spawnTraffic(
+          playerZ
+        );
+      }
+    }
+
+    // -------------------------------------------------------
+    // Update traffic
+    // -------------------------------------------------------
+
     for (
       const trafficCar
       of this.trafficCars
@@ -140,53 +161,30 @@ export class TrafficManager {
       trafficCar.update(
         deltaTime
       );
-
-      this.updateRoadAlignment(
-        trafficCar
-      );
     }
 
-    // Remove distant traffic
-    this.removeDistantCars(
+    // -------------------------------------------------------
+    // Despawn traffic
+    // -------------------------------------------------------
+
+    this.despawnTraffic(
       playerZ
     );
-
-    // Spawn new traffic
-    if (
-      this.spawnTimer >=
-        this.spawnCooldown &&
-      this.trafficCars.length <
-        this.maxTraffic
-    ) {
-      this.spawnTimer = 0;
-
-      this.spawnTraffic(
-        playerZ
-      );
-    }
   }
 
   // =========================================================
-  // Spawn traffic
+  // Spawn
   // =========================================================
 
   private spawnTraffic(
     playerZ: number
   ): void {
-    const lane =
-      this.findAvailableLane(
-        playerZ
-      );
-
-    if (
-      lane === null
-    ) {
-      return;
-    }
-
     const spawnZ =
       playerZ -
       this.spawnDistance;
+
+    const lane =
+      this.getRandomLane();
 
     const roadCenterX =
       this.getRoadCenterX(
@@ -203,32 +201,19 @@ export class TrafficManager {
       laneOffset;
 
     const speed =
-      this.randomRange(
-        this.minSpeed,
-        this.maxSpeed
-      );
+      this.getRandomSpeed();
 
     const color =
-      this.colors[
-        Math.floor(
-          Math.random() *
-          this.colors.length
-        )
-      ];
+      this.getRandomColor();
 
-    const config:
-      TrafficCarConfig = {
+    const trafficCar =
+      new TrafficCar({
         x: spawnX,
         y: 0,
         z: spawnZ,
         speed,
         color
-      };
-
-    const trafficCar =
-      new TrafficCar(
-        config
-      );
+      });
 
     trafficCar.addToScene(
       this.scene
@@ -240,81 +225,12 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Find available lane
+  // Despawn
   // =========================================================
 
-  private findAvailableLane(
+  private despawnTraffic(
     playerZ: number
-  ): number | null {
-    const lanes =
-      Array.from(
-        {
-          length:
-            this.laneCount
-        },
-        (_, index) =>
-          index
-      );
-
-    // Shuffle lanes
-    for (
-      let i =
-        lanes.length - 1;
-      i > 0;
-      i--
-    ) {
-      const j =
-        Math.floor(
-          Math.random() *
-          (i + 1)
-        );
-
-      [
-        lanes[i],
-        lanes[j]
-      ] = [
-        lanes[j],
-        lanes[i]
-      ];
-    }
-
-    for (
-      const lane
-      of lanes
-    ) {
-      if (
-        !this.isLaneOccupied(
-          lane,
-          playerZ
-        )
-      ) {
-        return lane;
-      }
-    }
-
-    return null;
-  }
-
-  // =========================================================
-  // Check lane
-  // =========================================================
-
-  private isLaneOccupied(
-    lane: number,
-    playerZ: number
-  ): boolean {
-    const targetZ =
-      playerZ -
-      this.spawnDistance;
-
-    const laneX =
-      this.getLaneOffset(
-        lane
-      );
-
-    const minimumDistance =
-      18;
-
+  ): void {
     for (
       const trafficCar
       of this.trafficCars
@@ -325,120 +241,35 @@ export class TrafficManager {
         continue;
       }
 
-      const position =
-        trafficCar.getPosition();
-
-      const roadCenterX =
-        this.getRoadCenterX(
-          position.z
-        );
-
-      const relativeX =
-        position.x -
-        roadCenterX;
-
-      if (
-        Math.abs(
-          relativeX -
-          laneX
-        ) < 1.5 &&
-        Math.abs(
-          position.z -
-          targetZ
-        ) < minimumDistance
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  // =========================================================
-  // Keep traffic on curved road
-  // =========================================================
-
-  private updateRoadAlignment(
-    trafficCar: TrafficCar
-  ): void {
-    const position =
-      trafficCar.getPosition();
-
-    const roadCenterX =
-      this.getRoadCenterX(
-        position.z
-      );
-
-    const currentOffset =
-      position.x -
-      roadCenterX;
-
-    const roadHalfWidth =
-      (this.laneWidth *
-        this.laneCount) /
-      2;
-
-    const safeOffset =
-      THREE.MathUtils.clamp(
-        currentOffset,
-        -roadHalfWidth + 1.1,
-        roadHalfWidth - 1.1
-      );
-
-    trafficCar.setPosition(
-      roadCenterX +
-        safeOffset,
-      position.y,
-      position.z
-    );
-  }
-
-  // =========================================================
-  // Remove distant traffic
-  // =========================================================
-
-  private removeDistantCars(
-    playerZ: number
-  ): void {
-    for (
-      let i =
-        this.trafficCars.length - 1;
-      i >= 0;
-      i--
-    ) {
-      const trafficCar =
-        this.trafficCars[i];
-
       const trafficZ =
-        trafficCar
-          .getPosition()
-          .z;
+        trafficCar.getPosition().z;
 
+      /*
+       * Player moves toward negative Z.
+       *
+       * Traffic moves toward positive Z.
+       *
+       * Therefore traffic cars behind
+       * the player have a larger Z value.
+       */
       if (
         trafficZ >
         playerZ +
-          this.despawnDistance
+        this.despawnDistance
       ) {
-        trafficCar.removeFromScene(
-          this.scene
-        );
-
         trafficCar.setActive(
           false
         );
 
-        trafficCar.dispose();
-
-        this.trafficCars.splice(
-          i,
-          1
+        trafficCar.removeFromScene(
+          this.scene
         );
       }
     }
   }
 
   // =========================================================
-  // Lane offset
+  // Lane calculation
   // =========================================================
 
   private getLaneOffset(
@@ -449,8 +280,15 @@ export class TrafficManager {
       2;
 
     return (
-      (lane - centerLane) *
-      this.laneWidth
+      lane -
+      centerLane
+    ) * this.laneWidth;
+  }
+
+  private getRandomLane(): number {
+    return Math.floor(
+      Math.random() *
+      this.laneCount
     );
   }
 
@@ -458,40 +296,76 @@ export class TrafficManager {
   // Random speed
   // =========================================================
 
-  private randomRange(
-    min: number,
-    max: number
-  ): number {
+  private getRandomSpeed(): number {
     return (
-      min +
+      this.minSpeed +
       Math.random() *
-        (max - min)
+      (
+        this.maxSpeed -
+        this.minSpeed
+      )
     );
   }
 
   // =========================================================
-  // Public access
+  // Random color
+  // =========================================================
+
+  private getRandomColor(): number {
+    const index =
+      Math.floor(
+        Math.random() *
+        this.trafficColors.length
+      );
+
+    return this.trafficColors[
+      index
+    ];
+  }
+
+  // =========================================================
+  // Active traffic
   // =========================================================
 
   public getTrafficCars():
     readonly TrafficCar[] {
-    return this.trafficCars;
+    return this.trafficCars.filter(
+      (trafficCar) =>
+        trafficCar.isActive()
+    );
   }
 
-  public getTrafficCount():
+  public getActiveTrafficCount():
     number {
-    return this.trafficCars.length;
-  }
+    let count = 0;
 
-  // =========================================================
-  // Dispose
-  // =========================================================
-
-  public dispose(): void {
     for (
       const trafficCar
       of this.trafficCars
     ) {
+      if (
+        trafficCar.isActive()
+      ) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  // =========================================================
+  // Clear traffic
+  // =========================================================
+
+  public clear(): void {
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+      trafficCar.setActive(
+        false
+      );
+
       trafficCar.removeFromScene(
         this.scene
       );
@@ -500,5 +374,15 @@ export class TrafficManager {
     }
 
     this.trafficCars.length = 0;
+
+    this.spawnTimer = 0;
+  }
+
+  // =========================================================
+  // Dispose
+  // =========================================================
+
+  public dispose(): void {
+    this.clear();
   }
 }
