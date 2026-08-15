@@ -742,4 +742,4 @@ export class World {
     this.markingMaterial.dispose();
     this.barrierMaterial.dispose();
   }
-          }
+}
