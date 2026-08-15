@@ -651,8 +651,9 @@ export class RaceNovaEngine {
     // -----------------------------------------------------
 
     this.trafficCollisionSystem.update(
-      this.trafficManager.getTrafficCars()
-    );
+  this.trafficManager.getTrafficCars(),
+  deltaTime
+);
 
     // -----------------------------------------------------
     // HUD
