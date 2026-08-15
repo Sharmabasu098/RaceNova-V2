@@ -14,6 +14,17 @@ export interface TrafficManagerConfig {
   minSpeed?: number;
   maxSpeed?: number;
 
+  /**
+   * Minimum distance between traffic cars
+   * when spawning.
+   */
+  minSpawnGap?: number;
+
+  /**
+   * Minimum time between spawn attempts.
+   */
+  spawnInterval?: number;
+
   getRoadCenterX?: (
     worldZ: number
   ) => number;
@@ -33,6 +44,10 @@ export class TrafficManager {
   private readonly minSpeed: number;
   private readonly maxSpeed: number;
 
+  private readonly minSpawnGap: number;
+
+  private readonly spawnInterval: number;
+
   private readonly getRoadCenterX: (
     worldZ: number
   ) => number;
@@ -40,8 +55,6 @@ export class TrafficManager {
   private readonly trafficCars: TrafficCar[] = [];
 
   private spawnTimer = 0;
-
-  private readonly spawnInterval = 1.2;
 
   private readonly trafficColors = [
     0x2563eb,
@@ -59,8 +72,15 @@ export class TrafficManager {
   ) {
     this.scene = scene;
 
+    // =====================================================
+    // Lane configuration
+    // =====================================================
+
     this.laneWidth =
-      config.laneWidth ?? 4;
+      Math.max(
+        0.1,
+        config.laneWidth ?? 4
+      );
 
     this.laneCount =
       Math.max(
@@ -70,6 +90,10 @@ export class TrafficManager {
         )
       );
 
+    // =====================================================
+    // Traffic limits
+    // =====================================================
+
     this.maxTraffic =
       Math.max(
         1,
@@ -77,6 +101,10 @@ export class TrafficManager {
           config.maxTraffic ?? 8
         )
       );
+
+    // =====================================================
+    // Spawn / despawn
+    // =====================================================
 
     this.spawnDistance =
       Math.max(
@@ -90,6 +118,10 @@ export class TrafficManager {
         config.despawnDistance ?? 80
       );
 
+    // =====================================================
+    // Traffic speed
+    // =====================================================
+
     this.minSpeed =
       Math.max(
         0,
@@ -101,6 +133,26 @@ export class TrafficManager {
         this.minSpeed,
         config.maxSpeed ?? 95
       );
+
+    // =====================================================
+    // Spawn safety
+    // =====================================================
+
+    this.minSpawnGap =
+      Math.max(
+        5,
+        config.minSpawnGap ?? 18
+      );
+
+    this.spawnInterval =
+      Math.max(
+        0.1,
+        config.spawnInterval ?? 1.2
+      );
+
+    // =====================================================
+    // Road center
+    // =====================================================
 
     this.getRoadCenterX =
       config.getRoadCenterX ??
@@ -116,7 +168,8 @@ export class TrafficManager {
     playerZ: number
   ): void {
     if (
-      deltaTime <= 0
+      deltaTime <= 0 ||
+      !Number.isFinite(playerZ)
     ) {
       return;
     }
@@ -125,14 +178,21 @@ export class TrafficManager {
     // Spawn timer
     // -------------------------------------------------------
 
-    this.spawnTimer +=
-      deltaTime;
+    this.spawnTimer += deltaTime;
 
     if (
       this.spawnTimer >=
       this.spawnInterval
     ) {
-      this.spawnTimer = 0;
+      /*
+       * Preserve leftover time instead of
+       * simply resetting to zero.
+       *
+       * This makes spawning more stable
+       * across different frame rates.
+       */
+      this.spawnTimer -=
+        this.spawnInterval;
 
       if (
         this.getActiveTrafficCount() <
@@ -145,7 +205,7 @@ export class TrafficManager {
     }
 
     // -------------------------------------------------------
-    // Update traffic
+    // Update active traffic
     // -------------------------------------------------------
 
     for (
@@ -164,12 +224,18 @@ export class TrafficManager {
     }
 
     // -------------------------------------------------------
-    // Despawn traffic
+    // Despawn
     // -------------------------------------------------------
 
     this.despawnTraffic(
       playerZ
     );
+
+    // -------------------------------------------------------
+    // Cleanup inactive cars
+    // -------------------------------------------------------
+
+    this.cleanupInactiveTraffic();
   }
 
   // =========================================================
@@ -179,49 +245,177 @@ export class TrafficManager {
   private spawnTraffic(
     playerZ: number
   ): void {
+    /*
+     * Traffic travels toward positive Z.
+     *
+     * Player travels toward negative Z.
+     *
+     * Therefore traffic is spawned
+     * ahead of the player at negative Z.
+     */
     const spawnZ =
       playerZ -
       this.spawnDistance;
 
-    const lane =
-      this.getRandomLane();
+    /*
+     * Try several random lanes.
+     *
+     * This prevents a blocked lane from
+     * stopping traffic spawning completely.
+     */
+    const lanes =
+      this.createShuffledLanes();
 
-    const roadCenterX =
-      this.getRoadCenterX(
-        spawnZ
+    for (
+      const lane
+      of lanes
+    ) {
+      const roadCenterX =
+        this.getRoadCenterX(
+          spawnZ
+        );
+
+      const laneOffset =
+        this.getLaneOffset(
+          lane
+        );
+
+      const spawnX =
+        roadCenterX +
+        laneOffset;
+
+      /*
+       * Do not spawn a traffic car if
+       * another active car is too close
+       * in the same lane/position.
+       */
+      if (
+        !this.canSpawnAt(
+          spawnX,
+          spawnZ
+        )
+      ) {
+        continue;
+      }
+
+      const speed =
+        this.getRandomSpeed();
+
+      const color =
+        this.getRandomColor();
+
+      const trafficCar =
+        this.getInactiveTrafficCar();
+
+      if (trafficCar) {
+        /*
+         * Reuse an inactive TrafficCar.
+         */
+        trafficCar.setPosition(
+          spawnX,
+          0,
+          spawnZ
+        );
+
+        trafficCar.setSpeed(
+          speed
+        );
+
+        trafficCar.setActive(
+          true
+        );
+
+        /*
+         * Re-add to scene because despawned
+         * cars may have been removed.
+         */
+        trafficCar.addToScene(
+          this.scene
+        );
+
+        this.trafficCars.push(
+          trafficCar
+        );
+
+        return;
+      }
+
+      /*
+       * No reusable car available.
+       * Create a new one.
+       */
+      const newTrafficCar =
+        new TrafficCar({
+          x: spawnX,
+          y: 0,
+          z: spawnZ,
+          speed,
+          color
+        });
+
+      newTrafficCar.addToScene(
+        this.scene
       );
 
-    const laneOffset =
-      this.getLaneOffset(
-        lane
+      this.trafficCars.push(
+        newTrafficCar
       );
 
-    const spawnX =
-      roadCenterX +
-      laneOffset;
+      return;
+    }
+  }
 
-    const speed =
-      this.getRandomSpeed();
+  // =========================================================
+  // Spawn safety
+  // =========================================================
 
-    const color =
-      this.getRandomColor();
+  private canSpawnAt(
+    x: number,
+    z: number
+  ): boolean {
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+      if (
+        !trafficCar.isActive()
+      ) {
+        continue;
+      }
 
-    const trafficCar =
-      new TrafficCar({
-        x: spawnX,
-        y: 0,
-        z: spawnZ,
-        speed,
-        color
-      });
+      const position =
+        trafficCar.getPosition();
 
-    trafficCar.addToScene(
-      this.scene
-    );
+      const deltaX =
+        Math.abs(
+          position.x -
+          x
+        );
 
-    this.trafficCars.push(
-      trafficCar
-    );
+      const deltaZ =
+        Math.abs(
+          position.z -
+          z
+        );
+
+      /*
+       * Same-lane / nearby protection.
+       *
+       * Traffic cars are approximately
+       * 4.2 units long, so this prevents
+       * visually overlapping spawns.
+       */
+      if (
+        deltaX <
+          this.laneWidth * 0.75 &&
+        deltaZ <
+          this.minSpawnGap
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   // =========================================================
@@ -245,12 +439,10 @@ export class TrafficManager {
         trafficCar.getPosition().z;
 
       /*
-       * Player moves toward negative Z.
-       *
        * Traffic moves toward positive Z.
        *
-       * Therefore traffic cars behind
-       * the player have a larger Z value.
+       * Once it has passed sufficiently
+       * behind the player, deactivate it.
        */
       if (
         trafficZ >
@@ -269,6 +461,88 @@ export class TrafficManager {
   }
 
   // =========================================================
+  // Cleanup
+  // =========================================================
+
+  private cleanupInactiveTraffic(): void {
+    /*
+     * Keep inactive cars available for reuse.
+     *
+     * This avoids constantly allocating
+     * new TrafficCar objects.
+     *
+     * The array is compacted only when it
+     * becomes unnecessarily large.
+     */
+    const inactiveCount =
+      this.trafficCars.filter(
+        (car) =>
+          !car.isActive()
+      ).length;
+
+    if (
+      this.trafficCars.length <=
+      this.maxTraffic * 3
+    ) {
+      return;
+    }
+
+    if (
+      inactiveCount <= 0
+    ) {
+      return;
+    }
+
+    const kept:
+      TrafficCar[] = [];
+
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+      if (
+        trafficCar.isActive()
+      ) {
+        kept.push(
+          trafficCar
+        );
+        continue;
+      }
+
+      /*
+       * Dispose excess inactive cars.
+       */
+      trafficCar.dispose();
+    }
+
+    this.trafficCars.length = 0;
+
+    this.trafficCars.push(
+      ...kept
+    );
+  }
+
+  // =========================================================
+  // Find reusable car
+  // =========================================================
+
+  private getInactiveTrafficCar():
+    TrafficCar | null {
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+      if (
+        !trafficCar.isActive()
+      ) {
+        return trafficCar;
+      }
+    }
+
+    return null;
+  }
+
+  // =========================================================
   // Lane calculation
   // =========================================================
 
@@ -282,14 +556,51 @@ export class TrafficManager {
     return (
       lane -
       centerLane
-    ) * this.laneWidth;
+    ) *
+    this.laneWidth;
   }
 
-  private getRandomLane(): number {
-    return Math.floor(
-      Math.random() *
-      this.laneCount
-    );
+  // =========================================================
+  // Shuffled lanes
+  // =========================================================
+
+  private createShuffledLanes():
+    number[] {
+    const lanes: number[] = [];
+
+    for (
+      let i = 0;
+      i < this.laneCount;
+      i++
+    ) {
+      lanes.push(i);
+    }
+
+    /*
+     * Fisher-Yates shuffle.
+     */
+    for (
+      let i = lanes.length - 1;
+      i > 0;
+      i--
+    ) {
+      const j =
+        Math.floor(
+          Math.random() *
+          (i + 1)
+        );
+
+      const temp =
+        lanes[i];
+
+      lanes[i] =
+        lanes[j];
+
+      lanes[j] =
+        temp;
+    }
+
+    return lanes;
   }
 
   // =========================================================
@@ -318,9 +629,11 @@ export class TrafficManager {
         this.trafficColors.length
       );
 
-    return this.trafficColors[
-      index
-    ];
+    return (
+      this.trafficColors[
+        index
+      ]
+    );
   }
 
   // =========================================================
@@ -354,7 +667,7 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Clear traffic
+  // Clear
   // =========================================================
 
   public clear(): void {
