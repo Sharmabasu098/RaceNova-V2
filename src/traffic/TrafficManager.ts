@@ -58,19 +58,24 @@ export class TrafficManager {
   /**
    * All TrafficCar objects.
    *
-   * Inactive cars are kept here for reuse.
+   * Inactive cars remain here for reuse.
    */
   private readonly trafficCars: TrafficCar[] = [];
 
   /**
-   * Stores the lane assigned to every TrafficCar.
-   *
-   * This is important because a traffic car must
-   * remain in the same lane while following the
-   * curved road.
+   * Assigned lane for each traffic car.
    */
   private readonly trafficLanes =
     new Map<TrafficCar, number>();
+
+  /**
+   * Last lane used for spawning.
+   *
+   * This helps distribute traffic across
+   * the three lanes instead of repeatedly
+   * selecting the same lane.
+   */
+  private lastSpawnLane = -1;
 
   private spawnTimer = 0;
 
@@ -196,16 +201,12 @@ export class TrafficManager {
     // Spawn timer
     // -------------------------------------------------------
 
-    this.spawnTimer +=
-      deltaTime;
+    this.spawnTimer += deltaTime;
 
     if (
       this.spawnTimer >=
       this.spawnInterval
     ) {
-      /*
-       * Preserve leftover timer.
-       */
       this.spawnTimer -=
         this.spawnInterval;
 
@@ -234,20 +235,19 @@ export class TrafficManager {
       }
 
       /*
-       * First move the traffic car forward.
+       * TrafficCar owns its speed and
+       * forward movement.
        *
-       * TrafficCar itself does NOT accelerate.
+       * TrafficManager does NOT modify
+       * its speed every frame.
        */
       trafficCar.update(
         deltaTime
       );
 
       /*
-       * After movement, force the car back
-       * onto its assigned lane using the
-       * CURRENT road curve position.
-       *
-       * This is the important M3.3 fix.
+       * Keep the car aligned with its
+       * assigned lane as the road curves.
        */
       this.updateTrafficLanePosition(
         trafficCar
@@ -276,23 +276,16 @@ export class TrafficManager {
   private spawnTraffic(
     playerZ: number
   ): void {
-    /*
-     * Player moves toward negative Z.
-     *
-     * Traffic moves toward positive Z.
-     *
-     * Therefore traffic is spawned ahead
-     * of the player at a smaller Z value.
-     */
     const spawnZ =
       playerZ -
       this.spawnDistance;
 
     /*
-     * Try all lanes in random order.
+     * Get lanes ordered so that the
+     * previously used lane is not preferred.
      */
     const lanes =
-      this.createShuffledLanes();
+      this.createDistributedLanes();
 
     for (
       const lane of lanes
@@ -312,7 +305,7 @@ export class TrafficManager {
         laneOffset;
 
       /*
-       * Prevent overlapping traffic.
+       * Make sure this position is safe.
        */
       if (
         !this.canSpawnAt(
@@ -324,10 +317,9 @@ export class TrafficManager {
       }
 
       /*
-       * Pick speed ONLY ONCE when
-       * the traffic car is spawned.
+       * Speed is selected ONCE.
        *
-       * TrafficCar itself will not accelerate.
+       * It does not increase over time.
        */
       const speed =
         this.getRandomSpeed();
@@ -354,22 +346,14 @@ export class TrafficManager {
           true
         );
 
-        /*
-         * Remember the lane.
-         */
         this.trafficLanes.set(
           reusableCar,
           lane
         );
 
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT push reusableCar into
-         * trafficCars again.
-         *
-         * It already exists in the array.
-         */
+        this.lastSpawnLane =
+          lane;
+
         reusableCar.addToScene(
           this.scene
         );
@@ -381,16 +365,14 @@ export class TrafficManager {
       // Create new traffic car
       // -----------------------------------------------------
 
-      const color =
-        this.getRandomColor();
-
       const newTrafficCar =
         new TrafficCar({
           x: spawnX,
           y: 0,
           z: spawnZ,
           speed,
-          color
+          color:
+            this.getRandomColor()
         });
 
       newTrafficCar.addToScene(
@@ -401,13 +383,13 @@ export class TrafficManager {
         newTrafficCar
       );
 
-      /*
-       * Remember its assigned lane.
-       */
       this.trafficLanes.set(
         newTrafficCar,
         lane
       );
+
+      this.lastSpawnLane =
+        lane;
 
       return;
     }
@@ -420,19 +402,13 @@ export class TrafficManager {
   private updateTrafficLanePosition(
     trafficCar: TrafficCar
   ): void {
-    const lane =
+    const storedLane =
       this.trafficLanes.get(
         trafficCar
       );
 
-    /*
-     * Safety fallback.
-     *
-     * If somehow a car has no lane,
-     * assign the center lane.
-     */
     const assignedLane =
-      lane ??
+      storedLane ??
       Math.floor(
         this.laneCount / 2
       );
@@ -440,33 +416,21 @@ export class TrafficManager {
     const position =
       trafficCar.getPosition();
 
-    const currentZ =
-      position.z;
-
-    /*
-     * Get the CURRENT road center.
-     *
-     * This changes as the road curves.
-     */
     const roadCenterX =
       this.getRoadCenterX(
-        currentZ
+        position.z
       );
 
-    /*
-     * Calculate the fixed lane offset.
-     */
     const laneOffset =
       this.getLaneOffset(
         assignedLane
       );
 
     /*
-     * Keep the traffic car on the road.
+     * Only X is corrected.
      *
-     * Only X is corrected here.
-     * Z movement remains controlled by
-     * TrafficCar.update().
+     * Z remains completely controlled
+     * by TrafficCar.update().
      */
     position.x =
       roadCenterX +
@@ -507,8 +471,7 @@ export class TrafficManager {
         );
 
       /*
-       * Prevent traffic cars from spawning
-       * too close in the same lane.
+       * Same-lane protection.
        */
       if (
         deltaX <
@@ -543,12 +506,6 @@ export class TrafficManager {
       const trafficZ =
         trafficCar.getPosition().z;
 
-      /*
-       * Traffic moves toward positive Z.
-       *
-       * Once it has passed behind the player
-       * far enough, deactivate it.
-       */
       if (
         trafficZ >
         playerZ +
@@ -594,10 +551,6 @@ export class TrafficManager {
         continue;
       }
 
-      /*
-       * Remove lane information before
-       * permanently disposing the car.
-       */
       this.trafficLanes.delete(
         trafficCar
       );
@@ -651,10 +604,10 @@ export class TrafficManager {
   }
 
   // =========================================================
-  // Shuffled Lanes
+  // Distributed Lane Order
   // =========================================================
 
-  private createShuffledLanes():
+  private createDistributedLanes():
     number[] {
     const lanes: number[] = [];
 
@@ -667,7 +620,17 @@ export class TrafficManager {
     }
 
     /*
-     * Fisher-Yates shuffle.
+     * If there is only one lane,
+     * there is nothing to distribute.
+     */
+    if (
+      this.laneCount <= 1
+    ) {
+      return lanes;
+    }
+
+    /*
+     * Randomize first.
      */
     for (
       let i = lanes.length - 1;
@@ -690,6 +653,37 @@ export class TrafficManager {
         temp;
     }
 
+    /*
+     * Move the previously used lane
+     * to the end.
+     *
+     * This prevents repeated spawning
+     * into the same lane when another
+     * lane is available.
+     */
+    if (
+      this.lastSpawnLane >= 0
+    ) {
+      const index =
+        lanes.indexOf(
+          this.lastSpawnLane
+        );
+
+      if (
+        index >= 0
+      ) {
+        const previousLane =
+          lanes.splice(
+            index,
+            1
+          )[0];
+
+        lanes.push(
+          previousLane
+        );
+      }
+    }
+
     return lanes;
   }
 
@@ -699,9 +693,10 @@ export class TrafficManager {
 
   private getRandomSpeed(): number {
     /*
-     * Speed is generated only at spawn.
+     * Speed is generated only once
+     * during spawning.
      *
-     * There is no acceleration here.
+     * TrafficCar does not accelerate.
      */
     return (
       this.minSpeed +
@@ -784,6 +779,8 @@ export class TrafficManager {
     this.trafficCars.length = 0;
 
     this.trafficLanes.clear();
+
+    this.lastSpawnLane = -1;
 
     this.spawnTimer = 0;
   }
