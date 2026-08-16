@@ -354,35 +354,40 @@ export class TrafficManager {
         this.getInactiveTrafficCar();
 
       if (reusableCar) {
-        reusableCar.setPosition(
-          spawnX,
-          0,
-          spawnZ
-        );
+  /*
+   * Clear the previous collision-stop state
+   * before reusing this traffic car.
+   */
+  reusableCar.resetCollisionStop();
 
-        reusableCar.setSpeed(
-          speed
-        );
+  reusableCar.setPosition(
+    spawnX,
+    0,
+    spawnZ
+  );
 
-        reusableCar.setActive(
-          true
-        );
+  reusableCar.setSpeed(
+    speed
+  );
 
-        this.trafficLanes.set(
-          reusableCar,
-          lane
-        );
+  reusableCar.setActive(
+    true
+  );
 
-        this.lastSpawnLane =
-          lane;
+  this.trafficLanes.set(
+    reusableCar,
+    lane
+  );
 
-        reusableCar.addToScene(
-          this.scene
-        );
+  this.lastSpawnLane =
+    lane;
 
-        return;
+  reusableCar.addToScene(
+    this.scene
+  );
+
+  return;
       }
-
       // -----------------------------------------------------
       // Create new car
       // -----------------------------------------------------
