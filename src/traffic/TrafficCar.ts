@@ -18,18 +18,31 @@ export class TrafficCar {
   /**
    * Traffic speed in km/h.
    *
-   * Speed is fixed after spawning unless
-   * another gameplay system explicitly changes it
-   * through setSpeed().
+   * Speed remains fixed unless another
+   * gameplay system explicitly changes it.
    */
   private speed: number;
 
+  /**
+   * Whether this traffic car is currently active.
+   */
   private active = true;
+
+  /**
+   * True when this specific traffic car
+   * has been stopped because of a collision.
+   *
+   * This is different from speed === 0.
+   * It prevents TrafficCar.update() from
+   * moving the car again after a collision.
+   */
+  private stoppedByCollision = false;
 
   constructor(
     config: TrafficCarConfig = {}
   ) {
-    this.group = new THREE.Group();
+    this.group =
+      new THREE.Group();
 
     const scale =
       config.scale ?? 1;
@@ -229,20 +242,25 @@ export class TrafficCar {
   public update(
     deltaTime: number
   ): void {
+    /*
+     * IMPORTANT:
+     *
+     * A collision-stopped traffic car
+     * must never move again until it is
+     * explicitly reset for reuse.
+     */
     if (
       !this.active ||
+      this.stoppedByCollision ||
       deltaTime <= 0
     ) {
       return;
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * Traffic cars do NOT accelerate.
-     *
-     * Their current speed is used directly.
-     */
+    // -----------------------------------------------------
+    // Convert km/h to world units per second
+    // -----------------------------------------------------
+
     const worldSpeed =
       this.speed / 3.6;
 
@@ -299,12 +317,6 @@ export class TrafficCar {
     return this.speed;
   }
 
-  /**
-   * Allows collision/gameplay systems to change
-   * traffic speed intentionally.
-   *
-   * This does NOT create automatic acceleration.
-   */
   public setSpeed(
     speed: number
   ): void {
@@ -319,6 +331,45 @@ export class TrafficCar {
         0,
         speed
       );
+  }
+
+  // =========================================================
+  // Collision Stop
+  // =========================================================
+
+  /**
+   * Permanently stops this traffic car
+   * for the current active lifetime.
+   *
+   * It will not move again until
+   * resetCollisionStop() is called.
+   */
+  public stopForCollision(): void {
+    this.stoppedByCollision =
+      true;
+
+    this.speed = 0;
+  }
+
+  // =========================================================
+  // Collision Reset
+  // =========================================================
+
+  /**
+   * Called when an inactive traffic car
+   * is reused for a new spawn.
+   */
+  public resetCollisionStop(): void {
+    this.stoppedByCollision =
+      false;
+  }
+
+  // =========================================================
+  // Collision State
+  // =========================================================
+
+  public isStoppedByCollision(): boolean {
+    return this.stoppedByCollision;
   }
 
   // =========================================================
@@ -346,17 +397,27 @@ export class TrafficCar {
   public addToScene(
     scene: THREE.Scene
   ): void {
-    scene.add(
-      this.group
-    );
+    if (
+      this.group.parent !== scene
+    ) {
+      scene.add(
+        this.group
+      );
+    }
+
+    this.group.visible = true;
   }
 
   public removeFromScene(
     scene: THREE.Scene
   ): void {
-    scene.remove(
-      this.group
-    );
+    if (
+      this.group.parent === scene
+    ) {
+      scene.remove(
+        this.group
+      );
+    }
   }
 
   // =========================================================
@@ -389,5 +450,7 @@ export class TrafficCar {
         }
       }
     );
+
+    this.wheels.length = 0;
   }
 }
