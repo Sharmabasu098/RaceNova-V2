@@ -23,24 +23,33 @@ export class RaceNovaEngine {
     TrafficCollisionSystem;
 
   // =========================================================
-  // Mobile HUD
+  // HUD
   // =========================================================
 
-  private readonly hudContainer: HTMLDivElement;
-  private readonly speedDisplay: HTMLDivElement;
-  private readonly nitroButton: HTMLButtonElement;
-  private readonly nitroStatus: HTMLDivElement;
+  /*
+   * RaceHUD is now the ONLY authoritative
+   * speed + Nitro display.
+   *
+   * Old duplicate speedDisplay,
+   * nitroStatus and nitroButton HUD
+   * have been removed.
+   */
   private readonly raceHUD: RaceHUD;
 
-  constructor(container: HTMLElement) {
+  constructor(
+    container: HTMLElement
+  ) {
     // =====================================================
     // Scene
     // =====================================================
 
-    this.scene = new THREE.Scene();
+    this.scene =
+      new THREE.Scene();
 
     this.scene.background =
-      new THREE.Color(0x87ceeb);
+      new THREE.Color(
+        0x87ceeb
+      );
 
     // =====================================================
     // Camera
@@ -90,7 +99,8 @@ export class RaceNovaEngine {
       window.innerHeight
     );
 
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled =
+      true;
 
     container.appendChild(
       this.renderer.domElement
@@ -150,10 +160,21 @@ export class RaceNovaEngine {
       this.scene
     );
 
+    // =====================================================
+    // Race HUD
+    // =====================================================
+
+    /*
+     * RaceHUD reads speed and Nitro
+     * directly from PlayerCar.
+     *
+     * This prevents duplicate HUD
+     * synchronization problems.
+     */
     this.raceHUD =
-  new RaceHUD(
-    this.playerCar
-  );
+      new RaceHUD(
+        this.playerCar
+      );
 
     // =====================================================
     // Car Controller
@@ -232,32 +253,6 @@ export class RaceNovaEngine {
       );
 
     // =====================================================
-    // HUD
-    // =====================================================
-
-    this.hudContainer =
-      document.createElement(
-        "div"
-      );
-
-    this.speedDisplay =
-      document.createElement(
-        "div"
-      );
-
-    this.nitroStatus =
-      document.createElement(
-        "div"
-      );
-
-    this.nitroButton =
-      document.createElement(
-        "button"
-      );
-
-    this.createHUD();
-
-    // =====================================================
     // Keyboard Nitro
     // =====================================================
 
@@ -274,220 +269,33 @@ export class RaceNovaEngine {
       "resize",
       this.handleResize
     );
+
+    // =====================================================
+    // Initial HUD
+    // =====================================================
+
+    this.raceHUD.update();
   }
-
-  // =========================================================
-  // HUD
-  // =========================================================
-
-  private createHUD(): void {
-    // -----------------------------------------------------
-    // Main HUD container
-    // -----------------------------------------------------
-
-    this.hudContainer.style.position =
-      "fixed";
-
-    this.hudContainer.style.left =
-      "0";
-
-    this.hudContainer.style.top =
-      "0";
-
-    this.hudContainer.style.width =
-      "100%";
-
-    this.hudContainer.style.height =
-      "100%";
-
-    this.hudContainer.style.pointerEvents =
-      "none";
-
-    this.hudContainer.style.zIndex =
-      "1000";
-
-    // -----------------------------------------------------
-    // Speed display
-    // -----------------------------------------------------
-
-    this.speedDisplay.style.position =
-      "absolute";
-
-    this.speedDisplay.style.top =
-      "20px";
-
-    this.speedDisplay.style.left =
-      "20px";
-
-    this.speedDisplay.style.minWidth =
-      "105px";
-
-    this.speedDisplay.style.padding =
-      "10px 14px";
-
-    this.speedDisplay.style.borderRadius =
-      "12px";
-
-    this.speedDisplay.style.background =
-      "rgba(0, 0, 0, 0.55)";
-
-    this.speedDisplay.style.color =
-      "#ffffff";
-
-    this.speedDisplay.style.fontFamily =
-      "Arial, sans-serif";
-
-    this.speedDisplay.style.fontWeight =
-      "700";
-
-    this.speedDisplay.style.fontSize =
-      "22px";
-
-    this.speedDisplay.style.textAlign =
-      "center";
-
-    this.speedDisplay.textContent =
-      "0 km/h";
-
-    // -----------------------------------------------------
-    // Nitro status
-    // -----------------------------------------------------
-
-    this.nitroStatus.style.position =
-      "absolute";
-
-    this.nitroStatus.style.top =
-      "88px";
-
-    this.nitroStatus.style.left =
-      "20px";
-
-    this.nitroStatus.style.color =
-      "#ffffff";
-
-    this.nitroStatus.style.fontFamily =
-      "Arial, sans-serif";
-
-    this.nitroStatus.style.fontWeight =
-      "700";
-
-    this.nitroStatus.style.fontSize =
-      "15px";
-
-    this.nitroStatus.textContent =
-      "NITRO READY";
-
-    // -----------------------------------------------------
-    // Nitro button
-    // -----------------------------------------------------
-
-    this.nitroButton.type =
-      "button";
-
-    this.nitroButton.textContent =
-      "⚡ NITRO";
-
-    this.nitroButton.style.position =
-      "absolute";
-
-    this.nitroButton.style.right =
-      "24px";
-
-    this.nitroButton.style.bottom =
-      "30px";
-
-    this.nitroButton.style.width =
-      "125px";
-
-    this.nitroButton.style.height =
-      "60px";
-
-    this.nitroButton.style.border =
-      "none";
-
-    this.nitroButton.style.borderRadius =
-      "18px";
-
-    this.nitroButton.style.background =
-      "#ff7a00";
-
-    this.nitroButton.style.color =
-      "#ffffff";
-
-    this.nitroButton.style.fontFamily =
-      "Arial, sans-serif";
-
-    this.nitroButton.style.fontSize =
-      "18px";
-
-    this.nitroButton.style.fontWeight =
-      "900";
-
-    this.nitroButton.style.boxShadow =
-      "0 5px 18px rgba(0,0,0,0.35)";
-
-    this.nitroButton.style.pointerEvents =
-      "auto";
-
-    this.nitroButton.style.touchAction =
-      "manipulation";
-
-    this.nitroButton.style.userSelect =
-      "none";
-
-    // -----------------------------------------------------
-    // Mobile touch
-    // -----------------------------------------------------
-
-    this.nitroButton.addEventListener(
-      "pointerdown",
-      this.handleNitroButton
-    );
-
-    // -----------------------------------------------------
-    // Add HUD
-    // -----------------------------------------------------
-
-    this.hudContainer.appendChild(
-      this.speedDisplay
-    );
-
-    this.hudContainer.appendChild(
-      this.nitroStatus
-    );
-
-    this.hudContainer.appendChild(
-      this.nitroButton
-    );
-
-    document.body.appendChild(
-      this.hudContainer
-    );
-  }
-
-  // =========================================================
-  // Nitro Button
-  // =========================================================
-
-  private handleNitroButton = (
-    event: PointerEvent
-  ): void => {
-    event.preventDefault();
-
-    this.activateNitro();
-  };
 
   // =========================================================
   // Nitro Activation
   // =========================================================
 
   private activateNitro(): void {
+    /*
+     * Nitro cannot be activated after
+     * a traffic crash.
+     */
     if (
       this.trafficCollisionSystem.hasCrashed()
     ) {
       return;
     }
 
+    /*
+     * PlayerCar itself also protects
+     * against duplicate Nitro activation.
+     */
     if (
       this.playerCar.isNitroActive()
     ) {
@@ -496,7 +304,10 @@ export class RaceNovaEngine {
 
     this.playerCar.activateNitro();
 
-    this.updateHUD();
+    /*
+     * Immediately refresh the authoritative HUD.
+     */
+    this.raceHUD.update();
   }
 
   // =========================================================
@@ -507,12 +318,15 @@ export class RaceNovaEngine {
     event: KeyboardEvent
   ): void => {
     if (
-      event.key.toLowerCase() !== "n"
+      event.key.toLowerCase() !==
+      "n"
     ) {
       return;
     }
 
-    if (event.repeat) {
+    if (
+      event.repeat
+    ) {
       return;
     }
 
@@ -546,7 +360,8 @@ export class RaceNovaEngine {
       10
     );
 
-    sun.castShadow = true;
+    sun.castShadow =
+      true;
 
     this.scene.add(
       sun
@@ -586,42 +401,49 @@ export class RaceNovaEngine {
   };
 
   // =========================================================
-  // Update
+  // Main Update
   // =========================================================
 
   private update(
     deltaTime: number
   ): void {
     if (
-      deltaTime <= 0
+      deltaTime <= 0 ||
+      !Number.isFinite(deltaTime)
     ) {
       return;
     }
 
-    // -----------------------------------------------------
-    // Player forward movement
-    // -----------------------------------------------------
+    // =====================================================
+    // Player Forward Movement
+    // =====================================================
 
+    /*
+     * Player movement stops after crash.
+     */
     if (
       !this.trafficCollisionSystem.hasCrashed()
     ) {
       this.playerCar.update(
         deltaTime
       );
-      this.raceHUD.update();
     }
 
-    // -----------------------------------------------------
-    // Player steering
-    // -----------------------------------------------------
+    // =====================================================
+    // Player Steering
+    // =====================================================
 
+    /*
+     * Keep steering system active so
+     * the input system remains stable.
+     */
     this.carController.update(
       deltaTime
     );
 
-    // -----------------------------------------------------
-    // Player position
-    // -----------------------------------------------------
+    // =====================================================
+    // Player Position
+    // =====================================================
 
     const playerPosition =
       this.playerCar.getPosition();
@@ -629,41 +451,55 @@ export class RaceNovaEngine {
     const playerZ =
       playerPosition.z;
 
-    // -----------------------------------------------------
+    // =====================================================
     // World
-    // -----------------------------------------------------
+    // =====================================================
 
     this.world.update(
       playerZ
     );
 
-    // -----------------------------------------------------
+    // =====================================================
     // Traffic
-    // -----------------------------------------------------
+    // =====================================================
 
     this.trafficManager.update(
       deltaTime,
       playerZ
     );
 
-    // -----------------------------------------------------
-    // Collision
-    // -----------------------------------------------------
+    // =====================================================
+    // Traffic Collision
+    // =====================================================
 
+    /*
+     * IMPORTANT:
+     *
+     * TrafficCollisionSystem.update()
+     * currently accepts ONLY the traffic
+     * car array.
+     *
+     * Do NOT pass deltaTime here.
+     */
     this.trafficCollisionSystem.update(
-  this.trafficManager.getTrafficCars(),
-  deltaTime
-);
+      this.trafficManager.getTrafficCars()
+    );
 
-    // -----------------------------------------------------
+    // =====================================================
     // HUD
-    // -----------------------------------------------------
+    // =====================================================
 
-    this.updateHUD();
+    /*
+     * RaceHUD reads the actual PlayerCar
+     * speed/Nitro state every frame.
+     *
+     * There is no second speed HUD anymore.
+     */
+    this.raceHUD.update();
 
-    // -----------------------------------------------------
+    // =====================================================
     // Chase Camera
-    // -----------------------------------------------------
+    // =====================================================
 
     const targetCameraX =
       playerPosition.x;
@@ -695,46 +531,6 @@ export class RaceNovaEngine {
   };
 
   // =========================================================
-  // HUD Update
-  // =========================================================
-
-  private updateHUD(): void {
-    const speed =
-      Math.round(
-        this.playerCar.getSpeed()
-      );
-
-    this.speedDisplay.textContent =
-      `${speed} km/h`;
-
-    if (
-      this.playerCar.isNitroActive()
-    ) {
-      const remaining =
-        this.playerCar
-          .getNitroTimeRemaining();
-
-      this.nitroStatus.textContent =
-        `⚡ NITRO ${remaining.toFixed(1)}s`;
-
-      this.nitroButton.textContent =
-        `⚡ ${remaining.toFixed(1)}s`;
-
-      this.nitroButton.style.opacity =
-        "0.75";
-    } else {
-      this.nitroStatus.textContent =
-        "NITRO READY";
-
-      this.nitroButton.textContent =
-        "⚡ NITRO";
-
-      this.nitroButton.style.opacity =
-        "1";
-    }
-  }
-
-  // =========================================================
   // Resize
   // =========================================================
 
@@ -744,6 +540,12 @@ export class RaceNovaEngine {
 
     const height =
       window.innerHeight;
+
+    if (
+      height <= 0
+    ) {
+      return;
+    }
 
     this.camera.aspect =
       width / height;
@@ -768,6 +570,10 @@ export class RaceNovaEngine {
   // =========================================================
 
   public dispose(): void {
+    // -----------------------------------------------------
+    // Event listeners
+    // -----------------------------------------------------
+
     window.removeEventListener(
       "resize",
       this.handleResize
@@ -778,14 +584,17 @@ export class RaceNovaEngine {
       this.handleNitroKeyDown
     );
 
-    this.nitroButton.removeEventListener(
-      "pointerdown",
-      this.handleNitroButton
-    );
+    // -----------------------------------------------------
+    // Controllers
+    // -----------------------------------------------------
 
     this.swipeController.dispose();
 
     this.carController.dispose();
+
+    // -----------------------------------------------------
+    // Gameplay systems
+    // -----------------------------------------------------
 
     this.trafficManager.dispose();
 
@@ -795,17 +604,17 @@ export class RaceNovaEngine {
 
     this.world.dispose();
 
-    this.renderer.dispose();
+    // -----------------------------------------------------
+    // HUD
+    // -----------------------------------------------------
 
     this.raceHUD.dispose();
 
-    if (
-      this.hudContainer.parentElement
-    ) {
-      this.hudContainer.parentElement.removeChild(
-        this.hudContainer
-      );
-    }
+    // -----------------------------------------------------
+    // Renderer
+    // -----------------------------------------------------
+
+    this.renderer.dispose();
 
     if (
       this.renderer.domElement.parentElement
