@@ -161,47 +161,37 @@ export class RaceNovaEngine {
     );
 
     // =====================================================
-    // Race HUD
-    // =====================================================
+// Race HUD
+// =====================================================
 
-    /*
-     * RaceHUD reads speed and Nitro
-     * directly from PlayerCar.
-     *
-     * This prevents duplicate HUD
-     * synchronization problems.
-     */
-    this.raceHUD =
-      new RaceHUD(
-        this.playerCar
-      );
+this.raceHUD =
+  new RaceHUD(
+    this.playerCar,
+    () => {
+      this.activateNitro();
+    }
+  );
 
-    this.raceHUD.setNitroAction(
-  () => {
-    this.activateNitro();
-  }
-);
+// =====================================================
+// Car Controller
+// =====================================================
 
-    // =====================================================
-    // Car Controller
-    // =====================================================
+this.carController =
+  new CarController(
+    this.playerCar,
+    {
+      laneWidth: 4,
+      laneCount: 3,
+      steeringSpeed: 10,
 
-    this.carController =
-      new CarController(
-        this.playerCar,
-        {
-          laneWidth: 4,
-          laneCount: 3,
-          steeringSpeed: 10,
-
-          getRoadCenterX: (
-            worldZ: number
-          ) =>
-            this.world.getRoadCenterX(
-              worldZ
-            )
-        }
-      );
+      getRoadCenterX: (
+        worldZ: number
+      ) =>
+        this.world.getRoadCenterX(
+          worldZ
+        )
+    }
+  );
 
     // =====================================================
     // Swipe Controller
