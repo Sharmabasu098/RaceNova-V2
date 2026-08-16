@@ -4,11 +4,17 @@ export class RaceHUD {
   private readonly root: HTMLDivElement;
 
   private readonly speedText: HTMLDivElement;
+
   private readonly nitroContainer: HTMLDivElement;
   private readonly nitroFill: HTMLDivElement;
   private readonly nitroText: HTMLDivElement;
 
+  private readonly nitroButton: HTMLButtonElement;
+
   private readonly playerCar: PlayerCar;
+
+  private nitroAction:
+    (() => void) | null = null;
 
   constructor(
     playerCar: PlayerCar,
@@ -34,7 +40,8 @@ export class RaceHUD {
         pointerEvents: "none",
         zIndex: "1000",
         fontFamily:
-          "Arial, sans-serif"
+          "Arial, sans-serif",
+        userSelect: "none"
       }
     );
 
@@ -57,7 +64,8 @@ export class RaceHUD {
         fontWeight: "700",
         color: "#ffffff",
         textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)"
+          "0 2px 5px rgba(0,0,0,0.8)",
+        pointerEvents: "none"
       }
     );
 
@@ -69,7 +77,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Nitro container
+    // Nitro Container
     // =====================================================
 
     this.nitroContainer =
@@ -91,7 +99,8 @@ export class RaceHUD {
         background:
           "rgba(0,0,0,0.55)",
         overflow: "hidden",
-        boxSizing: "border-box"
+        boxSizing: "border-box",
+        pointerEvents: "none"
       }
     );
 
@@ -100,7 +109,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Nitro fill
+    // Nitro Fill
     // =====================================================
 
     this.nitroFill =
@@ -124,7 +133,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Nitro label
+    // Nitro Label
     // =====================================================
 
     this.nitroText =
@@ -143,7 +152,8 @@ export class RaceHUD {
         color: "#ffffff",
         letterSpacing: "2px",
         textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)"
+          "0 2px 5px rgba(0,0,0,0.8)",
+        pointerEvents: "none"
       }
     );
 
@@ -155,6 +165,83 @@ export class RaceHUD {
     );
 
     // =====================================================
+    // NITRO BUTTON
+    // =====================================================
+
+    this.nitroButton =
+      document.createElement("button");
+
+    this.nitroButton.type =
+      "button";
+
+    this.nitroButton.textContent =
+      "N";
+
+    Object.assign(
+      this.nitroButton.style,
+      {
+        position: "absolute",
+
+        right: "22px",
+        bottom: "145px",
+
+        width: "68px",
+        height: "68px",
+
+        border:
+          "3px solid rgba(255,255,255,0.9)",
+
+        borderRadius: "50%",
+
+        background:
+          "linear-gradient(145deg, #00cfff, #0066ff)",
+
+        color: "#ffffff",
+
+        fontSize: "30px",
+
+        fontWeight: "900",
+
+        fontFamily:
+          "Arial, sans-serif",
+
+        textShadow:
+          "0 2px 5px rgba(0,0,0,0.8)",
+
+        boxShadow:
+          "0 5px 18px rgba(0,150,255,0.55)",
+
+        cursor: "pointer",
+
+        padding: "0",
+
+        outline: "none",
+
+        WebkitTapHighlightColor:
+          "transparent",
+
+        touchAction: "manipulation",
+
+        pointerEvents: "auto",
+
+        zIndex: "1001"
+      }
+    );
+
+    this.root.appendChild(
+      this.nitroButton
+    );
+
+    // =====================================================
+    // Nitro Button Press
+    // =====================================================
+
+    this.nitroButton.addEventListener(
+      "pointerdown",
+      this.handleNitroButtonDown
+    );
+
+    // =====================================================
     // Add HUD
     // =====================================================
 
@@ -163,7 +250,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Responsive sizing
+    // Responsive
     // =====================================================
 
     this.updateResponsiveSize();
@@ -175,18 +262,53 @@ export class RaceHUD {
   }
 
   // =========================================================
+  // Connect Nitro Action
+  // =========================================================
+
+  public setNitroAction(
+    action: () => void
+  ): void {
+    this.nitroAction =
+      action;
+  }
+
+  // =========================================================
+  // Nitro Button
+  // =========================================================
+
+  private handleNitroButtonDown =
+    (event: PointerEvent): void => {
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (
+        this.nitroAction === null
+      ) {
+        return;
+      }
+
+      this.nitroAction();
+
+      this.nitroButton.style.transform =
+        "scale(0.90)";
+
+      window.setTimeout(
+        () => {
+          this.nitroButton.style.transform =
+            "scale(1)";
+        },
+        100
+      );
+    };
+
+  // =========================================================
   // Update
   // =========================================================
 
   public update(): void {
     const speed =
       this.playerCar.getSpeed();
-
-    const maxSpeed =
-      this.playerCar.getMaxSpeed();
-
-    const nitroSpeed =
-      this.playerCar.getNitroSpeed();
 
     const nitroDuration =
       this.playerCar.getNitroDuration();
@@ -205,15 +327,20 @@ export class RaceHUD {
       `${Math.round(speed)} km/h`;
 
     // =====================================================
-    // Nitro percentage
+    // Nitro Percentage
     // =====================================================
 
-    let nitroPercent = 100;
+    let nitroPercent =
+      100;
 
-    if (nitroActive) {
+    if (
+      nitroActive
+    ) {
       nitroPercent =
-        (nitroRemaining /
-          nitroDuration) *
+        (
+          nitroRemaining /
+          nitroDuration
+        ) *
         100;
     }
 
@@ -230,10 +357,12 @@ export class RaceHUD {
       `${nitroPercent}%`;
 
     // =====================================================
-    // Nitro active visual
+    // Nitro Active Visual
     // =====================================================
 
-    if (nitroActive) {
+    if (
+      nitroActive
+    ) {
       this.nitroText.textContent =
         "NITRO ACTIVE";
 
@@ -248,6 +377,15 @@ export class RaceHUD {
 
       this.nitroFill.style.background =
         "linear-gradient(90deg, #00aaff, #ffffff, #00eaff)";
+
+      this.nitroButton.style.background =
+        "linear-gradient(145deg, #ffffff, #00eaff)";
+
+      this.nitroButton.style.color =
+        "#0066ff";
+
+      this.nitroButton.style.boxShadow =
+        "0 0 25px rgba(0,234,255,0.95)";
     } else {
       this.nitroText.textContent =
         "NITRO";
@@ -263,14 +401,16 @@ export class RaceHUD {
 
       this.nitroFill.style.background =
         "linear-gradient(90deg, #00aaff, #00eaff)";
+
+      this.nitroButton.style.background =
+        "linear-gradient(145deg, #00cfff, #0066ff)";
+
+      this.nitroButton.style.color =
+        "#ffffff";
+
+      this.nitroButton.style.boxShadow =
+        "0 5px 18px rgba(0,150,255,0.55)";
     }
-
-    // =====================================================
-    // Prevent unused configuration warnings
-    // =====================================================
-
-    void maxSpeed;
-    void nitroSpeed;
   }
 
   // =========================================================
@@ -279,10 +419,13 @@ export class RaceHUD {
 
   private updateResponsiveSize =
     (): void => {
+
       const width =
         window.innerWidth;
 
-      if (width <= 480) {
+      if (
+        width <= 480
+      ) {
         this.nitroContainer.style.width =
           "190px";
 
@@ -297,6 +440,21 @@ export class RaceHUD {
 
         this.speedText.style.bottom =
           "78px";
+
+        this.nitroButton.style.width =
+          "62px";
+
+        this.nitroButton.style.height =
+          "62px";
+
+        this.nitroButton.style.fontSize =
+          "27px";
+
+        this.nitroButton.style.right =
+          "16px";
+
+        this.nitroButton.style.bottom =
+          "132px";
       } else {
         this.nitroContainer.style.width =
           "240px";
@@ -312,6 +470,21 @@ export class RaceHUD {
 
         this.speedText.style.bottom =
           "90px";
+
+        this.nitroButton.style.width =
+          "68px";
+
+        this.nitroButton.style.height =
+          "68px";
+
+        this.nitroButton.style.fontSize =
+          "30px";
+
+        this.nitroButton.style.right =
+          "22px";
+
+        this.nitroButton.style.bottom =
+          "145px";
       }
     };
 
@@ -320,6 +493,12 @@ export class RaceHUD {
   // =========================================================
 
   public dispose(): void {
+
+    this.nitroButton.removeEventListener(
+      "pointerdown",
+      this.handleNitroButtonDown
+    );
+
     window.removeEventListener(
       "resize",
       this.updateResponsiveSize
