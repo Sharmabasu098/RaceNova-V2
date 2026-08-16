@@ -176,6 +176,12 @@ export class RaceNovaEngine {
         this.playerCar
       );
 
+    this.raceHUD.setNitroAction(
+  () => {
+    this.activateNitro();
+  }
+);
+
     // =====================================================
     // Car Controller
     // =====================================================
