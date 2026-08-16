@@ -13,14 +13,15 @@ export class RaceHUD {
 
   private readonly playerCar: PlayerCar;
 
-  private nitroAction:
-    (() => void) | null = null;
+  private readonly onNitroRequest: () => void;
 
   constructor(
     playerCar: PlayerCar,
+    onNitroRequest: () => void,
     parent: HTMLElement = document.body
   ) {
     this.playerCar = playerCar;
+    this.onNitroRequest = onNitroRequest;
 
     // =====================================================
     // Root
@@ -41,7 +42,8 @@ export class RaceHUD {
         zIndex: "1000",
         fontFamily:
           "Arial, sans-serif",
-        userSelect: "none"
+        userSelect: "none",
+        WebkitUserSelect: "none"
       }
     );
 
@@ -57,15 +59,14 @@ export class RaceHUD {
       {
         position: "absolute",
         right: "20px",
-        bottom: "90px",
+        bottom: "120px",
         minWidth: "120px",
         textAlign: "right",
         fontSize: "26px",
         fontWeight: "700",
         color: "#ffffff",
         textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)",
-        pointerEvents: "none"
+          "0 2px 5px rgba(0,0,0,0.8)"
       }
     );
 
@@ -77,7 +78,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Nitro Container
+    // Nitro Bar
     // =====================================================
 
     this.nitroContainer =
@@ -99,8 +100,7 @@ export class RaceHUD {
         background:
           "rgba(0,0,0,0.55)",
         overflow: "hidden",
-        boxSizing: "border-box",
-        pointerEvents: "none"
+        boxSizing: "border-box"
       }
     );
 
@@ -152,8 +152,7 @@ export class RaceHUD {
         color: "#ffffff",
         letterSpacing: "2px",
         textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)",
-        pointerEvents: "none"
+          "0 2px 5px rgba(0,0,0,0.8)"
       }
     );
 
@@ -165,7 +164,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // NITRO BUTTON
+    // MOBILE NITRO BUTTON
     // =====================================================
 
     this.nitroButton =
@@ -182,16 +181,16 @@ export class RaceHUD {
       {
         position: "absolute",
 
-        right: "22px",
-        bottom: "145px",
+        right: "20px",
+        bottom: "24px",
 
-        width: "68px",
-        height: "68px",
-
-        border:
-          "3px solid rgba(255,255,255,0.9)",
+        width: "72px",
+        height: "72px",
 
         borderRadius: "50%",
+
+        border:
+          "3px solid rgba(255,255,255,0.95)",
 
         background:
           "linear-gradient(145deg, #00cfff, #0066ff)",
@@ -199,46 +198,64 @@ export class RaceHUD {
         color: "#ffffff",
 
         fontSize: "30px",
-
         fontWeight: "900",
 
-        fontFamily:
-          "Arial, sans-serif",
-
-        textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)",
+        lineHeight: "1",
 
         boxShadow:
-          "0 5px 18px rgba(0,150,255,0.55)",
+          "0 5px 18px rgba(0,0,0,0.45), 0 0 18px rgba(0,200,255,0.45)",
 
         cursor: "pointer",
 
-        padding: "0",
+        pointerEvents: "auto",
 
-        outline: "none",
+        touchAction: "manipulation",
 
         WebkitTapHighlightColor:
           "transparent",
 
-        touchAction: "manipulation",
+        padding: "0",
 
-        pointerEvents: "auto",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
 
-        zIndex: "1001"
+        transition:
+          "transform 0.08s ease, filter 0.08s ease"
       }
     );
 
-    this.root.appendChild(
-      this.nitroButton
-    );
-
     // =====================================================
-    // Nitro Button Press
+    // Nitro Button Touch / Click
     // =====================================================
 
     this.nitroButton.addEventListener(
       "pointerdown",
-      this.handleNitroButtonDown
+      this.handleNitroPointerDown
+    );
+
+    this.nitroButton.addEventListener(
+      "pointerup",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.addEventListener(
+      "pointercancel",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.addEventListener(
+      "pointerleave",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.addEventListener(
+      "click",
+      this.handleNitroClick
+    );
+
+    this.root.appendChild(
+      this.nitroButton
     );
 
     // =====================================================
@@ -250,7 +267,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Responsive
+    // Responsive sizing
     // =====================================================
 
     this.updateResponsiveSize();
@@ -262,45 +279,44 @@ export class RaceHUD {
   }
 
   // =========================================================
-  // Connect Nitro Action
+  // Nitro Pointer
   // =========================================================
 
-  public setNitroAction(
-    action: () => void
-  ): void {
-    this.nitroAction =
-      action;
-  }
+  private handleNitroPointerDown = (
+    event: PointerEvent
+  ): void => {
+    event.preventDefault();
+
+    this.nitroButton.style.transform =
+      "scale(0.92)";
+
+    this.nitroButton.style.filter =
+      "brightness(1.25)";
+  };
+
+  private handleNitroPointerUp = (
+    event: PointerEvent
+  ): void => {
+    event.preventDefault();
+
+    this.nitroButton.style.transform =
+      "scale(1)";
+
+    this.nitroButton.style.filter =
+      "brightness(1)";
+  };
 
   // =========================================================
-  // Nitro Button
+  // Nitro Click
   // =========================================================
 
-  private handleNitroButtonDown =
-    (event: PointerEvent): void => {
+  private handleNitroClick = (
+    event: MouseEvent
+  ): void => {
+    event.preventDefault();
 
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (
-        this.nitroAction === null
-      ) {
-        return;
-      }
-
-      this.nitroAction();
-
-      this.nitroButton.style.transform =
-        "scale(0.90)";
-
-      window.setTimeout(
-        () => {
-          this.nitroButton.style.transform =
-            "scale(1)";
-        },
-        100
-      );
-    };
+    this.onNitroRequest();
+  };
 
   // =========================================================
   // Update
@@ -333,14 +349,10 @@ export class RaceHUD {
     let nitroPercent =
       100;
 
-    if (
-      nitroActive
-    ) {
+    if (nitroActive) {
       nitroPercent =
-        (
-          nitroRemaining /
-          nitroDuration
-        ) *
+        (nitroRemaining /
+          nitroDuration) *
         100;
     }
 
@@ -360,9 +372,7 @@ export class RaceHUD {
     // Nitro Active Visual
     // =====================================================
 
-    if (
-      nitroActive
-    ) {
+    if (nitroActive) {
       this.nitroText.textContent =
         "NITRO ACTIVE";
 
@@ -378,14 +388,14 @@ export class RaceHUD {
       this.nitroFill.style.background =
         "linear-gradient(90deg, #00aaff, #ffffff, #00eaff)";
 
-      this.nitroButton.style.background =
-        "linear-gradient(145deg, #ffffff, #00eaff)";
+      this.nitroButton.textContent =
+        "🔥";
 
-      this.nitroButton.style.color =
-        "#0066ff";
+      this.nitroButton.style.background =
+        "linear-gradient(145deg, #ffffff, #00cfff)";
 
       this.nitroButton.style.boxShadow =
-        "0 0 25px rgba(0,234,255,0.95)";
+        "0 5px 22px rgba(0,0,0,0.45), 0 0 28px rgba(0,235,255,0.9)";
     } else {
       this.nitroText.textContent =
         "NITRO";
@@ -402,14 +412,14 @@ export class RaceHUD {
       this.nitroFill.style.background =
         "linear-gradient(90deg, #00aaff, #00eaff)";
 
+      this.nitroButton.textContent =
+        "N";
+
       this.nitroButton.style.background =
         "linear-gradient(145deg, #00cfff, #0066ff)";
 
-      this.nitroButton.style.color =
-        "#ffffff";
-
       this.nitroButton.style.boxShadow =
-        "0 5px 18px rgba(0,150,255,0.55)";
+        "0 5px 18px rgba(0,0,0,0.45), 0 0 18px rgba(0,200,255,0.45)";
     }
   }
 
@@ -419,13 +429,10 @@ export class RaceHUD {
 
   private updateResponsiveSize =
     (): void => {
-
       const width =
         window.innerWidth;
 
-      if (
-        width <= 480
-      ) {
+      if (width <= 480) {
         this.nitroContainer.style.width =
           "190px";
 
@@ -439,22 +446,22 @@ export class RaceHUD {
           "14px";
 
         this.speedText.style.bottom =
-          "78px";
+          "112px";
 
         this.nitroButton.style.width =
-          "62px";
+          "68px";
 
         this.nitroButton.style.height =
-          "62px";
-
-        this.nitroButton.style.fontSize =
-          "27px";
+          "68px";
 
         this.nitroButton.style.right =
           "16px";
 
         this.nitroButton.style.bottom =
-          "132px";
+          "20px";
+
+        this.nitroButton.style.fontSize =
+          "28px";
       } else {
         this.nitroContainer.style.width =
           "240px";
@@ -469,22 +476,22 @@ export class RaceHUD {
           "20px";
 
         this.speedText.style.bottom =
-          "90px";
+          "120px";
 
         this.nitroButton.style.width =
-          "68px";
+          "72px";
 
         this.nitroButton.style.height =
-          "68px";
+          "72px";
+
+        this.nitroButton.style.right =
+          "20px";
+
+        this.nitroButton.style.bottom =
+          "24px";
 
         this.nitroButton.style.fontSize =
           "30px";
-
-        this.nitroButton.style.right =
-          "22px";
-
-        this.nitroButton.style.bottom =
-          "145px";
       }
     };
 
@@ -493,15 +500,34 @@ export class RaceHUD {
   // =========================================================
 
   public dispose(): void {
-
-    this.nitroButton.removeEventListener(
-      "pointerdown",
-      this.handleNitroButtonDown
-    );
-
     window.removeEventListener(
       "resize",
       this.updateResponsiveSize
+    );
+
+    this.nitroButton.removeEventListener(
+      "pointerdown",
+      this.handleNitroPointerDown
+    );
+
+    this.nitroButton.removeEventListener(
+      "pointerup",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.removeEventListener(
+      "pointercancel",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.removeEventListener(
+      "pointerleave",
+      this.handleNitroPointerUp
+    );
+
+    this.nitroButton.removeEventListener(
+      "click",
+      this.handleNitroClick
     );
 
     this.root.remove();
