@@ -201,15 +201,15 @@ export class GarageManager {
   // Garage State
   // ==========================================================
 
-  public getState():
-    GarageState {
-    return {
-      ownedCars:
-        this.getOwnedCars(),
+  public getState(): GarageState {
+  return {
+    ownedCars: [
+      ...this.ownedCars
+    ],
 
-      selectedCar:
-        this.selectedCar
-    };
+    selectedCar:
+      this.selectedCar
+  };
   }
 
   // ==========================================================
