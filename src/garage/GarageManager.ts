@@ -25,6 +25,7 @@
  */
 
 import { EconomyManager } from "./EconomyManager";
+import { EconomyManager } from "../economy/EconomyManager";
 
 import {
   CAR_DATA,
