@@ -208,4 +208,4 @@ export function getStarterCar():
    */
 
   return CAR_DATA[0];
-  }
+}
