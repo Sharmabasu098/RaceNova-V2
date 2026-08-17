@@ -4,9 +4,14 @@ import { World } from "../world/World";
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
+
 import { TrafficManager } from "../traffic/TrafficManager";
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
+
 import { RaceHUD } from "../ui/RaceHUD";
+
+import { EconomyManager } from "../economy/EconomyManager";
+import { CoinSpawner } from "../economy/CoinSpawner";
 
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
@@ -18,23 +23,48 @@ export class RaceNovaEngine {
   private readonly playerCar: PlayerCar;
   private readonly carController: CarController;
   private readonly swipeController: SwipeController;
+
   private readonly trafficManager: TrafficManager;
   private readonly trafficCollisionSystem:
     TrafficCollisionSystem;
+
+  // =========================================================
+  // Economy
+  // =========================================================
+
+  /*
+   * EconomyManager is the authoritative
+   * internal coin balance controller.
+   */
+  private readonly economyManager:
+    EconomyManager;
+
+  /*
+   * CoinSpawner handles:
+   * - coin spawning
+   * - coin animation
+   * - collection
+   * - despawning
+   *
+   * EconomyManager receives the reward
+   * after successful collection.
+   */
+  private readonly coinSpawner:
+    CoinSpawner;
 
   // =========================================================
   // HUD
   // =========================================================
 
   /*
-   * RaceHUD is now the ONLY authoritative
+   * RaceHUD is the authoritative
    * speed + Nitro display.
-   *
-   * Old duplicate speedDisplay,
-   * nitroStatus and nitroButton HUD
-   * have been removed.
    */
   private readonly raceHUD: RaceHUD;
+
+  // =========================================================
+  // Constructor
+  // =========================================================
 
   constructor(
     container: HTMLElement
@@ -161,37 +191,86 @@ export class RaceNovaEngine {
     );
 
     // =====================================================
-// Race HUD
-// =====================================================
+    // Economy Manager
+    // =====================================================
 
-this.raceHUD =
-  new RaceHUD(
-    this.playerCar,
-    () => {
-      this.activateNitro();
-    }
-  );
+    /*
+     * M4 internal economy.
+     *
+     * Starts with 0 coins.
+     * Persistence will be connected
+     * through the Save system later.
+     */
+    this.economyManager =
+      new EconomyManager({
+        initialCoins: 0
+      });
 
-// =====================================================
-// Car Controller
-// =====================================================
+    // =====================================================
+    // Coin Spawner
+    // =====================================================
 
-this.carController =
-  new CarController(
-    this.playerCar,
-    {
-      laneWidth: 4,
-      laneCount: 3,
-      steeringSpeed: 10,
+    /*
+     * Coins are spawned according to
+     * the same 3-lane road system.
+     */
+    this.coinSpawner =
+      new CoinSpawner(
+        this.scene,
+        this.economyManager,
+        {
+          laneWidth: 4,
+          laneCount: 3,
 
-      getRoadCenterX: (
-        worldZ: number
-      ) =>
-        this.world.getRoadCenterX(
-          worldZ
-        )
-    }
-  );
+          spawnDistance: 180,
+          despawnDistance: 60,
+
+          coinSpacing: 10,
+          coinHeight: 1,
+
+          maxCoins: 30,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
+        }
+      );
+
+    // =====================================================
+    // Race HUD
+    // =====================================================
+
+    this.raceHUD =
+      new RaceHUD(
+        this.playerCar,
+        () => {
+          this.activateNitro();
+        }
+      );
+
+    // =====================================================
+    // Car Controller
+    // =====================================================
+
+    this.carController =
+      new CarController(
+        this.playerCar,
+        {
+          laneWidth: 4,
+          laneCount: 3,
+          steeringSpeed: 10,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
+        }
+      );
 
     // =====================================================
     // Swipe Controller
@@ -279,8 +358,8 @@ this.carController =
 
   private activateNitro(): void {
     /*
-     * Nitro cannot be activated after
-     * a traffic crash.
+     * Nitro cannot be activated
+     * after a traffic crash.
      */
     if (
       this.trafficCollisionSystem.hasCrashed()
@@ -289,8 +368,8 @@ this.carController =
     }
 
     /*
-     * PlayerCar itself also protects
-     * against duplicate Nitro activation.
+     * PlayerCar protects against
+     * duplicate Nitro activation.
      */
     if (
       this.playerCar.isNitroActive()
@@ -301,7 +380,7 @@ this.carController =
     this.playerCar.activateNitro();
 
     /*
-     * Immediately refresh the authoritative HUD.
+     * Immediately refresh HUD.
      */
     this.raceHUD.update();
   }
@@ -429,10 +508,6 @@ this.carController =
     // Player Steering
     // =====================================================
 
-    /*
-     * Keep steering system active so
-     * the input system remains stable.
-     */
     this.carController.update(
       deltaTime
     );
@@ -469,28 +544,39 @@ this.carController =
     // =====================================================
 
     /*
-     * IMPORTANT:
-     *
      * TrafficCollisionSystem.update()
-     * currently accepts ONLY the traffic
-     * car array.
-     *
-     * Do NOT pass deltaTime here.
+     * accepts ONLY the traffic car array.
      */
     this.trafficCollisionSystem.update(
       this.trafficManager.getTrafficCars()
     );
 
     // =====================================================
-    // HUD
+    // Coin System
     // =====================================================
 
     /*
-     * RaceHUD reads the actual PlayerCar
-     * speed/Nitro state every frame.
+     * CoinSpawner:
      *
-     * There is no second speed HUD anymore.
+     * 1. Spawns coins ahead
+     * 2. Animates coins
+     * 3. Checks player collection
+     * 4. Sends rewards to EconomyManager
+     * 5. Removes coins behind player
      */
+    if (
+      !this.trafficCollisionSystem.hasCrashed()
+    ) {
+      this.coinSpawner.update(
+        deltaTime,
+        playerPosition
+      );
+    }
+
+    // =====================================================
+    // HUD
+    // =====================================================
+
     this.raceHUD.update();
 
     // =====================================================
@@ -562,6 +648,25 @@ this.carController =
   };
 
   // =========================================================
+  // Economy Access
+  // =========================================================
+
+  /*
+   * Exposes the current coin balance
+   * to future systems such as:
+   *
+   * - Garage
+   * - Upgrade System
+   * - Race Rewards
+   * - Save System
+   *
+   * No UI logic is placed here.
+   */
+  public getCoinBalance(): number {
+    return this.economyManager.getCoins();
+  }
+
+  // =========================================================
   // Dispose
   // =========================================================
 
@@ -595,6 +700,18 @@ this.carController =
     this.trafficManager.dispose();
 
     this.trafficCollisionSystem.dispose();
+
+    // -----------------------------------------------------
+    // Coin / Economy
+    // -----------------------------------------------------
+
+    this.coinSpawner.dispose();
+
+    this.economyManager.dispose();
+
+    // -----------------------------------------------------
+    // Player / World
+    // -----------------------------------------------------
 
     this.playerCar.dispose();
 
