@@ -1,9 +1,13 @@
 import { PlayerCar } from "../player/PlayerCar";
+import { EconomyManager } from "../economy/EconomyManager";
 
 export class RaceHUD {
   private readonly root: HTMLDivElement;
 
   private readonly speedText: HTMLDivElement;
+
+  private readonly coinContainer: HTMLDivElement;
+  private readonly coinText: HTMLDivElement;
 
   private readonly nitroContainer: HTMLDivElement;
   private readonly nitroFill: HTMLDivElement;
@@ -12,16 +16,19 @@ export class RaceHUD {
   private readonly nitroButton: HTMLButtonElement;
 
   private readonly playerCar: PlayerCar;
+  private readonly economyManager: EconomyManager;
 
   private readonly onNitro: () => void;
 
   constructor(
     playerCar: PlayerCar,
     onNitro: () => void,
+    economyManager: EconomyManager,
     parent: HTMLElement = document.body
   ) {
     this.playerCar = playerCar;
     this.onNitro = onNitro;
+    this.economyManager = economyManager;
 
     // =====================================================
     // Root
@@ -78,6 +85,124 @@ export class RaceHUD {
     );
 
     // =====================================================
+    // Coin Container
+    // =====================================================
+
+    this.coinContainer =
+      document.createElement("div");
+
+    Object.assign(
+      this.coinContainer.style,
+      {
+        position: "absolute",
+        top: "18px",
+        right: "18px",
+
+        minWidth: "92px",
+        height: "42px",
+
+        padding:
+          "0 12px",
+
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "7px",
+
+        boxSizing: "border-box",
+
+        border:
+          "2px solid rgba(255,215,0,0.85)",
+
+        borderRadius: "22px",
+
+        background:
+          "rgba(0,0,0,0.58)",
+
+        boxShadow:
+          "0 0 12px rgba(255,215,0,0.35)"
+      }
+    );
+
+    // =====================================================
+    // Coin Icon
+    // =====================================================
+
+    const coinIcon =
+      document.createElement("div");
+
+    Object.assign(
+      coinIcon.style,
+      {
+        width: "24px",
+        height: "24px",
+
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+
+        borderRadius: "50%",
+
+        background:
+          "linear-gradient(145deg, #fff27a, #ffd000, #e6a800)",
+
+        border:
+          "2px solid #fff3a0",
+
+        color: "#7a4d00",
+
+        fontSize: "14px",
+        fontWeight: "900",
+
+        boxShadow:
+          "0 0 8px rgba(255,215,0,0.75)"
+      }
+    );
+
+    coinIcon.textContent =
+      "C";
+
+    this.coinContainer.appendChild(
+      coinIcon
+    );
+
+    // =====================================================
+    // Coin Text
+    // =====================================================
+
+    this.coinText =
+      document.createElement("div");
+
+    Object.assign(
+      this.coinText.style,
+      {
+        minWidth: "34px",
+
+        textAlign: "right",
+
+        color: "#ffffff",
+
+        fontSize: "20px",
+
+        fontWeight: "900",
+
+        textShadow:
+          "0 2px 5px rgba(0,0,0,0.9)"
+      }
+    );
+
+    this.coinText.textContent =
+      "0";
+
+    this.coinContainer.appendChild(
+      this.coinText
+    );
+
+    this.root.appendChild(
+      this.coinContainer
+    );
+
+    // =====================================================
     // Nitro Container
     // =====================================================
 
@@ -90,16 +215,23 @@ export class RaceHUD {
         position: "absolute",
         left: "50%",
         bottom: "28px",
+
         transform:
           "translateX(-50%)",
+
         width: "240px",
         height: "22px",
+
         border:
           "2px solid rgba(255,255,255,0.8)",
+
         borderRadius: "12px",
+
         background:
           "rgba(0,0,0,0.55)",
+
         overflow: "hidden",
+
         boxSizing: "border-box"
       }
     );
@@ -120,9 +252,12 @@ export class RaceHUD {
       {
         width: "100%",
         height: "100%",
+
         borderRadius: "10px",
+
         background:
           "linear-gradient(90deg, #00aaff, #00eaff)",
+
         transition:
           "width 0.08s linear"
       }
@@ -145,14 +280,20 @@ export class RaceHUD {
         position: "absolute",
         left: "50%",
         bottom: "55px",
+
         transform:
           "translateX(-50%)",
+
         fontSize: "16px",
         fontWeight: "800",
+
         color: "#ffffff",
+
         letterSpacing: "2px",
+
         textShadow:
           "0 2px 5px rgba(0,0,0,0.8)",
+
         whiteSpace: "nowrap"
       }
     );
@@ -181,6 +322,7 @@ export class RaceHUD {
       this.nitroButton.style,
       {
         position: "absolute",
+
         right: "20px",
         bottom: "145px",
 
@@ -233,7 +375,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Nitro Button - Click
+    // Nitro Events
     // =====================================================
 
     this.nitroButton.addEventListener(
@@ -241,13 +383,14 @@ export class RaceHUD {
       this.handleNitroClick
     );
 
-    // =====================================================
-    // Nitro Button - Touch
-    // =====================================================
-
     this.nitroButton.addEventListener(
       "pointerdown",
       this.handleNitroPointerDown
+    );
+
+    this.nitroButton.addEventListener(
+      "pointerup",
+      this.handleNitroPointerUp
     );
 
     // =====================================================
@@ -283,7 +426,7 @@ export class RaceHUD {
   };
 
   // =========================================================
-  // Nitro Touch / Pointer
+  // Nitro Pointer Down
   // =========================================================
 
   private handleNitroPointerDown = (
@@ -291,19 +434,12 @@ export class RaceHUD {
   ): void => {
     event.preventDefault();
 
-    /*
-     * Only trigger for primary pointer.
-     */
     if (
       event.isPrimary === false
     ) {
       return;
     }
 
-    /*
-     * Prevent duplicate click behaviour
-     * on touch devices.
-     */
     this.nitroButton.setPointerCapture(
       event.pointerId
     );
@@ -352,6 +488,24 @@ export class RaceHUD {
 
     this.speedText.textContent =
       `${Math.round(speed)} km/h`;
+
+    // =====================================================
+    // Coins
+    // =====================================================
+
+    const coins =
+      this.economyManager.getCoins();
+
+    const safeCoins =
+      Number.isFinite(coins)
+        ? Math.max(
+            0,
+            Math.floor(coins)
+          )
+        : 0;
+
+    this.coinText.textContent =
+      safeCoins.toLocaleString();
 
     // =====================================================
     // Nitro Percentage
@@ -462,9 +616,24 @@ export class RaceHUD {
         window.innerWidth;
 
       if (width <= 480) {
-        // -----------------------------------------------
+        // ---------------------------------------------------
         // Mobile
-        // -----------------------------------------------
+        // ---------------------------------------------------
+
+        this.coinContainer.style.top =
+          "12px";
+
+        this.coinContainer.style.right =
+          "12px";
+
+        this.coinContainer.style.height =
+          "38px";
+
+        this.coinContainer.style.minWidth =
+          "82px";
+
+        this.coinText.style.fontSize =
+          "18px";
 
         this.nitroContainer.style.width =
           "190px";
@@ -496,9 +665,24 @@ export class RaceHUD {
         this.nitroButton.style.fontSize =
           "14px";
       } else {
-        // -----------------------------------------------
+        // ---------------------------------------------------
         // Desktop / Large Screen
-        // -----------------------------------------------
+        // ---------------------------------------------------
+
+        this.coinContainer.style.top =
+          "18px";
+
+        this.coinContainer.style.right =
+          "18px";
+
+        this.coinContainer.style.height =
+          "42px";
+
+        this.coinContainer.style.minWidth =
+          "92px";
+
+        this.coinText.style.fontSize =
+          "20px";
 
         this.nitroContainer.style.width =
           "240px";
