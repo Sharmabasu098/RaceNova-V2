@@ -244,12 +244,13 @@ export class RaceNovaEngine {
     // =====================================================
 
     this.raceHUD =
-      new RaceHUD(
-        this.playerCar,
-        () => {
-          this.activateNitro();
-        }
-      );
+  new RaceHUD(
+    this.playerCar,
+    () => {
+      this.activateNitro();
+    },
+    this.economyManager
+  );
 
     // =====================================================
     // Car Controller
