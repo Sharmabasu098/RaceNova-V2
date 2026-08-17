@@ -7,20 +7,15 @@
  *
  * Responsibilities:
  * - Track owned cars
- * - Unlock cars using internal Coins
+ * - Unlock cars
  * - Select active car
- * - Expose car definitions
- * - Provide serializable garage state
+ * - Integrate with EconomyManager
  *
  * IMPORTANT:
  * - No UI logic
- * - No save/load storage logic
+ * - No save/load persistence
  * - No Three.js dependency
  * - No upgrade logic
- * - No Pi payment logic
- *
- * Persistence will be handled later by
- * PlayerSaveData / Save System.
  * ============================================================
  */
 
@@ -28,10 +23,10 @@ import { EconomyManager } from "../economy/EconomyManager";
 
 import {
   CAR_DATA,
-  getCarDefinition,
-  getStarterCar,
   type CarId,
-  type CarDefinition
+  type CarDefinition,
+  getCarDefinition,
+  getStarterCar
 } from "./CarData";
 
 // ============================================================
@@ -40,7 +35,6 @@ import {
 
 export interface GarageState {
   ownedCars: CarId[];
-
   selectedCar: CarId;
 }
 
@@ -65,15 +59,15 @@ export class GarageManager {
   ) {
     this.economy = economy;
 
-    const starterCar =
+    const starter =
       getStarterCar();
 
     this.ownedCars.add(
-      starterCar.id as CarId
+      starter.id
     );
 
     this.selectedCar =
-      starterCar.id as CarId;
+      starter.id;
   }
 
   // ==========================================================
@@ -96,7 +90,7 @@ export class GarageManager {
   }
 
   // ==========================================================
-  // Car Unlock
+  // Unlock Car
   // ==========================================================
 
   public unlockCar(
@@ -107,7 +101,6 @@ export class GarageManager {
         carId
       );
 
-    // Invalid car
     if (!car) {
       return false;
     }
@@ -121,7 +114,7 @@ export class GarageManager {
       return true;
     }
 
-    // Free car
+    // Starter car is always free
     if (
       car.unlockCost <= 0
     ) {
@@ -132,16 +125,7 @@ export class GarageManager {
       return true;
     }
 
-    /*
-     * Garage car unlock is treated
-     * as a normal economy purchase.
-     *
-     * EconomyTransactionType supports:
-     * reward | purchase | upgrade |
-     * refund | bonus | admin
-     *
-     * Therefore "purchase" is used here.
-     */
+    // Purchase using internal coins
     const success =
       this.economy.spendCoins(
         car.unlockCost,
@@ -158,41 +142,6 @@ export class GarageManager {
     );
 
     return true;
-  }
-
-  // ==========================================================
-  // Can Unlock
-  // ==========================================================
-
-  public canUnlockCar(
-    carId: CarId
-  ): boolean {
-    const car =
-      getCarDefinition(
-        carId
-      );
-
-    if (!car) {
-      return false;
-    }
-
-    if (
-      this.ownsCar(
-        carId
-      )
-    ) {
-      return false;
-    }
-
-    if (
-      car.unlockCost <= 0
-    ) {
-      return true;
-    }
-
-    return this.economy.canSpend(
-      car.unlockCost
-    );
   }
 
   // ==========================================================
@@ -232,11 +181,11 @@ export class GarageManager {
         this.selectedCar
       );
 
-    if (!car) {
-      return getStarterCar();
+    if (car) {
+      return car;
     }
 
-    return car;
+    return getStarterCar();
   }
 
   // ==========================================================
@@ -249,14 +198,14 @@ export class GarageManager {
   }
 
   // ==========================================================
-  // Save State
+  // Garage State
   // ==========================================================
 
   public getState():
     GarageState {
     return {
       ownedCars:
-        this.getOwnedCars().slice(),
+        this.getOwnedCars(),
 
       selectedCar:
         this.selectedCar
@@ -281,30 +230,23 @@ export class GarageManager {
 
     this.ownedCars.clear();
 
-    // --------------------------------------------------------
-    // Restore owned cars
-    // --------------------------------------------------------
-
+    // Restore valid owned cars
     for (
       const carId
       of state.ownedCars
     ) {
-      const car =
+      if (
         getCarDefinition(
           carId
-        );
-
-      if (car) {
+        )
+      ) {
         this.ownedCars.add(
-          car.id as CarId
+          carId
         );
       }
     }
 
-    // --------------------------------------------------------
-    // Guarantee starter car
-    // --------------------------------------------------------
-
+    // Always guarantee a starter car
     if (
       this.ownedCars.size === 0
     ) {
@@ -312,18 +254,12 @@ export class GarageManager {
         getStarterCar();
 
       this.ownedCars.add(
-        starter.id as CarId
+        starter.id
       );
     }
 
-    // --------------------------------------------------------
-    // Restore selected car
-    // --------------------------------------------------------
-
+    // Restore selected car if owned
     if (
-      getCarDefinition(
-        state.selectedCar
-      ) &&
       this.ownedCars.has(
         state.selectedCar
       )
@@ -331,24 +267,10 @@ export class GarageManager {
       this.selectedCar =
         state.selectedCar;
     } else {
-      const firstOwnedCar =
-        this.ownedCars.values().next()
-          .value;
-
-      if (firstOwnedCar) {
-        this.selectedCar =
-          firstOwnedCar;
-      } else {
-        const starter =
-          getStarterCar();
-
-        this.ownedCars.add(
-          starter.id as CarId
-        );
-
-        this.selectedCar =
-          starter.id as CarId;
-      }
+      this.selectedCar =
+        Array.from(
+          this.ownedCars
+        )[0];
     }
 
     return true;
@@ -365,10 +287,10 @@ export class GarageManager {
       getStarterCar();
 
     this.ownedCars.add(
-      starter.id as CarId
+      starter.id
     );
 
     this.selectedCar =
-      starter.id as CarId;
+      starter.id;
   }
 }
