@@ -1,316 +1,272 @@
+/**
+ * ============================================================
+ * RaceNova V2
+ * Race HUD
+ * M4
+ * ============================================================
+ *
+ * Responsibilities:
+ * - Display player speed
+ * - Display Nitro status
+ * - Provide Nitro button
+ * - Display live coin balance
+ * - Update coin counter after collection
+ *
+ * RaceNovaEngine provides:
+ * 1. PlayerCar
+ * 2. Nitro activation callback
+ * 3. EconomyManager
+ * ============================================================
+ */
+
 import { PlayerCar } from "../player/PlayerCar";
 import { EconomyManager } from "../economy/EconomyManager";
 
 export class RaceHUD {
-  private readonly root: HTMLDivElement;
-
-  private readonly speedText: HTMLDivElement;
-
-  private readonly coinContainer: HTMLDivElement;
-  private readonly coinText: HTMLDivElement;
-
-  private readonly nitroContainer: HTMLDivElement;
-  private readonly nitroFill: HTMLDivElement;
-  private readonly nitroText: HTMLDivElement;
-
-  private readonly nitroButton: HTMLButtonElement;
-
   private readonly playerCar: PlayerCar;
-  private readonly economyManager: EconomyManager;
 
-  private readonly onNitro: () => void;
+  private readonly activateNitro:
+    () => void;
+
+  private readonly economyManager:
+    EconomyManager;
+
+  // =========================================================
+  // HUD Elements
+  // =========================================================
+
+  private readonly root:
+    HTMLDivElement;
+
+  private readonly speedDisplay:
+    HTMLDivElement;
+
+  private readonly nitroDisplay:
+    HTMLDivElement;
+
+  private readonly coinDisplay:
+    HTMLDivElement;
+
+  private readonly nitroButton:
+    HTMLButtonElement;
+
+  // =========================================================
+  // Cached values
+  // =========================================================
+
+  private lastCoinValue = -1;
+
+  private disposed = false;
+
+  // =========================================================
+  // Constructor
+  // =========================================================
 
   constructor(
     playerCar: PlayerCar,
-    onNitro: () => void,
-    economyManager: EconomyManager,
-    parent: HTMLElement = document.body
+    activateNitro: () => void,
+    economyManager: EconomyManager
   ) {
-    this.playerCar = playerCar;
-    this.onNitro = onNitro;
-    this.economyManager = economyManager;
+    this.playerCar =
+      playerCar;
 
-    // =====================================================
+    this.activateNitro =
+      activateNitro;
+
+    this.economyManager =
+      economyManager;
+
+    // =======================================================
     // Root
-    // =====================================================
+    // =======================================================
 
     this.root =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
-    this.root.id =
-      "racenova-hud";
+    this.root.style.position =
+      "fixed";
 
-    Object.assign(
-      this.root.style,
-      {
-        position: "fixed",
-        inset: "0",
-        pointerEvents: "none",
-        zIndex: "1000",
-        fontFamily:
-          "Arial, sans-serif",
-        userSelect: "none",
-        WebkitUserSelect: "none"
-      }
-    );
+    this.root.style.top =
+      "0";
 
-    // =====================================================
-    // Speed
-    // =====================================================
+    this.root.style.left =
+      "0";
 
-    this.speedText =
-      document.createElement("div");
+    this.root.style.width =
+      "100%";
 
-    Object.assign(
-      this.speedText.style,
-      {
-        position: "absolute",
-        right: "20px",
-        bottom: "90px",
-        minWidth: "120px",
-        textAlign: "right",
-        fontSize: "26px",
-        fontWeight: "700",
-        color: "#ffffff",
-        textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)"
-      }
-    );
+    this.root.style.height =
+      "100%";
 
-    this.speedText.textContent =
+    this.root.style.pointerEvents =
+      "none";
+
+    this.root.style.zIndex =
+      "1000";
+
+    this.root.style.fontFamily =
+      "Arial, sans-serif";
+
+    // =======================================================
+    // Speed Display
+    // =======================================================
+
+    this.speedDisplay =
+      document.createElement(
+        "div"
+      );
+
+    this.speedDisplay.style.position =
+      "absolute";
+
+    this.speedDisplay.style.top =
+      "20px";
+
+    this.speedDisplay.style.right =
+      "20px";
+
+    this.speedDisplay.style.minWidth =
+      "110px";
+
+    this.speedDisplay.style.padding =
+      "10px 14px";
+
+    this.speedDisplay.style.background =
+      "rgba(0, 0, 0, 0.65)";
+
+    this.speedDisplay.style.borderRadius =
+      "12px";
+
+    this.speedDisplay.style.color =
+      "#ffffff";
+
+    this.speedDisplay.style.fontSize =
+      "20px";
+
+    this.speedDisplay.style.fontWeight =
+      "700";
+
+    this.speedDisplay.style.textAlign =
+      "center";
+
+    this.speedDisplay.style.boxSizing =
+      "border-box";
+
+    this.speedDisplay.textContent =
       "0 km/h";
 
     this.root.appendChild(
-      this.speedText
+      this.speedDisplay
     );
 
-    // =====================================================
-    // Coin Container
-    // =====================================================
+    // =======================================================
+    // Coin Display
+    // =======================================================
 
-    this.coinContainer =
-      document.createElement("div");
+    this.coinDisplay =
+      document.createElement(
+        "div"
+      );
 
-    Object.assign(
-      this.coinContainer.style,
-      {
-        position: "absolute",
-        top: "18px",
-        right: "18px",
+    this.coinDisplay.style.position =
+      "absolute";
 
-        minWidth: "92px",
-        height: "42px",
+    this.coinDisplay.style.top =
+      "20px";
 
-        padding:
-          "0 12px",
+    this.coinDisplay.style.left =
+      "20px";
 
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "7px",
+    this.coinDisplay.style.minWidth =
+      "110px";
 
-        boxSizing: "border-box",
+    this.coinDisplay.style.padding =
+      "10px 14px";
 
-        border:
-          "2px solid rgba(255,215,0,0.85)",
+    this.coinDisplay.style.background =
+      "rgba(0, 0, 0, 0.65)";
 
-        borderRadius: "22px",
+    this.coinDisplay.style.borderRadius =
+      "12px";
 
-        background:
-          "rgba(0,0,0,0.58)",
+    this.coinDisplay.style.color =
+      "#ffd700";
 
-        boxShadow:
-          "0 0 12px rgba(255,215,0,0.35)"
-      }
-    );
+    this.coinDisplay.style.fontSize =
+      "20px";
 
-    // =====================================================
-    // Coin Icon
-    // =====================================================
+    this.coinDisplay.style.fontWeight =
+      "700";
 
-    const coinIcon =
-      document.createElement("div");
+    this.coinDisplay.style.textAlign =
+      "center";
 
-    Object.assign(
-      coinIcon.style,
-      {
-        width: "24px",
-        height: "24px",
+    this.coinDisplay.style.boxSizing =
+      "border-box";
 
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-
-        borderRadius: "50%",
-
-        background:
-          "linear-gradient(145deg, #fff27a, #ffd000, #e6a800)",
-
-        border:
-          "2px solid #fff3a0",
-
-        color: "#7a4d00",
-
-        fontSize: "14px",
-        fontWeight: "900",
-
-        boxShadow:
-          "0 0 8px rgba(255,215,0,0.75)"
-      }
-    );
-
-    coinIcon.textContent =
-      "C";
-
-    this.coinContainer.appendChild(
-      coinIcon
-    );
-
-    // =====================================================
-    // Coin Text
-    // =====================================================
-
-    this.coinText =
-      document.createElement("div");
-
-    Object.assign(
-      this.coinText.style,
-      {
-        minWidth: "34px",
-
-        textAlign: "right",
-
-        color: "#ffffff",
-
-        fontSize: "20px",
-
-        fontWeight: "900",
-
-        textShadow:
-          "0 2px 5px rgba(0,0,0,0.9)"
-      }
-    );
-
-    this.coinText.textContent =
-      "0";
-
-    this.coinContainer.appendChild(
-      this.coinText
-    );
+    this.coinDisplay.textContent =
+      "🪙 0";
 
     this.root.appendChild(
-      this.coinContainer
+      this.coinDisplay
     );
 
-    // =====================================================
-    // Nitro Container
-    // =====================================================
+    // =======================================================
+    // Nitro Display
+    // =======================================================
 
-    this.nitroContainer =
-      document.createElement("div");
+    this.nitroDisplay =
+      document.createElement(
+        "div"
+      );
 
-    Object.assign(
-      this.nitroContainer.style,
-      {
-        position: "absolute",
-        left: "50%",
-        bottom: "28px",
+    this.nitroDisplay.style.position =
+      "absolute";
 
-        transform:
-          "translateX(-50%)",
+    this.nitroDisplay.style.top =
+      "75px";
 
-        width: "240px",
-        height: "22px",
+    this.nitroDisplay.style.right =
+      "20px";
 
-        border:
-          "2px solid rgba(255,255,255,0.8)",
+    this.nitroDisplay.style.padding =
+      "7px 12px";
 
-        borderRadius: "12px",
+    this.nitroDisplay.style.background =
+      "rgba(0, 0, 0, 0.60)";
 
-        background:
-          "rgba(0,0,0,0.55)",
+    this.nitroDisplay.style.borderRadius =
+      "10px";
 
-        overflow: "hidden",
+    this.nitroDisplay.style.color =
+      "#ffffff";
 
-        boxSizing: "border-box"
-      }
-    );
+    this.nitroDisplay.style.fontSize =
+      "15px";
+
+    this.nitroDisplay.style.fontWeight =
+      "700";
+
+    this.nitroDisplay.style.textAlign =
+      "center";
+
+    this.nitroDisplay.textContent =
+      "NITRO READY";
 
     this.root.appendChild(
-      this.nitroContainer
+      this.nitroDisplay
     );
 
-    // =====================================================
-    // Nitro Fill
-    // =====================================================
-
-    this.nitroFill =
-      document.createElement("div");
-
-    Object.assign(
-      this.nitroFill.style,
-      {
-        width: "100%",
-        height: "100%",
-
-        borderRadius: "10px",
-
-        background:
-          "linear-gradient(90deg, #00aaff, #00eaff)",
-
-        transition:
-          "width 0.08s linear"
-      }
-    );
-
-    this.nitroContainer.appendChild(
-      this.nitroFill
-    );
-
-    // =====================================================
-    // Nitro Label
-    // =====================================================
-
-    this.nitroText =
-      document.createElement("div");
-
-    Object.assign(
-      this.nitroText.style,
-      {
-        position: "absolute",
-        left: "50%",
-        bottom: "55px",
-
-        transform:
-          "translateX(-50%)",
-
-        fontSize: "16px",
-        fontWeight: "800",
-
-        color: "#ffffff",
-
-        letterSpacing: "2px",
-
-        textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)",
-
-        whiteSpace: "nowrap"
-      }
-    );
-
-    this.nitroText.textContent =
-      "NITRO";
-
-    this.root.appendChild(
-      this.nitroText
-    );
-
-    // =====================================================
+    // =======================================================
     // Nitro Button
-    // =====================================================
+    // =======================================================
 
     this.nitroButton =
-      document.createElement("button");
+      document.createElement(
+        "button"
+      );
 
     this.nitroButton.type =
       "button";
@@ -318,65 +274,55 @@ export class RaceHUD {
     this.nitroButton.textContent =
       "NITRO";
 
-    Object.assign(
-      this.nitroButton.style,
-      {
-        position: "absolute",
+    this.nitroButton.style.position =
+      "absolute";
 
-        right: "20px",
-        bottom: "145px",
+    this.nitroButton.style.right =
+      "20px";
 
-        width: "92px",
-        height: "92px",
+    this.nitroButton.style.bottom =
+      "30px";
 
-        border:
-          "3px solid rgba(0,234,255,0.9)",
+    this.nitroButton.style.width =
+      "100px";
 
-        borderRadius: "50%",
+    this.nitroButton.style.height =
+      "58px";
 
-        background:
-          "radial-gradient(circle, #00eaff 0%, #0088cc 55%, #004466 100%)",
+    this.nitroButton.style.border =
+      "none";
 
-        color: "#ffffff",
+    this.nitroButton.style.borderRadius =
+      "18px";
 
-        fontSize: "17px",
-        fontWeight: "900",
+    this.nitroButton.style.background =
+      "#ff4d00";
 
-        letterSpacing: "1px",
+    this.nitroButton.style.color =
+      "#ffffff";
 
-        textShadow:
-          "0 2px 5px rgba(0,0,0,0.8)",
+    this.nitroButton.style.fontSize =
+      "18px";
 
-        boxShadow:
-          "0 0 15px rgba(0,220,255,0.65)",
+    this.nitroButton.style.fontWeight =
+      "800";
 
-        cursor: "pointer",
+    this.nitroButton.style.cursor =
+      "pointer";
 
-        pointerEvents: "auto",
+    this.nitroButton.style.pointerEvents =
+      "auto";
 
-        touchAction: "manipulation",
-
-        WebkitTapHighlightColor:
-          "transparent",
-
-        padding: "0",
-
-        outline: "none",
-
-        appearance: "none",
-
-        transition:
-          "transform 0.08s ease, box-shadow 0.08s ease"
-      }
-    );
+    this.nitroButton.style.touchAction =
+      "manipulation";
 
     this.root.appendChild(
       this.nitroButton
     );
 
-    // =====================================================
-    // Nitro Events
-    // =====================================================
+    // =======================================================
+    // Nitro Button Events
+    // =======================================================
 
     this.nitroButton.addEventListener(
       "click",
@@ -384,85 +330,54 @@ export class RaceHUD {
     );
 
     this.nitroButton.addEventListener(
-      "pointerdown",
-      this.handleNitroPointerDown
+      "touchstart",
+      this.handleNitroTouch,
+      {
+        passive: true
+      }
     );
 
-    this.nitroButton.addEventListener(
-      "pointerup",
-      this.handleNitroPointerUp
-    );
-
-    // =====================================================
+    // =======================================================
     // Add HUD
-    // =====================================================
+    // =======================================================
 
-    parent.appendChild(
+    document.body.appendChild(
       this.root
     );
 
-    // =====================================================
-    // Responsive
-    // =====================================================
+    // =======================================================
+    // Initial Update
+    // =======================================================
 
-    this.updateResponsiveSize();
-
-    window.addEventListener(
-      "resize",
-      this.updateResponsiveSize
-    );
+    this.update();
   }
 
   // =========================================================
   // Nitro Click
   // =========================================================
 
-  private handleNitroClick = (
-    event: MouseEvent
-  ): void => {
-    event.preventDefault();
-
-    this.onNitro();
-  };
-
-  // =========================================================
-  // Nitro Pointer Down
-  // =========================================================
-
-  private handleNitroPointerDown = (
-    event: PointerEvent
-  ): void => {
-    event.preventDefault();
-
+  private handleNitroClick = (): void => {
     if (
-      event.isPrimary === false
+      this.disposed
     ) {
       return;
     }
 
-    this.nitroButton.setPointerCapture(
-      event.pointerId
-    );
-
-    this.nitroButton.style.transform =
-      "scale(0.92)";
-
-    this.nitroButton.style.boxShadow =
-      "0 0 28px rgba(0,234,255,1)";
-
-    this.onNitro();
+    this.activateNitro();
   };
 
   // =========================================================
-  // Nitro Pointer Up
+  // Nitro Touch
   // =========================================================
 
-  private handleNitroPointerUp = (): void => {
-    this.nitroButton.style.transform =
-      "scale(1)";
+  private handleNitroTouch = (): void => {
+    if (
+      this.disposed
+    ) {
+      return;
+    }
 
-    this.nitroButton.style.boxShadow =
-      "0 0 15px rgba(0,220,255,0.65)";
+    this.activateNitro();
   };
 
   // =========================================================
@@ -470,261 +385,150 @@ export class RaceHUD {
   // =========================================================
 
   public update(): void {
-    const speed =
-      this.playerCar.getSpeed();
-
-    const nitroDuration =
-      this.playerCar.getNitroDuration();
-
-    const nitroRemaining =
-      this.playerCar.getNitroTimeRemaining();
-
-    const nitroActive =
-      this.playerCar.isNitroActive();
-
-    // =====================================================
-    // Speed
-    // =====================================================
-
-    this.speedText.textContent =
-      `${Math.round(speed)} km/h`;
-
-    // =====================================================
-    // Coins
-    // =====================================================
-
-    const coins =
-      this.economyManager.getCoins();
-
-    const safeCoins =
-      Number.isFinite(coins)
-        ? Math.max(
-            0,
-            Math.floor(coins)
-          )
-        : 0;
-
-    this.coinText.textContent =
-      safeCoins.toLocaleString();
-
-    // =====================================================
-    // Nitro Percentage
-    // =====================================================
-
-    let nitroPercent = 100;
-
     if (
-      nitroActive &&
-      nitroDuration > 0
+      this.disposed
     ) {
-      nitroPercent =
-        (
-          nitroRemaining /
-          nitroDuration
-        ) * 100;
+      return;
     }
 
-    nitroPercent =
+    this.updateSpeed();
+
+    this.updateNitro();
+
+    this.updateCoins();
+  }
+
+  // =========================================================
+  // Speed
+  // =========================================================
+
+  private updateSpeed(): void {
+    /*
+     * PlayerCar's authoritative gameplay speed.
+     *
+     * effectiveSpeed is the actual current
+     * velocity used by gameplay.
+     */
+
+    const speed =
       Math.max(
         0,
-        Math.min(
-          100,
-          nitroPercent
-        )
+        this.playerCar.effectiveSpeed
       );
 
-    this.nitroFill.style.width =
-      `${nitroPercent}%`;
+    const roundedSpeed =
+      Math.round(
+        speed
+      );
 
-    // =====================================================
-    // Nitro Active Visual
-    // =====================================================
+    this.speedDisplay.textContent =
+      `${roundedSpeed} km/h`;
+  }
 
-    if (nitroActive) {
-      this.nitroText.textContent =
-        "NITRO ACTIVE";
+  // =========================================================
+  // Nitro
+  // =========================================================
 
-      this.nitroText.style.transform =
-        "translateX(-50%) scale(1.08)";
-
-      this.nitroText.style.color =
-        "#00eaff";
-
-      this.speedText.style.color =
-        "#00eaff";
-
-      this.nitroFill.style.background =
-        "linear-gradient(90deg, #00aaff, #ffffff, #00eaff)";
-
-      this.nitroButton.style.transform =
-        "scale(1.05)";
-
-      this.nitroButton.style.boxShadow =
-        "0 0 30px rgba(0,234,255,1)";
-    } else {
-      this.nitroText.textContent =
-        "NITRO";
-
-      this.nitroText.style.transform =
-        "translateX(-50%) scale(1)";
-
-      this.nitroText.style.color =
-        "#ffffff";
-
-      this.speedText.style.color =
-        "#ffffff";
-
-      this.nitroFill.style.background =
-        "linear-gradient(90deg, #00aaff, #00eaff)";
-
-      this.nitroButton.style.transform =
-        "scale(1)";
-
-      this.nitroButton.style.boxShadow =
-        "0 0 15px rgba(0,220,255,0.65)";
-    }
-
-    // =====================================================
-    // Nitro Empty State
-    // =====================================================
+  private updateNitro(): void {
+    const active =
+      this.playerCar.isNitroActive();
 
     if (
-      !nitroActive &&
-      nitroPercent <= 0
+      active
     ) {
-      this.nitroButton.style.opacity =
-        "0.45";
+      this.nitroDisplay.textContent =
+        "🔥 NITRO ACTIVE";
+
+      this.nitroDisplay.style.color =
+        "#ff6b00";
+
+      this.nitroButton.textContent =
+        "ACTIVE";
 
       this.nitroButton.disabled =
         true;
-    } else {
+
       this.nitroButton.style.opacity =
-        "1";
+        "0.55";
+    } else {
+      this.nitroDisplay.textContent =
+        "NITRO READY";
+
+      this.nitroDisplay.style.color =
+        "#ffffff";
+
+      this.nitroButton.textContent =
+        "NITRO";
 
       this.nitroButton.disabled =
         false;
+
+      this.nitroButton.style.opacity =
+        "1";
     }
   }
 
   // =========================================================
-  // Responsive
+  // Coins
   // =========================================================
 
-  private updateResponsiveSize =
-    (): void => {
-      const width =
-        window.innerWidth;
+  private updateCoins(): void {
+    const coins =
+      Math.max(
+        0,
+        Math.floor(
+          this.economyManager.getCoins()
+        )
+      );
 
-      if (width <= 480) {
-        // ---------------------------------------------------
-        // Mobile
-        // ---------------------------------------------------
+    /*
+     * Avoid unnecessary DOM updates
+     * when balance has not changed.
+     */
+    if (
+      coins ===
+      this.lastCoinValue
+    ) {
+      return;
+    }
 
-        this.coinContainer.style.top =
-          "12px";
+    this.lastCoinValue =
+      coins;
 
-        this.coinContainer.style.right =
-          "12px";
+    this.coinDisplay.textContent =
+      `🪙 ${coins}`;
+  }
 
-        this.coinContainer.style.height =
-          "38px";
+  // =========================================================
+  // Coin Balance
+  // =========================================================
 
-        this.coinContainer.style.minWidth =
-          "82px";
-
-        this.coinText.style.fontSize =
-          "18px";
-
-        this.nitroContainer.style.width =
-          "190px";
-
-        this.speedText.style.fontSize =
-          "22px";
-
-        this.nitroText.style.fontSize =
-          "14px";
-
-        this.speedText.style.right =
-          "14px";
-
-        this.speedText.style.bottom =
-          "78px";
-
-        this.nitroButton.style.width =
-          "78px";
-
-        this.nitroButton.style.height =
-          "78px";
-
-        this.nitroButton.style.right =
-          "16px";
-
-        this.nitroButton.style.bottom =
-          "135px";
-
-        this.nitroButton.style.fontSize =
-          "14px";
-      } else {
-        // ---------------------------------------------------
-        // Desktop / Large Screen
-        // ---------------------------------------------------
-
-        this.coinContainer.style.top =
-          "18px";
-
-        this.coinContainer.style.right =
-          "18px";
-
-        this.coinContainer.style.height =
-          "42px";
-
-        this.coinContainer.style.minWidth =
-          "92px";
-
-        this.coinText.style.fontSize =
-          "20px";
-
-        this.nitroContainer.style.width =
-          "240px";
-
-        this.speedText.style.fontSize =
-          "26px";
-
-        this.nitroText.style.fontSize =
-          "16px";
-
-        this.speedText.style.right =
-          "20px";
-
-        this.speedText.style.bottom =
-          "90px";
-
-        this.nitroButton.style.width =
-          "92px";
-
-        this.nitroButton.style.height =
-          "92px";
-
-        this.nitroButton.style.right =
-          "20px";
-
-        this.nitroButton.style.bottom =
-          "145px";
-
-        this.nitroButton.style.fontSize =
-          "17px";
-      }
-    };
+  public getCoinBalance(): number {
+    return Math.max(
+      0,
+      Math.floor(
+        this.economyManager.getCoins()
+      )
+    );
+  }
 
   // =========================================================
   // Dispose
   // =========================================================
 
   public dispose(): void {
-    window.removeEventListener(
-      "resize",
-      this.updateResponsiveSize
-    );
+    if (
+      this.disposed
+    ) {
+      return;
+    }
+
+    this.disposed =
+      true;
+
+    // -------------------------------------------------------
+    // Events
+    // -------------------------------------------------------
 
     this.nitroButton.removeEventListener(
       "click",
@@ -732,15 +536,20 @@ export class RaceHUD {
     );
 
     this.nitroButton.removeEventListener(
-      "pointerdown",
-      this.handleNitroPointerDown
+      "touchstart",
+      this.handleNitroTouch
     );
 
-    this.nitroButton.removeEventListener(
-      "pointerup",
-      this.handleNitroPointerUp
-    );
+    // -------------------------------------------------------
+    // DOM
+    // -------------------------------------------------------
 
-    this.root.remove();
+    if (
+      this.root.parentElement
+    ) {
+      this.root.parentElement.removeChild(
+        this.root
+      );
+    }
   }
 }
