@@ -5,17 +5,16 @@
  * M4.4
  * ============================================================
  *
- * Defines all playable cars and their base statistics.
+ * Static definitions for all RaceNova cars.
  *
  * IMPORTANT:
  * - No UI logic
  * - No Three.js dependency
  * - No save/load logic
- * - No garage state logic
- * - No upgrade logic
+ * - No gameplay movement logic
+ * - No upgrade state
  *
- * GarageManager uses this file as the authoritative
- * source of car definitions.
+ * UpgradeSystem will use these base stats later.
  * ============================================================
  */
 
@@ -25,33 +24,18 @@
 
 export type CarId =
   | "starter"
-  | "speedster"
-  | "racer"
-  | "supercar";
+  | "sport"
+  | "muscle"
+  | "super"
+  | "hyper";
 
 // ============================================================
 // Car Stats
 // ============================================================
 
 export interface CarStats {
-  /**
-   * Maximum normal speed in km/h.
-   */
   maxSpeed: number;
-
-  /**
-   * Acceleration value used by PlayerCar.
-   */
   acceleration: number;
-
-  /**
-   * Handling rating.
-   *
-   * Higher value = better handling.
-   *
-   * This is a data value for the future
-   * handling/upgrade system.
-   */
   handling: number;
 }
 
@@ -60,48 +44,22 @@ export interface CarStats {
 // ============================================================
 
 export interface CarDefinition {
-  /**
-   * Unique car identifier.
-   */
   id: CarId;
 
-  /**
-   * Display name.
-   */
   name: string;
 
-  /**
-   * Base car statistics.
-   */
-  stats: CarStats;
+  description: string;
 
-  /**
-   * Coin cost required to unlock the car.
-   *
-   * Starter car always costs 0.
-   */
   unlockCost: number;
 
-  /**
-   * Whether this car is available
-   * as the default starter vehicle.
-   */
-  starter: boolean;
-
-  /**
-   * Future 3D model identifier.
-   *
-   * M4 does not load any 3D assets.
-   */
-  modelId: string;
+  stats: CarStats;
 }
 
 // ============================================================
-// Car Data
+// Car Database
 // ============================================================
 
-export const CAR_DATA:
-  readonly CarDefinition[] = [
+export const CAR_DATA: readonly CarDefinition[] = [
 
   // ==========================================================
   // Starter Car
@@ -112,83 +70,100 @@ export const CAR_DATA:
 
     name: "Nova GT",
 
+    description:
+      "The standard RaceNova starter car.",
+
+    unlockCost: 0,
+
     stats: {
       maxSpeed: 128,
       acceleration: 35,
       handling: 7
-    },
-
-    unlockCost: 0,
-
-    starter: true,
-
-    modelId: "starter-car"
+    }
   },
 
   // ==========================================================
-  // Speedster
+  // Sport Car
   // ==========================================================
 
   {
-    id: "speedster",
+    id: "sport",
 
-    name: "Nova Speedster",
+    name: "Nova Sport",
 
-    stats: {
-      maxSpeed: 138,
-      acceleration: 38,
-      handling: 7.5
-    },
+    description:
+      "A faster and more responsive sports car.",
 
     unlockCost: 2500,
 
-    starter: false,
-
-    modelId: "speedster"
+    stats: {
+      maxSpeed: 145,
+      acceleration: 40,
+      handling: 8
+    }
   },
 
   // ==========================================================
-  // Racer
+  // Muscle Car
   // ==========================================================
 
   {
-    id: "racer",
+    id: "muscle",
 
-    name: "Nova Racer",
+    name: "Nova Muscle",
+
+    description:
+      "Powerful acceleration with balanced handling.",
+
+    unlockCost: 5000,
 
     stats: {
-      maxSpeed: 150,
-      acceleration: 42,
-      handling: 8
-    },
-
-    unlockCost: 7500,
-
-    starter: false,
-
-    modelId: "racer"
+      maxSpeed: 155,
+      acceleration: 48,
+      handling: 7
+    }
   },
 
   // ==========================================================
-  // Supercar
+  // Super Car
   // ==========================================================
 
   {
-    id: "supercar",
+    id: "super",
 
     name: "Nova Super",
 
+    description:
+      "A high-performance supercar built for speed.",
+
+    unlockCost: 10000,
+
     stats: {
-      maxSpeed: 165,
-      acceleration: 48,
-      handling: 8.5
-    },
+      maxSpeed: 175,
+      acceleration: 55,
+      handling: 9
+    }
+  },
 
-    unlockCost: 15000,
+  // ==========================================================
+  // Hyper Car
+  // ==========================================================
 
-    starter: false,
+  {
+    id: "hyper",
 
-    modelId: "supercar"
+    name: "Nova Hyper",
+
+    description:
+      "The ultimate RaceNova performance machine.",
+
+    unlockCost: 20000,
+
+    stats: {
+      maxSpeed: 195,
+      acceleration: 65,
+      handling: 10
+    }
   }
 ];
 
@@ -199,6 +174,7 @@ export const CAR_DATA:
 export function getCarDefinition(
   carId: CarId
 ): CarDefinition | undefined {
+
   return CAR_DATA.find(
     (car) =>
       car.id === carId
@@ -206,26 +182,30 @@ export function getCarDefinition(
 }
 
 // ============================================================
-// Get Starter Car
+// Starter Car
 // ============================================================
 
 export function getStarterCar():
   CarDefinition {
+
   const starter =
-    CAR_DATA.find(
-      (car) =>
-        car.starter
+    getCarDefinition(
+      "starter"
     );
 
   /*
-   * CAR_DATA always contains a starter
-   * car in the M4 configuration.
-   *
-   * The fallback keeps the function
-   * safe if the data is accidentally changed.
+   * Starter car is part of the
+   * static database, so this should
+   * always exist.
    */
-  return (
-    starter ??
-    CAR_DATA[0]
-  );
-}
+
+  if (starter) {
+    return starter;
+  }
+
+  /*
+   * Defensive fallback.
+   */
+
+  return CAR_DATA[0];
+  }
