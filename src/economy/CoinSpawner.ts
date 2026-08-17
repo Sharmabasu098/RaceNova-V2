@@ -154,14 +154,14 @@ export class CoinSpawner {
     // -------------------------------------------------------
 
     if (!this.initialized) {
-      this.nextSpawnZ =
-        playerPosition.z -
-        this.spawnDistance;
+  this.nextSpawnZ =
+    playerPosition.z -
+    this.coinSpacing;
 
-      this.initialized =
-        true;
+  this.initialized =
+    true;
     }
-
+    
     // -------------------------------------------------------
     // Spawn ahead
     // -------------------------------------------------------
