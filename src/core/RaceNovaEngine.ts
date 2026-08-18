@@ -13,6 +13,18 @@ import { RaceHUD } from "../ui/RaceHUD";
 import { EconomyManager } from "../economy/EconomyManager";
 import { CoinSpawner } from "../economy/CoinSpawner";
 
+import { GarageManager } from "../garage/GarageManager";
+import { UpgradeSystem } from "../garage/UpgradeSystem";
+
+import {
+  type PlayerSaveData,
+  type PlayerProgress,
+  PLAYER_SAVE_VERSION,
+  DEFAULT_PLAYER_PROGRESS,
+  createDefaultPlayerSaveData,
+  isValidPlayerSaveData
+} from "../save/PlayerSaveData";
+
 export class RaceNovaEngine {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
@@ -32,35 +44,62 @@ export class RaceNovaEngine {
   // Economy
   // =========================================================
 
-  /*
-   * EconomyManager is the authoritative
-   * internal coin balance controller.
-   */
   private readonly economyManager:
     EconomyManager;
 
-  /*
-   * CoinSpawner handles:
-   * - coin spawning
-   * - coin animation
-   * - collection
-   * - despawning
-   *
-   * EconomyManager receives the reward
-   * after successful collection.
-   */
   private readonly coinSpawner:
     CoinSpawner;
+
+  // =========================================================
+  // Garage
+  // =========================================================
+
+  /*
+   * GarageManager owns:
+   * - owned cars
+   * - selected car
+   * - car unlocks
+   */
+  private readonly garageManager:
+    GarageManager;
+
+  // =========================================================
+  // Upgrade System
+  // =========================================================
+
+  /*
+   * UpgradeSystem owns:
+   * - speed upgrades
+   * - acceleration upgrades
+   * - handling upgrades
+   * - upgraded car stats
+   */
+  private readonly upgradeSystem:
+    UpgradeSystem;
+
+  // =========================================================
+  // Player Save / Progress
+  // =========================================================
+
+  /*
+   * M4.8 keeps progress in memory.
+   *
+   * No localStorage is used here.
+   *
+   * The future Save System will persist
+   * PlayerSaveData.
+   */
+  private playerProgress:
+    PlayerProgress = {
+      ...DEFAULT_PLAYER_PROGRESS
+    };
 
   // =========================================================
   // HUD
   // =========================================================
 
-  /*
-   * RaceHUD is the authoritative
-   * speed + Nitro display.
-   */
-  private readonly raceHUD: RaceHUD;
+  private readonly raceHUD:
+    RaceHUD;
 
   // =========================================================
   // Constructor
@@ -168,6 +207,61 @@ export class RaceNovaEngine {
       );
 
     // =====================================================
+    // Economy Manager
+    // =====================================================
+
+    /*
+     * EconomyManager must be created before
+     * GarageManager and UpgradeSystem because
+     * both depend on the economy.
+     */
+    this.economyManager =
+      new EconomyManager({
+        initialCoins: 0
+      });
+
+    // =====================================================
+    // Garage Manager
+    // =====================================================
+
+    this.garageManager =
+      new GarageManager(
+        this.economyManager
+      );
+
+    // =====================================================
+    // Upgrade System
+    // =====================================================
+
+    this.upgradeSystem =
+      new UpgradeSystem(
+        this.economyManager
+      );
+
+    // =====================================================
+    // Selected Car Stats
+    // =====================================================
+
+    /*
+     * M4.8 connects the authoritative garage
+     * and upgrade data to the initial PlayerCar.
+     *
+     * The starter car still produces:
+     *
+     * maxSpeed     = 128
+     * acceleration = 35
+     *
+     * so existing gameplay remains unchanged.
+     */
+    const selectedCar =
+      this.garageManager.getSelectedCar();
+
+    const selectedCarStats =
+      this.upgradeSystem.getStats(
+        selectedCar.id
+      );
+
+    // =====================================================
     // Player Car
     // =====================================================
 
@@ -178,11 +272,38 @@ export class RaceNovaEngine {
         z: 0,
         scale: 1,
 
-        maxSpeed: 128,
-        acceleration: 35,
-        hardSpeedCap: 180,
+        maxSpeed:
+          selectedCarStats.maxSpeed,
 
-        nitroSpeed: 165,
+        acceleration:
+          selectedCarStats.acceleration,
+
+        /*
+         * Keep the previous 180 minimum cap
+         * while allowing faster cars to use
+         * their higher base max speed.
+         */
+        hardSpeedCap:
+          Math.max(
+            180,
+            selectedCarStats.maxSpeed
+          ),
+
+        /*
+         * Nitro is allowed above normal
+         * max speed but remains inside
+         * the hard speed cap.
+         */
+        nitroSpeed:
+          Math.min(
+            selectedCarStats.maxSpeed +
+              37,
+            Math.max(
+              180,
+              selectedCarStats.maxSpeed
+            )
+          ),
+
         nitroDuration: 3
       });
 
@@ -191,29 +312,9 @@ export class RaceNovaEngine {
     );
 
     // =====================================================
-    // Economy Manager
-    // =====================================================
-
-    /*
-     * M4 internal economy.
-     *
-     * Starts with 0 coins.
-     * Persistence will be connected
-     * through the Save system later.
-     */
-    this.economyManager =
-      new EconomyManager({
-        initialCoins: 0
-      });
-
-    // =====================================================
     // Coin Spawner
     // =====================================================
 
-    /*
-     * Coins are spawned according to
-     * the same 3-lane road system.
-     */
     this.coinSpawner =
       new CoinSpawner(
         this.scene,
@@ -244,13 +345,13 @@ export class RaceNovaEngine {
     // =====================================================
 
     this.raceHUD =
-  new RaceHUD(
-    this.playerCar,
-    () => {
-      this.activateNitro();
-    },
-    this.economyManager
-  );
+      new RaceHUD(
+        this.playerCar,
+        () => {
+          this.activateNitro();
+        },
+        this.economyManager
+      );
 
     // =====================================================
     // Car Controller
@@ -358,20 +459,12 @@ export class RaceNovaEngine {
   // =========================================================
 
   private activateNitro(): void {
-    /*
-     * Nitro cannot be activated
-     * after a traffic crash.
-     */
     if (
       this.trafficCollisionSystem.hasCrashed()
     ) {
       return;
     }
 
-    /*
-     * PlayerCar protects against
-     * duplicate Nitro activation.
-     */
     if (
       this.playerCar.isNitroActive()
     ) {
@@ -380,9 +473,6 @@ export class RaceNovaEngine {
 
     this.playerCar.activateNitro();
 
-    /*
-     * Immediately refresh HUD.
-     */
     this.raceHUD.update();
   }
 
@@ -494,9 +584,6 @@ export class RaceNovaEngine {
     // Player Forward Movement
     // =====================================================
 
-    /*
-     * Player movement stops after crash.
-     */
     if (
       !this.trafficCollisionSystem.hasCrashed()
     ) {
@@ -544,10 +631,6 @@ export class RaceNovaEngine {
     // Traffic Collision
     // =====================================================
 
-    /*
-     * TrafficCollisionSystem.update()
-     * accepts ONLY the traffic car array.
-     */
     this.trafficCollisionSystem.update(
       this.trafficManager.getTrafficCars()
     );
@@ -556,15 +639,6 @@ export class RaceNovaEngine {
     // Coin System
     // =====================================================
 
-    /*
-     * CoinSpawner:
-     *
-     * 1. Spawns coins ahead
-     * 2. Animates coins
-     * 3. Checks player collection
-     * 4. Sends rewards to EconomyManager
-     * 5. Removes coins behind player
-     */
     if (
       !this.trafficCollisionSystem.hasCrashed()
     ) {
@@ -572,6 +646,27 @@ export class RaceNovaEngine {
         deltaTime,
         playerPosition
       );
+    }
+
+    // =====================================================
+    // Player Progress
+    // =====================================================
+
+    /*
+     * Distance travelled is tracked in
+     * world units converted from the
+     * player's actual movement.
+     */
+    const speed =
+      this.playerCar.getSpeed();
+
+    if (
+      Number.isFinite(speed) &&
+      speed > 0
+    ) {
+      this.playerProgress.totalDistance +=
+        (speed / 3.6) *
+        deltaTime;
     }
 
     // =====================================================
@@ -652,19 +747,215 @@ export class RaceNovaEngine {
   // Economy Access
   // =========================================================
 
-  /*
-   * Exposes the current coin balance
-   * to future systems such as:
-   *
-   * - Garage
-   * - Upgrade System
-   * - Race Rewards
-   * - Save System
-   *
-   * No UI logic is placed here.
-   */
   public getCoinBalance(): number {
     return this.economyManager.getCoins();
+  }
+
+  public getEconomyManager():
+    EconomyManager {
+    return this.economyManager;
+  }
+
+  // =========================================================
+  // Garage Access
+  // =========================================================
+
+  public getGarageManager():
+    GarageManager {
+    return this.garageManager;
+  }
+
+  public getSelectedCarId(): string {
+    return this.garageManager
+      .getSelectedCarId();
+  }
+
+  // =========================================================
+  // Upgrade Access
+  // =========================================================
+
+  public getUpgradeSystem():
+    UpgradeSystem {
+    return this.upgradeSystem;
+  }
+
+  // =========================================================
+  // Player Progress
+  // =========================================================
+
+  public getPlayerProgress():
+    PlayerProgress {
+    return {
+      ...this.playerProgress
+    };
+  }
+
+  public setPlayerProgress(
+    progress: PlayerProgress
+  ): void {
+    if (
+      !progress ||
+      typeof progress !==
+        "object"
+    ) {
+      return;
+    }
+
+    this.playerProgress = {
+      unlockedLevel:
+        Math.max(
+          1,
+          Math.floor(
+            Number.isFinite(
+              progress.unlockedLevel
+            )
+              ? progress.unlockedLevel
+              : 1
+          )
+        ),
+
+      racesCompleted:
+        Math.max(
+          0,
+          Math.floor(
+            Number.isFinite(
+              progress.racesCompleted
+            )
+              ? progress.racesCompleted
+              : 0
+          )
+        ),
+
+      racesWon:
+        Math.max(
+          0,
+          Math.floor(
+            Number.isFinite(
+              progress.racesWon
+            )
+              ? progress.racesWon
+              : 0
+          )
+        ),
+
+      totalDistance:
+        Math.max(
+          0,
+          Number.isFinite(
+            progress.totalDistance
+          )
+            ? progress.totalDistance
+            : 0
+        )
+    };
+  }
+
+  // =========================================================
+  // M4.8 Save Snapshot
+  // =========================================================
+
+  /*
+   * Creates the complete in-memory
+   * PlayerSaveData structure.
+   *
+   * No localStorage.
+   * No network.
+   * No Pi.
+   */
+  public getPlayerSaveData():
+    PlayerSaveData {
+    const save =
+      createDefaultPlayerSaveData(
+        this.economyManager.getState(),
+        this.garageManager.getState(),
+        this.upgradeSystem.getState()
+      );
+
+    return {
+      ...save,
+
+      version:
+        PLAYER_SAVE_VERSION,
+
+      progress: {
+        ...this.playerProgress
+      },
+
+      updatedAt:
+        Date.now()
+    };
+  }
+
+ // =========================================================
+  // M4.8 Load Snapshot
+  // =========================================================
+
+  /*
+   * Restores Economy + Garage +
+   * Upgrades + Player Progress.
+   *
+   * Persistence itself remains outside
+   * the engine.
+   */
+  public loadPlayerSaveData(
+    save: unknown
+  ): boolean {
+    if (
+      !isValidPlayerSaveData(
+        save
+      )
+    ) {
+      return false;
+    }
+
+    const economyLoaded =
+      this.economyManager.loadState(
+        save.economy
+      );
+
+    if (!economyLoaded) {
+      return false;
+    }
+
+    const garageLoaded =
+      this.garageManager.loadState(
+        save.garage
+      );
+
+    if (!garageLoaded) {
+      return false;
+    }
+
+    const upgradesLoaded =
+      this.upgradeSystem.loadState(
+        save.upgrades
+      );
+
+    if (!upgradesLoaded) {
+      return false;
+    }
+
+    this.setPlayerProgress(
+      save.progress
+    );
+
+    return true;
+  }
+
+  // =========================================================
+  // Reset M4 State
+  // =========================================================
+
+  public resetPlayerData(): void {
+    this.economyManager.reset();
+
+    this.garageManager.reset();
+
+    this.upgradeSystem.reset();
+
+    this.playerProgress = {
+      ...DEFAULT_PLAYER_PROGRESS
+    };
   }
 
   // =========================================================
@@ -709,6 +1000,14 @@ export class RaceNovaEngine {
     this.coinSpawner.dispose();
 
     this.economyManager.dispose();
+
+    // -----------------------------------------------------
+    // Garage / Upgrade
+    // -----------------------------------------------------
+
+    this.garageManager.reset();
+
+    this.upgradeSystem.reset();
 
     // -----------------------------------------------------
     // Player / World
