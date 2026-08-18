@@ -278,12 +278,13 @@ export function isValidPlayerSaveData(
   // ----------------------------------------------------------
 
   if (
-    !Number.isFinite(
-      save.version
-    ) ||
-    save.version < 1
-  ) {
-    return false;
+  typeof save.version !== "number" ||
+  !Number.isFinite(
+    save.version
+  ) ||
+  save.version < 1
+) {
+  return false;
   }
 
   // ----------------------------------------------------------
@@ -432,16 +433,14 @@ export function isValidPlayerSaveData(
   // ----------------------------------------------------------
 
   if (
-    !Number.isFinite(
-      save.updatedAt
-    ) ||
-    save.updatedAt <= 0
-  ) {
-    return false;
+  typeof save.updatedAt !== "number" ||
+  !Number.isFinite(
+    save.updatedAt
+  ) ||
+  save.updatedAt <= 0
+) {
+  return false;
   }
-
-  return true;
-}
 
 // ============================================================
 // Sanitize Progress
