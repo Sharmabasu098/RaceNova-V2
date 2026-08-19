@@ -6,12 +6,20 @@ export interface PlayerCarConfig {
   z?: number;
   scale?: number;
 
-  // Speed configuration
+  // =========================================================
+  // Car Gameplay Stats
+  // =========================================================
+
   maxSpeed?: number;
   acceleration?: number;
+  handling?: number;
+
   hardSpeedCap?: number;
 
+  // =========================================================
   // Nitro configuration
+  // =========================================================
+
   nitroSpeed?: number;
   nitroDuration?: number;
 }
@@ -23,7 +31,7 @@ export class PlayerCar {
   private readonly wheels: THREE.Mesh[] = [];
 
   // =========================================================
-  // Speed System
+  // Gameplay Stats
   // =========================================================
 
   private speed = 0;
@@ -31,6 +39,17 @@ export class PlayerCar {
   private readonly maxSpeed: number;
   private readonly hardSpeedCap: number;
   private readonly acceleration: number;
+
+  /*
+   * Handling is an authoritative car stat.
+   *
+   * CarData / UpgradeSystem provides the value
+   * through RaceNovaEngine.
+   *
+   * CarController will use this value for
+   * steering responsiveness.
+   */
+  private readonly handling: number;
 
   // =========================================================
   // Nitro System
@@ -55,10 +74,15 @@ export class PlayerCar {
   private nitroLight:
     THREE.PointLight | null = null;
 
+  // =========================================================
+  // Constructor
+  // =========================================================
+
   constructor(
     config: PlayerCarConfig = {}
   ) {
-    this.group = new THREE.Group();
+    this.group =
+      new THREE.Group();
 
     const scale =
       config.scale ?? 1;
@@ -74,34 +98,66 @@ export class PlayerCar {
     );
 
     // =====================================================
-    // Speed configuration
+    // Gameplay Stats
     // =====================================================
 
     this.maxSpeed =
       Math.max(
         1,
-        config.maxSpeed ?? 128
-      );
-
-    this.hardSpeedCap =
-      Math.max(
-        this.maxSpeed,
-        config.hardSpeedCap ?? 180
+        Number.isFinite(
+          config.maxSpeed
+        )
+          ? config.maxSpeed!
+          : 128
       );
 
     this.acceleration =
       Math.max(
         0,
-        config.acceleration ?? 35
+        Number.isFinite(
+          config.acceleration
+        )
+          ? config.acceleration!
+          : 35
+      );
+
+    /*
+     * Handling uses a safe positive range.
+     *
+     * Existing cars that do not provide handling
+     * continue using the default value.
+     */
+    this.handling =
+      Math.max(
+        0.1,
+        Number.isFinite(
+          config.handling
+        )
+          ? config.handling!
+          : 5
+      );
+
+    this.hardSpeedCap =
+      Math.max(
+        this.maxSpeed,
+        Number.isFinite(
+          config.hardSpeedCap
+        )
+          ? config.hardSpeedCap!
+          : 180
       );
 
     // =====================================================
-    // Nitro configuration
+    // Nitro Configuration
     // =====================================================
 
     this.nitroSpeed =
       THREE.MathUtils.clamp(
-        config.nitroSpeed ?? 165,
+        Number.isFinite(
+          config.nitroSpeed
+        )
+          ? config.nitroSpeed!
+          : 165,
         this.maxSpeed,
         this.hardSpeedCap
       );
@@ -109,11 +165,15 @@ export class PlayerCar {
     this.nitroDuration =
       Math.max(
         0.1,
-        config.nitroDuration ?? 3
+        Number.isFinite(
+          config.nitroDuration
+        )
+          ? config.nitroDuration!
+          : 3
       );
 
     // =====================================================
-    // Car body
+    // Car Body
     // =====================================================
 
     const bodyGeometry =
@@ -139,8 +199,11 @@ export class PlayerCar {
     this.body.position.y =
       0.35;
 
-    this.body.castShadow = true;
-    this.body.receiveShadow = true;
+    this.body.castShadow =
+      true;
+
+    this.body.receiveShadow =
+      true;
 
     this.group.add(
       this.body
@@ -176,7 +239,8 @@ export class PlayerCar {
       -0.15
     );
 
-    cabin.castShadow = true;
+    cabin.castShadow =
+      true;
 
     this.group.add(
       cabin
@@ -229,7 +293,8 @@ export class PlayerCar {
         z
       );
 
-      wheel.castShadow = true;
+      wheel.castShadow =
+        true;
 
       this.wheels.push(
         wheel
@@ -297,12 +362,6 @@ export class PlayerCar {
     this.nitroEffectGroup.name =
       "NitroEffect";
 
-    /*
-     * Exhaust flame geometry.
-     *
-     * The cone points toward the rear
-     * of the car (+Z direction).
-     */
     const flameGeometry =
       new THREE.ConeGeometry(
         0.22,
@@ -354,8 +413,11 @@ export class PlayerCar {
         0.85
       );
 
-      flame.castShadow = false;
-      flame.receiveShadow = false;
+      flame.castShadow =
+        false;
+
+      flame.receiveShadow =
+        false;
 
       this.nitroFlames.push(
         flame
@@ -367,7 +429,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Nitro glow light
+    // Nitro Glow Light
     // =====================================================
 
     this.nitroLight =
@@ -406,7 +468,9 @@ export class PlayerCar {
       this.nitroLight
     ) {
       this.nitroLight.intensity =
-        visible ? 2.2 : 0;
+        visible
+          ? 2.2
+          : 0;
     }
   }
 
@@ -431,10 +495,6 @@ export class PlayerCar {
       true
     );
 
-    /*
-     * Pulse the flames so the Nitro
-     * does not look static.
-     */
     const pulse =
       0.85 +
       Math.sin(
@@ -456,9 +516,6 @@ export class PlayerCar {
       flame.scale.z =
         pulse;
 
-      /*
-       * Slight flame movement.
-       */
       flame.rotation.z =
         Math.sin(
           performance.now() * 0.015
@@ -466,9 +523,6 @@ export class PlayerCar {
         0.08;
     }
 
-    /*
-     * Pulse the orange glow.
-     */
     if (
       this.nitroLight
     ) {
@@ -497,7 +551,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Nitro timer
+    // Nitro Timer
     // =====================================================
 
     if (
@@ -509,14 +563,12 @@ export class PlayerCar {
       if (
         this.nitroTimer <= 0
       ) {
-        this.nitroActive = false;
-        this.nitroTimer = 0;
+        this.nitroActive =
+          false;
 
-        /*
-         * Nitro finished.
-         *
-         * Return to normal maximum.
-         */
+        this.nitroTimer =
+          0;
+
         this.speed =
           Math.min(
             this.speed,
@@ -526,7 +578,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Normal acceleration
+    // Normal Acceleration
     // =====================================================
 
     this.speed +=
@@ -534,7 +586,7 @@ export class PlayerCar {
       deltaTime;
 
     // =====================================================
-    // Speed limit
+    // Speed Limit
     // =====================================================
 
     if (
@@ -554,7 +606,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Absolute hard cap
+    // Absolute Hard Cap
     // =====================================================
 
     this.speed =
@@ -572,7 +624,7 @@ export class PlayerCar {
       this.speed / 3.6;
 
     // =====================================================
-    // Forward movement
+    // Forward Movement
     // =====================================================
 
     this.group.position.z -=
@@ -580,7 +632,7 @@ export class PlayerCar {
       deltaTime;
 
     // =====================================================
-    // Wheel rotation
+    // Wheel Rotation
     // =====================================================
 
     const wheelRotation =
@@ -597,7 +649,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Nitro visual
+    // Nitro Visual
     // =====================================================
 
     this.updateNitroEffect(
@@ -610,32 +662,24 @@ export class PlayerCar {
   // =========================================================
 
   public activateNitro(): void {
-    /*
-     * Do nothing if Nitro is already active.
-     */
     if (
       this.nitroActive
     ) {
       return;
     }
 
-    /*
-     * Do not activate while stopped.
-     */
     if (
       this.speed <= 0
     ) {
       return;
     }
 
-    this.nitroActive = true;
+    this.nitroActive =
+      true;
 
     this.nitroTimer =
       this.nitroDuration;
 
-    /*
-     * Immediately push speed upward.
-     */
     this.speed =
       Math.max(
         this.speed,
@@ -648,9 +692,6 @@ export class PlayerCar {
         this.nitroSpeed
       );
 
-    /*
-     * Show Nitro effect immediately.
-     */
     this.setNitroEffectVisible(
       true
     );
@@ -691,11 +732,61 @@ export class PlayerCar {
     return this.hardSpeedCap;
   }
 
+  // =========================================================
+  // Handling API — M5.2-B
+  // =========================================================
+
+  /**
+   * Returns the authoritative handling
+   * value supplied by CarData / UpgradeSystem.
+   *
+   * CarController uses this value to
+   * control steering responsiveness.
+   */
+  public getHandling(): number {
+    return this.handling;
+  }
+
+  // =========================================================
+  // Stat Snapshot
+  // =========================================================
+
+  /**
+   * Returns the gameplay stats currently
+   * used by this PlayerCar.
+   *
+   * This is read-only data.
+   *
+   * PlayerCar remains the runtime authority.
+   */
+  public getStats(): {
+    maxSpeed: number;
+    acceleration: number;
+    handling: number;
+  } {
+    return {
+      maxSpeed:
+        this.maxSpeed,
+
+      acceleration:
+        this.acceleration,
+
+      handling:
+        this.handling
+    };
+  }
+
+  // =========================================================
+  // Speed Control
+  // =========================================================
+
   public setSpeed(
     speed: number
   ): void {
     if (
-      !Number.isFinite(speed)
+      !Number.isFinite(
+        speed
+      )
     ) {
       return;
     }
@@ -707,15 +798,14 @@ export class PlayerCar {
         this.hardSpeedCap
       );
 
-    /*
-     * Collision or external systems
-     * can force the car below normal speed.
-     */
     if (
       this.speed <= 0
     ) {
-      this.nitroActive = false;
-      this.nitroTimer = 0;
+      this.nitroActive =
+        false;
+
+      this.nitroTimer =
+        0;
 
       this.setNitroEffectVisible(
         false
@@ -724,10 +814,14 @@ export class PlayerCar {
   }
 
   public stop(): void {
-    this.speed = 0;
+    this.speed =
+      0;
 
-    this.nitroActive = false;
-    this.nitroTimer = 0;
+    this.nitroActive =
+      false;
+
+    this.nitroTimer =
+      0;
 
     this.setNitroEffectVisible(
       false
