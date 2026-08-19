@@ -65,9 +65,7 @@ export class RaceNovaEngine {
    */
   private readonly garageManager:
     GarageManager;
-
-  private readonly garageUI: Garage;
-
+  
   // =========================================================
   // Upgrade System
   // =========================================================
