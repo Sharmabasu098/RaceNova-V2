@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Coin Spawner
- * M4
+ * M4.9.2
  * ============================================================
  *
  * Responsibilities:
@@ -11,8 +11,14 @@
  * - Update coin animation
  * - Detect player collection
  * - Remove coins behind the player
+ * - Notify the engine after successful collection
  *
  * EconomyManager is used only after a coin is collected.
+ *
+ * M4.9.2:
+ * - Adds onCoinCollected callback
+ * - Does NOT directly depend on SaveSystem
+ * - SaveSystem remains outside CoinSpawner
  * ============================================================
  */
 
@@ -37,6 +43,16 @@ export interface CoinSpawnerConfig {
   getRoadCenterX?: (
     worldZ: number
   ) => number;
+
+  /**
+   * Called only after EconomyManager
+   * successfully accepts a collected coin.
+   *
+   * SaveSystem is intentionally not imported here.
+   */
+  onCoinCollected?: (
+    value: number
+  ) => void;
 }
 
 export class CoinSpawner {
@@ -61,6 +77,11 @@ export class CoinSpawner {
       worldZ: number
     ) => number;
 
+  private readonly onCoinCollected:
+    (
+      value: number
+    ) => void;
+
   private readonly coins:
     CoinPickup[] = [];
 
@@ -77,7 +98,8 @@ export class CoinSpawner {
     economyManager: EconomyManager,
     config: CoinSpawnerConfig = {}
   ) {
-    this.scene = scene;
+    this.scene =
+      scene;
 
     this.economyManager =
       economyManager;
@@ -131,6 +153,32 @@ export class CoinSpawner {
     this.getRoadCenterX =
       config.getRoadCenterX ??
       (() => 0);
+
+    // =======================================================
+    // M4.9.2 Coin Collection Callback
+    // =======================================================
+
+    /*
+     * CoinSpawner does not know about
+     * SaveSystem.
+     *
+     * RaceNovaEngine provides this callback.
+     *
+     * This keeps the architecture:
+     *
+     * CoinSpawner
+     *      ↓
+     * EconomyManager
+     *      ↓
+     * onCoinCollected
+     *      ↓
+     * RaceNovaEngine
+     *      ↓
+     * SaveSystem
+     */
+    this.onCoinCollected =
+      config.onCoinCollected ??
+      (() => {});
   }
 
   // =========================================================
@@ -153,15 +201,17 @@ export class CoinSpawner {
     // Initial spawn
     // -------------------------------------------------------
 
-    if (!this.initialized) {
-  this.nextSpawnZ =
-    playerPosition.z -
-    this.coinSpacing;
+    if (
+      !this.initialized
+    ) {
+      this.nextSpawnZ =
+        playerPosition.z -
+        this.coinSpacing;
 
-  this.initialized =
-    true;
+      this.initialized =
+        true;
     }
-    
+
     // -------------------------------------------------------
     // Spawn ahead
     // -------------------------------------------------------
@@ -294,16 +344,34 @@ export class CoinSpawner {
       );
 
     /*
-     * Only keep the coin collected
-     * when EconomyManager successfully
-     * accepts the reward.
+     * Only continue when EconomyManager
+     * successfully accepts the reward.
      */
     if (!success) {
       return;
     }
 
+    // -------------------------------------------------------
+    // Remove collected coin
+    // -------------------------------------------------------
+
     coin.removeFromScene(
       this.scene
+    );
+
+    // -------------------------------------------------------
+    // M4.9.2 Save Notification
+    // -------------------------------------------------------
+
+    /*
+     * Notify RaceNovaEngine that a coin
+     * was successfully collected.
+     *
+     * RaceNovaEngine decides how the
+     * persistent save is handled.
+     */
+    this.onCoinCollected(
+      value
     );
   }
 
@@ -424,7 +492,8 @@ export class CoinSpawner {
     this.coins.length =
       0;
 
-    this.nextSpawnZ = 0;
+    this.nextSpawnZ =
+      0;
 
     this.initialized =
       false;
