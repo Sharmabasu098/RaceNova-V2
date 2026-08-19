@@ -375,39 +375,39 @@ export class RaceNovaEngine {
     );
 
     // =====================================================
-    // Coin Spawner
-    // =====================================================
+// Coin Spawner
+// =====================================================
 
-    this.coinSpawner =
-      new CoinSpawner(
-        this.scene,
-        this.economyManager,
-        {
-          laneWidth: 4,
-          laneCount: 3,
+this.coinSpawner =
+  new CoinSpawner(
+    this.scene,
+    this.economyManager,
+    {
+      laneWidth: 4,
+      laneCount: 3,
 
-          spawnDistance: 180,
-          despawnDistance: 60,
+      spawnDistance: 180,
+      despawnDistance: 60,
 
-          coinSpacing: 10,
-          coinHeight: 1,
+      coinSpacing: 10,
+      coinHeight: 1,
 
-          maxCoins: 30,
+      maxCoins: 30,
 
-          getRoadCenterX: (
-            worldZ: number
-          ) =>
+      getRoadCenterX: (
+        worldZ: number
+      ) =>
+        this.world.getRoadCenterX(
+          worldZ
+        ),
 
-            onCoinCollected: () => {
-  this.saveSystem.save({
-    ...this.playerProgress
-  });
-        }
-            this.world.getRoadCenterX(
-              worldZ
-            )
-        }
-      );
+      onCoinCollected: () => {
+        this.saveSystem.save({
+          ...this.playerProgress
+        });
+      }
+    }
+  );
 
     // =====================================================
     // Race HUD
