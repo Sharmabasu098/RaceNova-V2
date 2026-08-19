@@ -16,6 +16,8 @@ import { CoinSpawner } from "../economy/CoinSpawner";
 import { GarageManager } from "../garage/GarageManager";
 import { UpgradeSystem } from "../garage/UpgradeSystem";
 
+import { SaveSystem } from "../save/SaveSystem";
+
 import {
   type PlayerSaveData,
   type PlayerProgress,
@@ -78,16 +80,30 @@ export class RaceNovaEngine {
     UpgradeSystem;
 
   // =========================================================
+  // Save System
+  // =========================================================
+
+  /*
+   * M4.9.1 connects the persistent
+   * SaveSystem to the engine.
+   *
+   * SaveSystem owns browser storage.
+   * RaceNovaEngine does not directly
+   * access localStorage.
+   */
+  private readonly saveSystem:
+    SaveSystem;
+
+  // =========================================================
   // Player Save / Progress
   // =========================================================
 
   /*
-   * M4.8 keeps progress in memory.
+   * Player progress remains owned by
+   * RaceNovaEngine for now.
    *
-   * No localStorage is used here.
-   *
-   * The future Save System will persist
-   * PlayerSaveData.
+   * SaveSystem persists the complete
+   * PlayerSaveData structure.
    */
   private playerProgress:
     PlayerProgress = {
@@ -239,6 +255,56 @@ export class RaceNovaEngine {
       );
 
     // =====================================================
+    // Save System
+    // =====================================================
+
+    /*
+     * M4.9.1
+     *
+     * SaveSystem receives the existing
+     * authoritative manager instances.
+     *
+     * No gameplay system is replaced.
+     */
+    this.saveSystem =
+      new SaveSystem(
+        this.economyManager,
+        this.garageManager,
+        this.upgradeSystem
+      );
+
+    // =====================================================
+    // Restore Persistent Save
+    // =====================================================
+
+    /*
+     * IMPORTANT:
+     *
+     * Load BEFORE creating PlayerCar.
+     *
+     * This allows restored Garage +
+     * Upgrade state to determine the
+     * selected car's initial stats.
+     *
+     * If no save exists, the default
+     * manager states remain unchanged.
+     */
+    if (
+      this.saveSystem.load()
+    ) {
+      const savedData =
+        this.saveSystem.readSave();
+
+      if (
+        savedData
+      ) {
+        this.setPlayerProgress(
+          savedData.progress
+        );
+      }
+    }
+
+    // =====================================================
     // Selected Car Stats
     // =====================================================
 
@@ -246,12 +312,9 @@ export class RaceNovaEngine {
      * M4.8 connects the authoritative garage
      * and upgrade data to the initial PlayerCar.
      *
-     * The starter car still produces:
-     *
-     * maxSpeed     = 128
-     * acceleration = 35
-     *
-     * so existing gameplay remains unchanged.
+     * Because SaveSystem has already loaded
+     * the persistent state above, these stats
+     * now reflect the restored state.
      */
     const selectedCar =
       this.garageManager.getSelectedCar();
@@ -780,6 +843,14 @@ export class RaceNovaEngine {
   }
 
   // =========================================================
+  // Save System Access
+  // =========================================================
+
+  public getSaveSystem():
+    SaveSystem {
+    return this.saveSystem;
+  }
+ // =========================================================
   // Player Progress
   // =========================================================
 
@@ -858,7 +929,10 @@ export class RaceNovaEngine {
    * Creates the complete in-memory
    * PlayerSaveData structure.
    *
-   * No localStorage.
+   * M4.9.1 keeps this method for
+   * compatibility with existing callers.
+   *
+   * No direct localStorage access.
    * No network.
    * No Pi.
    */
@@ -886,7 +960,26 @@ export class RaceNovaEngine {
     };
   }
 
- // =========================================================
+  // =========================================================
+  // M4.9.1 Save
+  // =========================================================
+
+  /*
+   * Persists the current complete
+   * player state through SaveSystem.
+   *
+   * PlayerProgress is supplied separately
+   * because SaveSystem owns Economy +
+   * Garage + Upgrade restoration while
+   * RaceNovaEngine owns runtime progress.
+   */
+  public savePlayerData(): boolean {
+    return this.saveSystem.save({
+      ...this.playerProgress
+    });
+  }
+
+  // =========================================================
   // M4.8 Load Snapshot
   // =========================================================
 
@@ -894,8 +987,12 @@ export class RaceNovaEngine {
    * Restores Economy + Garage +
    * Upgrades + Player Progress.
    *
-   * Persistence itself remains outside
-   * the engine.
+   * Kept for compatibility with existing
+   * callers that already provide a
+   * PlayerSaveData object.
+   *
+   * New persistence code should prefer
+   * SaveSystem.load().
    */
   public loadPlayerSaveData(
     save: unknown
@@ -943,15 +1040,53 @@ export class RaceNovaEngine {
   }
 
   // =========================================================
+  // M4.9.1 Load
+  // =========================================================
+
+  /*
+   * Loads persistent player data
+   * through the authoritative SaveSystem.
+   *
+   * SaveSystem handles:
+   * - localStorage
+   * - validation
+   * - version checking
+   * - Economy restoration
+   * - Garage restoration
+   * - Upgrade restoration
+   *
+   * RaceNovaEngine restores its own
+   * PlayerProgress from the validated
+   * save snapshot.
+   */
+  public loadPlayerData(): boolean {
+    const loaded =
+      this.saveSystem.load();
+
+    if (!loaded) {
+      return false;
+    }
+
+    const savedData =
+      this.saveSystem.readSave();
+
+    if (!savedData) {
+      return false;
+    }
+
+    this.setPlayerProgress(
+      savedData.progress
+    );
+
+    return true;
+  }
+
+  // =========================================================
   // Reset M4 State
   // =========================================================
 
   public resetPlayerData(): void {
-    this.economyManager.reset();
-
-    this.garageManager.reset();
-
-    this.upgradeSystem.reset();
+    this.saveSystem.resetProgress();
 
     this.playerProgress = {
       ...DEFAULT_PLAYER_PROGRESS
@@ -1010,6 +1145,12 @@ export class RaceNovaEngine {
     this.upgradeSystem.reset();
 
     // -----------------------------------------------------
+    // Save System
+    // -----------------------------------------------------
+
+    this.saveSystem.dispose();
+
+    // -----------------------------------------------------
     // Player / World
     // -----------------------------------------------------
 
@@ -1038,3 +1179,4 @@ export class RaceNovaEngine {
     }
   }
 }
+  
