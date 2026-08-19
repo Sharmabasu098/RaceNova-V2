@@ -397,6 +397,12 @@ export class RaceNovaEngine {
           getRoadCenterX: (
             worldZ: number
           ) =>
+
+            onCoinCollected: () => {
+  this.saveSystem.save({
+    ...this.playerProgress
+  });
+        }
             this.world.getRoadCenterX(
               worldZ
             )
