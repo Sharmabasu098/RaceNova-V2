@@ -9,6 +9,7 @@ import { TrafficManager } from "../traffic/TrafficManager";
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 
 import { RaceHUD } from "../ui/RaceHUD";
+import { Garage } from "../ui/Garage";
 
 import { EconomyManager } from "../economy/EconomyManager";
 import { CoinSpawner } from "../economy/CoinSpawner";
@@ -65,6 +66,8 @@ export class RaceNovaEngine {
   private readonly garageManager:
     GarageManager;
 
+  private readonly garageUI: Garage;
+
   // =========================================================
   // Upgrade System
   // =========================================================
@@ -116,6 +119,13 @@ export class RaceNovaEngine {
 
   private readonly raceHUD:
     RaceHUD;
+
+  // =========================================================
+// Garage UI
+// =========================================================
+
+private readonly garageUI:
+  Garage;
 
   // =========================================================
   // Constructor
@@ -421,6 +431,46 @@ this.coinSpawner =
         },
         this.economyManager
       );
+
+    // =====================================================
+// Garage UI
+// =====================================================
+
+this.garageUI =
+  new Garage(
+    this.garageManager,
+    this.economyManager,
+    {
+      onChanged: () => {
+        /*
+         * Garage changes are persisted
+         * through the authoritative SaveSystem.
+         *
+         * M4.9.2 persistence remains untouched.
+         */
+        this.savePlayerData();
+      },
+
+      onCarSelected: (
+        carId
+      ) => {
+        /*
+         * Selected car is already stored
+         * by GarageManager.
+         *
+         * Runtime stat application will be
+         * connected in the next M5 step.
+         */
+        void carId;
+      },
+
+      onClose: () => {
+        this.garageUI.hide();
+      }
+    }
+  );
+
+this.garageUI.hide();
 
     // =====================================================
     // Car Controller
@@ -834,6 +884,22 @@ this.coinSpawner =
     return this.garageManager;
   }
 
+  // =========================================================
+// Garage UI Access
+// =========================================================
+
+public openGarage(): void {
+  this.garageUI.open();
+}
+
+public closeGarage(): void {
+  this.garageUI.hide();
+}
+
+public isGarageOpen(): boolean {
+  return this.garageUI.isVisible();
+}
+
   public getSelectedCarId(): string {
     return this.garageManager
       .getSelectedCarId();
@@ -1169,6 +1235,12 @@ this.coinSpawner =
     // -----------------------------------------------------
 
     this.raceHUD.dispose();
+
+    // -----------------------------------------------------
+// Garage UI
+// -----------------------------------------------------
+
+this.garageUI.dispose();
 
     // -----------------------------------------------------
     // Renderer
