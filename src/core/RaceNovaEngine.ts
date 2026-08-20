@@ -428,15 +428,16 @@ export class RaceNovaEngine {
     // =======================================================
 
     this.raceHUD =
-      new RaceHUD(
-        this.playerCar,
-
-        () => {
-          this.activateNitro();
-        },
-
-        this.economyManager
-      );
+  new RaceHUD(
+    this.playerCar,
+    () => {
+      this.activateNitro();
+    },
+    this.economyManager,
+    () => {
+      this.openGarage();
+    }
+  );
 
     // =======================================================
     // Garage UI
