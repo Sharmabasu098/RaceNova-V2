@@ -4,7 +4,9 @@ import { EconomyManager } from "../economy/EconomyManager";
 export class RaceHUD {
   private readonly playerCar: PlayerCar;
   private readonly economyManager: EconomyManager;
+
   private readonly onNitro: () => void;
+  private readonly onGarage: () => void;
 
   // =========================================================
   // HUD Elements
@@ -24,6 +26,12 @@ export class RaceHUD {
   private readonly nitroLabel: HTMLSpanElement;
   private readonly nitroTimer: HTMLSpanElement;
 
+  // =========================================================
+  // Garage Button
+  // =========================================================
+
+  private readonly garageButton: HTMLButtonElement;
+
   private disposed = false;
 
   // =========================================================
@@ -33,11 +41,20 @@ export class RaceHUD {
   constructor(
     playerCar: PlayerCar,
     onNitro: () => void,
-    economyManager: EconomyManager
+    economyManager: EconomyManager,
+    onGarage: () => void = () => undefined
   ) {
-    this.playerCar = playerCar;
-    this.onNitro = onNitro;
-    this.economyManager = economyManager;
+    this.playerCar =
+      playerCar;
+
+    this.onNitro =
+      onNitro;
+
+    this.economyManager =
+      economyManager;
+
+    this.onGarage =
+      onGarage;
 
     // =====================================================
     // Root
@@ -233,6 +250,79 @@ export class RaceHUD {
     );
 
     // =====================================================
+    // Garage Button
+    // =====================================================
+
+    this.garageButton =
+      document.createElement("button");
+
+    Object.assign(
+      this.garageButton.style,
+      {
+        position: "absolute",
+
+        /*
+         * IMPORTANT:
+         *
+         * Nitro = bottom 18px
+         * Garage = bottom 124px
+         *
+         * This keeps the two buttons
+         * clearly separated.
+         */
+        right: "18px",
+        bottom: "124px",
+
+        width: "92px",
+        height: "48px",
+
+        border:
+          "1px solid rgba(255,255,255,0.25)",
+
+        borderRadius: "14px",
+
+        background:
+          "linear-gradient(135deg, #3478ff, #2253c9)",
+
+        color: "#ffffff",
+
+        fontFamily:
+          "Arial, Helvetica, sans-serif",
+
+        fontSize: "13px",
+
+        fontWeight: "900",
+
+        letterSpacing: "0.5px",
+
+        boxShadow:
+          "0 5px 18px rgba(0,0,0,0.35)",
+
+        display: "flex",
+
+        alignItems: "center",
+
+        justifyContent: "center",
+
+        padding: "0",
+
+        margin: "0",
+
+        pointerEvents: "auto",
+
+        touchAction: "manipulation",
+
+        WebkitTapHighlightColor:
+          "transparent",
+
+        cursor: "pointer"
+      }
+    );
+
+    this.garageButton.textContent =
+      "GARAGE";
+
+    // =====================================================
     // Nitro Button
     // =====================================================
 
@@ -245,28 +335,47 @@ export class RaceHUD {
         position: "absolute",
         right: "18px",
         bottom: "18px",
+
         width: "92px",
         height: "92px",
-        border: "2px solid rgba(255,255,255,0.35)",
+
+        border:
+          "2px solid rgba(255,255,255,0.35)",
+
         borderRadius: "50%",
+
         background:
           "linear-gradient(145deg, #ff5a1f, #d71900)",
+
         color: "#ffffff",
+
         display: "flex",
+
         flexDirection: "column",
+
         alignItems: "center",
+
         justifyContent: "center",
+
         gap: "2px",
+
         padding: "0",
+
         margin: "0",
+
         fontFamily:
           "Arial, Helvetica, sans-serif",
+
         boxShadow:
           "0 5px 18px rgba(0,0,0,0.35)",
+
         pointerEvents: "auto",
+
         touchAction: "manipulation",
+
         WebkitTapHighlightColor:
           "transparent",
+
         cursor: "pointer"
       }
     );
@@ -320,7 +429,7 @@ export class RaceHUD {
     );
 
     // =====================================================
-    // Add HUD to DOM
+    // Add HUD To DOM
     // =====================================================
 
     this.root.appendChild(
@@ -332,11 +441,29 @@ export class RaceHUD {
     );
 
     this.root.appendChild(
+      this.garageButton
+    );
+
+    this.root.appendChild(
       this.nitroButton
     );
 
     document.body.appendChild(
       this.root
+    );
+
+    // =====================================================
+    // Garage Button Event
+    // =====================================================
+
+    this.garageButton.addEventListener(
+      "pointerdown",
+      this.handleGaragePointerDown
+    );
+
+    this.garageButton.addEventListener(
+      "click",
+      this.handleGarageClick
     );
 
     // =====================================================
@@ -359,6 +486,30 @@ export class RaceHUD {
 
     this.update();
   }
+
+  // =========================================================
+  // Garage Pointer
+  // =========================================================
+
+  private handleGaragePointerDown = (
+    event: PointerEvent
+  ): void => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.onGarage();
+  };
+
+  // =========================================================
+  // Garage Click
+  // =========================================================
+
+  private handleGarageClick = (
+    event: MouseEvent
+  ): void => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   // =========================================================
   // Nitro Pointer
@@ -389,20 +540,15 @@ export class RaceHUD {
   // =========================================================
 
   public update(): void {
-    if (this.disposed) {
+    if (
+      this.disposed
+    ) {
       return;
     }
 
     // =====================================================
     // Speed
     // =====================================================
-
-    /*
-     * PlayerCar does NOT have effectiveSpeed.
-     *
-     * getSpeed() is the authoritative
-     * gameplay speed API.
-     */
 
     const speed =
       this.playerCar.getSpeed();
@@ -447,7 +593,9 @@ export class RaceHUD {
     const nitroDuration =
       this.playerCar.getNitroDuration();
 
-    if (nitroActive) {
+    if (
+      nitroActive
+    ) {
       this.nitroLabel.textContent =
         "NITRO";
 
@@ -481,11 +629,32 @@ export class RaceHUD {
   // =========================================================
 
   public dispose(): void {
-    if (this.disposed) {
+    if (
+      this.disposed
+    ) {
       return;
     }
 
-    this.disposed = true;
+    this.disposed =
+      true;
+
+    // =====================================================
+    // Garage Events
+    // =====================================================
+
+    this.garageButton.removeEventListener(
+      "pointerdown",
+      this.handleGaragePointerDown
+    );
+
+    this.garageButton.removeEventListener(
+      "click",
+      this.handleGarageClick
+    );
+
+    // =====================================================
+    // Nitro Events
+    // =====================================================
 
     this.nitroButton.removeEventListener(
       "pointerdown",
@@ -496,6 +665,10 @@ export class RaceHUD {
       "click",
       this.handleNitroClick
     );
+
+    // =====================================================
+    // Remove HUD
+    // =====================================================
 
     if (
       this.root.parentElement
