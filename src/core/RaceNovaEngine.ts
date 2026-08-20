@@ -450,26 +450,71 @@ this.garageUI =
       },
 
       onCarSelected: (
-        carId
-      ) => {
-        /*
-         * Selected car is already stored
-         * by GarageManager.
-         *
-         * Runtime stat application will be
-         * connected in the next M5 step.
-         */
-        void carId;
-      },
+  carId
+) => {
+  /*
+   * M5.3 — Runtime Car Selection
+   *
+   * GarageManager
+   *      ↓
+   * CarData
+   *      ↓
+   * UpgradeSystem
+   *      ↓
+   * PlayerCar
+   */
 
-      onClose: () => {
-        this.garageUI.hide();
-      }
-    }
+  const car =
+    this.garageManager.getSelectedCar();
+
+  /*
+   * Safety check:
+   * the selected car must match the
+   * selection event.
+   */
+  if (
+    car.id !== carId
+  ) {
+    return;
+  }
+
+  /*
+   * Get the effective stats.
+   *
+   * This includes:
+   * - CarData base stats
+   * - UpgradeSystem levels
+   */
+  const stats =
+    this.upgradeSystem.getStats(
+      carId
+    );
+
+  /*
+   * Apply the selected car's
+   * effective gameplay stats
+   * to the currently running PlayerCar.
+   */
+  this.playerCar.applyCarStats(
+    stats.maxSpeed,
+    stats.acceleration,
+    stats.handling
   );
 
-this.garageUI.hide();
+  /*
+   * Save the selected car and
+   * current state through the
+   * authoritative SaveSystem.
+   */
+  this.savePlayerData();
 
+  /*
+   * Refresh HUD so gameplay values
+   * are reflected immediately.
+   */
+  this.raceHUD.update();
+},
+      
     // =====================================================
     // Car Controller
     // =====================================================
