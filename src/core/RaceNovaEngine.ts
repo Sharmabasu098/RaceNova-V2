@@ -132,13 +132,6 @@ export class RaceNovaEngine {
     Garage;
 
   // =========================================================
-  // Garage Button
-  // =========================================================
-
-  private readonly garageButton:
-    HTMLButtonElement;
-
-  // =========================================================
   // Constructor
   // =========================================================
 
@@ -541,80 +534,6 @@ export class RaceNovaEngine {
 
     // Garage starts hidden.
     this.garageUI.hide();
-
-    // =======================================================
-    // Garage Button
-    // =======================================================
-
-    this.garageButton =
-      document.createElement(
-        "button"
-      );
-
-    this.garageButton.type =
-      "button";
-
-    this.garageButton.textContent =
-      "GARAGE";
-
-    Object.assign(
-      this.garageButton.style,
-      {
-        position: "fixed",
-
-        right: "18px",
-
-        bottom: "18px",
-
-        zIndex: "1500",
-
-        minWidth: "120px",
-
-        minHeight: "48px",
-
-        padding:
-          "0 18px",
-
-        border:
-          "1px solid rgba(255,255,255,0.22)",
-
-        borderRadius:
-          "14px",
-
-        background:
-          "linear-gradient(135deg, #3478ff, #2253c9)",
-
-        color:
-          "#ffffff",
-
-        fontSize:
-          "15px",
-
-        fontWeight:
-          "900",
-
-        letterSpacing:
-          "0.6px",
-
-        cursor:
-          "pointer",
-
-        touchAction:
-          "manipulation",
-
-        boxShadow:
-          "0 8px 24px rgba(0,0,0,0.30)"
-      }
-    );
-
-    this.garageButton.addEventListener(
-      "click",
-      this.handleGarageButtonClick
-    );
-
-    document.body.appendChild(
-      this.garageButton
-    );
 
     // =======================================================
     // Car Controller
