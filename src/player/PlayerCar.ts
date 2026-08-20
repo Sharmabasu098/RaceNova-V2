@@ -24,6 +24,12 @@ export interface PlayerCarConfig {
   nitroDuration?: number;
 }
 
+export interface PlayerCarStats {
+  maxSpeed: number;
+  acceleration: number;
+  handling: number;
+}
+
 export class PlayerCar {
   public readonly group: THREE.Group;
 
@@ -36,26 +42,21 @@ export class PlayerCar {
 
   private speed = 0;
 
-  private readonly maxSpeed: number;
-  private readonly hardSpeedCap: number;
-  private readonly acceleration: number;
-
   /*
-   * Handling is an authoritative car stat.
-   *
-   * CarData / UpgradeSystem provides the value
-   * through RaceNovaEngine.
-   *
-   * CarController will use this value for
-   * steering responsiveness.
+   * These stats are mutable because M5.3 allows
+   * Garage → CarData → UpgradeSystem changes
+   * to be applied to the currently running PlayerCar.
    */
-  private readonly handling: number;
+  private maxSpeed: number;
+  private hardSpeedCap: number;
+  private acceleration: number;
+  private handling: number;
 
   // =========================================================
   // Nitro System
   // =========================================================
 
-  private readonly nitroSpeed: number;
+  private nitroSpeed: number;
   private readonly nitroDuration: number;
 
   private nitroActive = false;
@@ -121,12 +122,6 @@ export class PlayerCar {
           : 35
       );
 
-    /*
-     * Handling uses a safe positive range.
-     *
-     * Existing cars that do not provide handling
-     * continue using the default value.
-     */
     this.handling =
       Math.max(
         0.1,
@@ -162,6 +157,7 @@ export class PlayerCar {
         this.hardSpeedCap
       );
 
+    // Duration remains stable during runtime.
     this.nitroDuration =
       Math.max(
         0.1,
@@ -733,37 +729,30 @@ export class PlayerCar {
   }
 
   // =========================================================
-  // Handling API — M5.2-B
+  // Handling API
   // =========================================================
 
   /**
    * Returns the authoritative handling
    * value supplied by CarData / UpgradeSystem.
-   *
-   * CarController uses this value to
-   * control steering responsiveness.
    */
   public getHandling(): number {
     return this.handling;
   }
 
   // =========================================================
+  // Acceleration API
+  // =========================================================
+
+  public getAcceleration(): number {
+    return this.acceleration;
+  }
+
+  // =========================================================
   // Stat Snapshot
   // =========================================================
 
-  /**
-   * Returns the gameplay stats currently
-   * used by this PlayerCar.
-   *
-   * This is read-only data.
-   *
-   * PlayerCar remains the runtime authority.
-   */
-  public getStats(): {
-    maxSpeed: number;
-    acceleration: number;
-    handling: number;
-  } {
+  public getStats(): PlayerCarStats {
     return {
       maxSpeed:
         this.maxSpeed,
@@ -774,6 +763,120 @@ export class PlayerCar {
       handling:
         this.handling
     };
+  }
+
+  // =========================================================
+  // M5.3 Runtime Car Stats
+  // =========================================================
+
+  /**
+   * Applies the selected car's effective
+   * gameplay stats to the currently running
+   * PlayerCar.
+   *
+   * Data flow:
+   *
+   * GarageManager
+   *      ↓
+   * CarData
+   *      ↓
+   * UpgradeSystem
+   *      ↓
+   * RaceNovaEngine
+   *      ↓
+   * PlayerCar
+   *
+   * This method does not modify:
+   * - Garage ownership
+   * - Economy
+   * - Save data
+   */
+  public applyCarStats(
+    maxSpeed: number,
+    acceleration: number,
+    handling: number
+  ): void {
+
+    if (
+      !Number.isFinite(maxSpeed) ||
+      !Number.isFinite(acceleration) ||
+      !Number.isFinite(handling)
+    ) {
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Apply stats
+    // -------------------------------------------------------
+
+    this.maxSpeed =
+      Math.max(
+        1,
+        maxSpeed
+      );
+
+    this.acceleration =
+      Math.max(
+        0,
+        acceleration
+      );
+
+    this.handling =
+      Math.max(
+        0.1,
+        handling
+      );
+
+    // -------------------------------------------------------
+    // Preserve a safe absolute speed cap
+    // -------------------------------------------------------
+
+    this.hardSpeedCap =
+      Math.max(
+        this.maxSpeed,
+        180
+      );
+
+    // -------------------------------------------------------
+    // Recalculate Nitro
+    // -------------------------------------------------------
+
+    const newNitroSpeed =
+      this.maxSpeed + 37;
+
+    this.nitroSpeed =
+      THREE.MathUtils.clamp(
+        newNitroSpeed,
+        this.maxSpeed,
+        this.hardSpeedCap
+      );
+
+    // -------------------------------------------------------
+    // Clamp current speed to new stats
+    // -------------------------------------------------------
+
+    if (
+      this.nitroActive
+    ) {
+      this.speed =
+        Math.min(
+          this.speed,
+          this.nitroSpeed
+        );
+    } else {
+      this.speed =
+        Math.min(
+          this.speed,
+          this.maxSpeed
+        );
+    }
+
+    this.speed =
+      THREE.MathUtils.clamp(
+        this.speed,
+        0,
+        this.hardSpeedCap
+      );
   }
 
   // =========================================================
