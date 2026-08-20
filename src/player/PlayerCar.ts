@@ -17,7 +17,7 @@ export interface PlayerCarConfig {
   hardSpeedCap?: number;
 
   // =========================================================
-  // Nitro configuration
+  // Nitro Configuration
   // =========================================================
 
   nitroSpeed?: number;
@@ -40,24 +40,36 @@ export class PlayerCar {
   // Gameplay Stats
   // =========================================================
 
-  private speed = 0;
-
   /*
-   * These stats are mutable because M5.3 allows
-   * Garage → CarData → UpgradeSystem changes
-   * to be applied to the currently running PlayerCar.
+   * IMPORTANT:
+   *
+   * These are intentionally NOT readonly.
+   *
+   * M5.3 requires runtime car switching.
+   *
+   * Garage
+   *   ↓
+   * CarData
+   *   ↓
+   * UpgradeSystem
+   *   ↓
+   * PlayerCar.applyCarStats()
    */
+
   private maxSpeed: number;
-  private hardSpeedCap: number;
   private acceleration: number;
   private handling: number;
+
+  private hardSpeedCap: number;
+
+  private speed = 0;
 
   // =========================================================
   // Nitro System
   // =========================================================
 
   private nitroSpeed: number;
-  private readonly nitroDuration: number;
+  private nitroDuration: number;
 
   private nitroActive = false;
   private nitroTimer = 0;
@@ -86,12 +98,22 @@ export class PlayerCar {
       new THREE.Group();
 
     const scale =
-      config.scale ?? 1;
+      Number.isFinite(config.scale)
+        ? config.scale!
+        : 1;
 
     this.group.position.set(
-      config.x ?? 0,
-      config.y ?? 0.55,
-      config.z ?? 0
+      Number.isFinite(config.x)
+        ? config.x!
+        : 0,
+
+      Number.isFinite(config.y)
+        ? config.y!
+        : 0.55,
+
+      Number.isFinite(config.z)
+        ? config.z!
+        : 0
     );
 
     this.group.scale.setScalar(
@@ -99,15 +121,13 @@ export class PlayerCar {
     );
 
     // =====================================================
-    // Gameplay Stats
+    // Initial Gameplay Stats
     // =====================================================
 
     this.maxSpeed =
       Math.max(
         1,
-        Number.isFinite(
-          config.maxSpeed
-        )
+        Number.isFinite(config.maxSpeed)
           ? config.maxSpeed!
           : 128
       );
@@ -115,9 +135,7 @@ export class PlayerCar {
     this.acceleration =
       Math.max(
         0,
-        Number.isFinite(
-          config.acceleration
-        )
+        Number.isFinite(config.acceleration)
           ? config.acceleration!
           : 35
       );
@@ -125,9 +143,7 @@ export class PlayerCar {
     this.handling =
       Math.max(
         0.1,
-        Number.isFinite(
-          config.handling
-        )
+        Number.isFinite(config.handling)
           ? config.handling!
           : 5
       );
@@ -135,9 +151,7 @@ export class PlayerCar {
     this.hardSpeedCap =
       Math.max(
         this.maxSpeed,
-        Number.isFinite(
-          config.hardSpeedCap
-        )
+        Number.isFinite(config.hardSpeedCap)
           ? config.hardSpeedCap!
           : 180
       );
@@ -148,22 +162,18 @@ export class PlayerCar {
 
     this.nitroSpeed =
       THREE.MathUtils.clamp(
-        Number.isFinite(
-          config.nitroSpeed
-        )
+        Number.isFinite(config.nitroSpeed)
           ? config.nitroSpeed!
-          : 165,
+          : this.maxSpeed + 37,
+
         this.maxSpeed,
         this.hardSpeedCap
       );
 
-    // Duration remains stable during runtime.
     this.nitroDuration =
       Math.max(
         0.1,
-        Number.isFinite(
-          config.nitroDuration
-        )
+        Number.isFinite(config.nitroDuration)
           ? config.nitroDuration!
           : 3
       );
@@ -351,6 +361,138 @@ export class PlayerCar {
   }
 
   // =========================================================
+  // Runtime Car Stats
+  // M5.3
+  // =========================================================
+
+  /**
+   * Applies the effective stats of the
+   * currently selected car at runtime.
+   *
+   * Source:
+   *
+   * CarData
+   *    ↓
+   * UpgradeSystem.getStats()
+   *    ↓
+   * PlayerCar.applyCarStats()
+   *
+   * This does NOT save anything.
+   * SaveSystem remains responsible
+   * for persistence.
+   */
+  public applyCarStats(
+    maxSpeed: number,
+    acceleration: number,
+    handling: number
+  ): void {
+    if (
+      !Number.isFinite(maxSpeed) ||
+      !Number.isFinite(acceleration) ||
+      !Number.isFinite(handling)
+    ) {
+      return;
+    }
+
+    // -----------------------------------------------------
+    // Apply gameplay stats
+    // -----------------------------------------------------
+
+    this.maxSpeed =
+      Math.max(
+        1,
+        maxSpeed
+      );
+
+    this.acceleration =
+      Math.max(
+        0,
+        acceleration
+      );
+
+    this.handling =
+      Math.max(
+        0.1,
+        handling
+      );
+
+    // -----------------------------------------------------
+    // Recalculate hard cap
+    // -----------------------------------------------------
+
+    /*
+     * Keep the established RaceNova
+     * minimum hard cap of 180.
+     */
+    this.hardSpeedCap =
+      Math.max(
+        180,
+        this.maxSpeed
+      );
+
+    // -----------------------------------------------------
+    // Recalculate Nitro
+    // -----------------------------------------------------
+
+    /*
+     * Nitro remains +37 above the
+     * selected car's normal max speed,
+     * but never exceeds hardSpeedCap.
+     */
+    this.nitroSpeed =
+      THREE.MathUtils.clamp(
+        this.maxSpeed + 37,
+        this.maxSpeed,
+        this.hardSpeedCap
+      );
+
+    // -----------------------------------------------------
+    // Keep current speed valid
+    // -----------------------------------------------------
+
+    if (
+      this.nitroActive
+    ) {
+      this.speed =
+        Math.min(
+          this.speed,
+          this.nitroSpeed
+        );
+    } else {
+      this.speed =
+        Math.min(
+          this.speed,
+          this.maxSpeed
+        );
+    }
+
+    this.speed =
+      THREE.MathUtils.clamp(
+        this.speed,
+        0,
+        this.hardSpeedCap
+      );
+  }
+
+  // =========================================================
+  // Get Gameplay Stats
+  // =========================================================
+
+  public getStats():
+    PlayerCarStats {
+    return {
+      maxSpeed:
+        this.maxSpeed,
+
+      acceleration:
+        this.acceleration,
+
+      handling:
+        this.handling
+    };
+  }
+
+  // =========================================================
   // Nitro Visual Creation
   // =========================================================
 
@@ -425,7 +567,7 @@ export class PlayerCar {
     }
 
     // =====================================================
-    // Nitro Glow Light
+    // Nitro Light
     // =====================================================
 
     this.nitroLight =
@@ -451,7 +593,7 @@ export class PlayerCar {
   }
 
   // =========================================================
-  // Nitro Visual Visibility
+  // Nitro Visibility
   // =========================================================
 
   private setNitroEffectVisible(
@@ -541,7 +683,8 @@ export class PlayerCar {
     deltaTime: number
   ): void {
     if (
-      deltaTime <= 0
+      deltaTime <= 0 ||
+      !Number.isFinite(deltaTime)
     ) {
       return;
     }
@@ -732,151 +875,8 @@ export class PlayerCar {
   // Handling API
   // =========================================================
 
-  /**
-   * Returns the authoritative handling
-   * value supplied by CarData / UpgradeSystem.
-   */
   public getHandling(): number {
     return this.handling;
-  }
-
-  // =========================================================
-  // Acceleration API
-  // =========================================================
-
-  public getAcceleration(): number {
-    return this.acceleration;
-  }
-
-  // =========================================================
-  // Stat Snapshot
-  // =========================================================
-
-  public getStats(): PlayerCarStats {
-    return {
-      maxSpeed:
-        this.maxSpeed,
-
-      acceleration:
-        this.acceleration,
-
-      handling:
-        this.handling
-    };
-  }
-
-  // =========================================================
-  // M5.3 Runtime Car Stats
-  // =========================================================
-
-  /**
-   * Applies the selected car's effective
-   * gameplay stats to the currently running
-   * PlayerCar.
-   *
-   * Data flow:
-   *
-   * GarageManager
-   *      ↓
-   * CarData
-   *      ↓
-   * UpgradeSystem
-   *      ↓
-   * RaceNovaEngine
-   *      ↓
-   * PlayerCar
-   *
-   * This method does not modify:
-   * - Garage ownership
-   * - Economy
-   * - Save data
-   */
-  public applyCarStats(
-    maxSpeed: number,
-    acceleration: number,
-    handling: number
-  ): void {
-
-    if (
-      !Number.isFinite(maxSpeed) ||
-      !Number.isFinite(acceleration) ||
-      !Number.isFinite(handling)
-    ) {
-      return;
-    }
-
-    // -------------------------------------------------------
-    // Apply stats
-    // -------------------------------------------------------
-
-    this.maxSpeed =
-      Math.max(
-        1,
-        maxSpeed
-      );
-
-    this.acceleration =
-      Math.max(
-        0,
-        acceleration
-      );
-
-    this.handling =
-      Math.max(
-        0.1,
-        handling
-      );
-
-    // -------------------------------------------------------
-    // Preserve a safe absolute speed cap
-    // -------------------------------------------------------
-
-    this.hardSpeedCap =
-      Math.max(
-        this.maxSpeed,
-        180
-      );
-
-    // -------------------------------------------------------
-    // Recalculate Nitro
-    // -------------------------------------------------------
-
-    const newNitroSpeed =
-      this.maxSpeed + 37;
-
-    this.nitroSpeed =
-      THREE.MathUtils.clamp(
-        newNitroSpeed,
-        this.maxSpeed,
-        this.hardSpeedCap
-      );
-
-    // -------------------------------------------------------
-    // Clamp current speed to new stats
-    // -------------------------------------------------------
-
-    if (
-      this.nitroActive
-    ) {
-      this.speed =
-        Math.min(
-          this.speed,
-          this.nitroSpeed
-        );
-    } else {
-      this.speed =
-        Math.min(
-          this.speed,
-          this.maxSpeed
-        );
-    }
-
-    this.speed =
-      THREE.MathUtils.clamp(
-        this.speed,
-        0,
-        this.hardSpeedCap
-      );
   }
 
   // =========================================================
@@ -887,9 +887,7 @@ export class PlayerCar {
     speed: number
   ): void {
     if (
-      !Number.isFinite(
-        speed
-      )
+      !Number.isFinite(speed)
     ) {
       return;
     }
