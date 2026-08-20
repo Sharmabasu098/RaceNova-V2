@@ -1006,12 +1006,6 @@ export class RaceNovaEngine {
 
     this.garageUI.hide();
 
-
-  public isGarageOpen(): boolean {
-
-    return this.garageUI.isVisible();
-  }
-
   // =========================================================
   // Selected Car
   // =========================================================
