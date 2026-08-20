@@ -450,91 +450,96 @@ this.garageUI =
       },
 
       onCarSelected: (
-  carId
-) => {
-  /*
-   * M5.3 — Runtime Car Selection
-   *
-   * GarageManager
-   *      ↓
-   * CarData
-   *      ↓
-   * UpgradeSystem
-   *      ↓
-   * PlayerCar
-   */
+        carId
+      ) => {
+        /*
+         * M5.3 — Runtime Car Selection
+         *
+         * GarageManager
+         *      ↓
+         * CarData
+         *      ↓
+         * UpgradeSystem
+         *      ↓
+         * PlayerCar
+         */
 
-  const car =
-    this.garageManager.getSelectedCar();
+        const car =
+          this.garageManager.getSelectedCar();
 
-  /*
-   * Safety check:
-   * the selected car must match the
-   * selection event.
-   */
-  if (
-    car.id !== carId
-  ) {
-    return;
-  }
+        /*
+         * Safety check:
+         * the selected car must match
+         * the selection event.
+         */
+        if (
+          car.id !== carId
+        ) {
+          return;
+        }
 
-  /*
-   * Get the effective stats.
-   *
-   * This includes:
-   * - CarData base stats
-   * - UpgradeSystem levels
-   */
-  const stats =
-    this.upgradeSystem.getStats(
-      carId
-    );
+        /*
+         * Get effective stats.
+         *
+         * Includes:
+         * - CarData base stats
+         * - UpgradeSystem upgrades
+         */
+        const stats =
+          this.upgradeSystem.getStats(
+            carId
+          );
 
-  /*
-   * Apply the selected car's
-   * effective gameplay stats
-   * to the currently running PlayerCar.
-   */
-  this.playerCar.applyCarStats(
-    stats.maxSpeed,
-    stats.acceleration,
-    stats.handling
+        /*
+         * Apply the selected car's
+         * effective gameplay stats
+         * to the running PlayerCar.
+         */
+        this.playerCar.applyCarStats(
+          stats.maxSpeed,
+          stats.acceleration,
+          stats.handling
+        );
+
+        /*
+         * Persist selected car/state.
+         */
+        this.savePlayerData();
+
+        /*
+         * Refresh HUD.
+         */
+        this.raceHUD.update();
+      },
+
+      onClose: () => {
+        this.garageUI.hide();
+      }
+    }
   );
 
-  /*
-   * Save the selected car and
-   * current state through the
-   * authoritative SaveSystem.
-   */
-  this.savePlayerData();
+this.garageUI.hide();
 
-  /*
-   * Refresh HUD so gameplay values
-   * are reflected immediately.
-   */
-  this.raceHUD.update();
-},
-      
-    // =====================================================
-    // Car Controller
-    // =====================================================
+// =====================================================
+// Car Controller
+// =====================================================
 
-    this.carController =
-      new CarController(
-        this.playerCar,
-        {
-          laneWidth: 4,
-          laneCount: 3,
-          steeringSpeed: 10,
+this.carController =
+  new CarController(
+    this.playerCar,
+    {
+      laneWidth: 4,
+      laneCount: 3,
+      steeringSpeed: 10,
 
-          getRoadCenterX: (
-            worldZ: number
-          ) =>
-            this.world.getRoadCenterX(
-              worldZ
-            )
-        }
-      );
+      getRoadCenterX: (
+        worldZ: number
+      ) =>
+        this.world.getRoadCenterX(
+          worldZ
+        )
+    }
+  );
 
     // =====================================================
     // Swipe Controller
