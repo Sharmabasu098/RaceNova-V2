@@ -967,15 +967,9 @@ export class RaceNovaEngine {
     );
   };
 
-  // =========================================================
+    // =========================================================
   // Economy Access
   // =========================================================
-
-  public getCoinBalance(): number {
-
-    return this.economyManager
-      .getCoins();
-  }
 
   public getEconomyManager():
     EconomyManager {
@@ -1005,6 +999,12 @@ export class RaceNovaEngine {
   public closeGarage(): void {
 
     this.garageUI.hide();
+  }
+
+  public isGarageOpen(): boolean {
+
+    return this.garageUI.isVisible();
+  }
 
   // =========================================================
   // Selected Car
@@ -1025,7 +1025,7 @@ export class RaceNovaEngine {
 
     return this.upgradeSystem;
   }
-
+  
   // =========================================================
   // Save System Access
   // =========================================================
