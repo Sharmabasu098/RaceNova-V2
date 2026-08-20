@@ -999,9 +999,6 @@ export class RaceNovaEngine {
 
   public openGarage(): void {
 
-    this.garageButton.style.display =
-      "none";
-
     this.garageUI.open();
   }
 
@@ -1009,9 +1006,6 @@ export class RaceNovaEngine {
 
     this.garageUI.hide();
 
-    this.garageButton.style.display =
-      "block";
-  }
 
   public isGarageOpen(): boolean {
 
@@ -1315,25 +1309,6 @@ export class RaceNovaEngine {
       this.handleNitroKeyDown
     );
 
-    // =======================================================
-    // Garage Button
-    // =======================================================
-
-    this.garageButton.removeEventListener(
-      "click",
-      this.handleGarageButtonClick
-    );
-
-    if (
-      this.garageButton.parentElement
-    ) {
-
-      this.garageButton
-        .parentElement
-        .removeChild(
-          this.garageButton
-        );
-    }
 
     // =======================================================
     // Controllers
