@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { World } from "../world/World";
+
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
 import { SwipeController } from "../player/SwipeController";
@@ -29,17 +30,50 @@ import {
 } from "../save/PlayerSaveData";
 
 export class RaceNovaEngine {
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene: THREE.Scene;
-  private readonly camera: THREE.PerspectiveCamera;
-  private readonly clock: THREE.Clock;
 
-  private readonly world: World;
-  private readonly playerCar: PlayerCar;
-  private readonly carController: CarController;
-  private readonly swipeController: SwipeController;
+  // =========================================================
+  // Core
+  // =========================================================
 
-  private readonly trafficManager: TrafficManager;
+  private readonly renderer:
+    THREE.WebGLRenderer;
+
+  private readonly scene:
+    THREE.Scene;
+
+  private readonly camera:
+    THREE.PerspectiveCamera;
+
+  private readonly clock:
+    THREE.Clock;
+
+  // =========================================================
+  // World
+  // =========================================================
+
+  private readonly world:
+    World;
+
+  // =========================================================
+  // Player
+  // =========================================================
+
+  private readonly playerCar:
+    PlayerCar;
+
+  private readonly carController:
+    CarController;
+
+  private readonly swipeController:
+    SwipeController;
+
+  // =========================================================
+  // Traffic
+  // =========================================================
+
+  private readonly trafficManager:
+    TrafficManager;
+
   private readonly trafficCollisionSystem:
     TrafficCollisionSystem;
 
@@ -57,26 +91,13 @@ export class RaceNovaEngine {
   // Garage
   // =========================================================
 
-  /*
-   * GarageManager owns:
-   * - owned cars
-   * - selected car
-   * - car unlocks
-   */
   private readonly garageManager:
     GarageManager;
-  
+
   // =========================================================
   // Upgrade System
   // =========================================================
 
-  /*
-   * UpgradeSystem owns:
-   * - speed upgrades
-   * - acceleration upgrades
-   * - handling upgrades
-   * - upgraded car stats
-   */
   private readonly upgradeSystem:
     UpgradeSystem;
 
@@ -84,28 +105,13 @@ export class RaceNovaEngine {
   // Save System
   // =========================================================
 
-  /*
-   * M4.9.1 connects the persistent
-   * SaveSystem to the engine.
-   *
-   * SaveSystem owns browser storage.
-   * RaceNovaEngine does not directly
-   * access localStorage.
-   */
   private readonly saveSystem:
     SaveSystem;
 
   // =========================================================
-  // Player Save / Progress
+  // Player Progress
   // =========================================================
 
-  /*
-   * Player progress remains owned by
-   * RaceNovaEngine for now.
-   *
-   * SaveSystem persists the complete
-   * PlayerSaveData structure.
-   */
   private playerProgress:
     PlayerProgress = {
       ...DEFAULT_PLAYER_PROGRESS
@@ -119,18 +125,18 @@ export class RaceNovaEngine {
     RaceHUD;
 
   // =========================================================
-// Garage UI
-// =========================================================
+  // Garage UI
+  // =========================================================
 
-private readonly garageUI:
-  Garage;
+  private readonly garageUI:
+    Garage;
 
   // =========================================================
-// Garage Button — M5.1
-// =========================================================
+  // Garage Button
+  // =========================================================
 
-private readonly garageButton:
-  HTMLButtonElement;
+  private readonly garageButton:
+    HTMLButtonElement;
 
   // =========================================================
   // Constructor
@@ -139,9 +145,10 @@ private readonly garageButton:
   constructor(
     container: HTMLElement
   ) {
-    // =====================================================
+
+    // =======================================================
     // Scene
-    // =====================================================
+    // =======================================================
 
     this.scene =
       new THREE.Scene();
@@ -151,9 +158,9 @@ private readonly garageButton:
         0x87ceeb
       );
 
-    // =====================================================
+    // =======================================================
     // Camera
-    // =====================================================
+    // =======================================================
 
     this.camera =
       new THREE.PerspectiveCamera(
@@ -176,9 +183,9 @@ private readonly garageButton:
       -20
     );
 
-    // =====================================================
+    // =======================================================
     // Renderer
-    // =====================================================
+    // =======================================================
 
     this.renderer =
       new THREE.WebGLRenderer({
@@ -206,81 +213,72 @@ private readonly garageButton:
       this.renderer.domElement
     );
 
-    // =====================================================
+    // =======================================================
     // Clock
-    // =====================================================
+    // =======================================================
 
     this.clock =
       new THREE.Clock();
 
-    // =====================================================
+    // =======================================================
     // Lighting
-    // =====================================================
+    // =======================================================
 
     this.setupLighting();
 
-    // =====================================================
+    // =======================================================
     // World
-    // =====================================================
+    // =======================================================
 
     this.world =
       new World(
         this.scene,
         {
           roadWidth: 12,
+
           roadSegmentLength: 50,
+
           roadSegmentCount: 24,
+
           laneCount: 3,
 
           curveStrength: 8,
+
           curveFrequency: 0.008
         }
       );
 
-    // =====================================================
+    // =======================================================
     // Economy Manager
-    // =====================================================
+    // =======================================================
 
-    /*
-     * EconomyManager must be created before
-     * GarageManager and UpgradeSystem because
-     * both depend on the economy.
-     */
     this.economyManager =
       new EconomyManager({
         initialCoins: 0
       });
 
-    // =====================================================
+    // =======================================================
     // Garage Manager
-    // =====================================================
+    // =======================================================
 
     this.garageManager =
       new GarageManager(
         this.economyManager
       );
 
-    // =====================================================
+    // =======================================================
     // Upgrade System
-    // =====================================================
+    // =======================================================
 
     this.upgradeSystem =
       new UpgradeSystem(
         this.economyManager
       );
 
-    // =====================================================
+    // =======================================================
     // Save System
-    // =====================================================
+    // =======================================================
 
-    /*
-     * M4.9.1
-     *
-     * SaveSystem receives the existing
-     * authoritative manager instances.
-     *
-     * No gameplay system is replaced.
-     */
     this.saveSystem =
       new SaveSystem(
         this.economyManager,
@@ -288,49 +286,31 @@ private readonly garageButton:
         this.upgradeSystem
       );
 
-    // =====================================================
-    // Restore Persistent Save
-    // =====================================================
+    // =======================================================
+    // Restore Save
+    // =======================================================
 
-    /*
-     * IMPORTANT:
-     *
-     * Load BEFORE creating PlayerCar.
-     *
-     * This allows restored Garage +
-     * Upgrade state to determine the
-     * selected car's initial stats.
-     *
-     * If no save exists, the default
-     * manager states remain unchanged.
-     */
     if (
       this.saveSystem.load()
     ) {
+
       const savedData =
         this.saveSystem.readSave();
 
       if (
         savedData
       ) {
+
         this.setPlayerProgress(
           savedData.progress
         );
       }
     }
 
-    // =====================================================
-    // Selected Car Stats
-    // =====================================================
+    // =======================================================
+    // Selected Car
+    // =======================================================
 
-    /*
-     * M4.8 connects the authoritative garage
-     * and upgrade data to the initial PlayerCar.
-     *
-     * Because SaveSystem has already loaded
-     * the persistent state above, these stats
-     * now reflect the restored state.
-     */
     const selectedCar =
       this.garageManager.getSelectedCar();
 
@@ -339,246 +319,360 @@ private readonly garageButton:
         selectedCar.id
       );
 
-    // =====================================================
+    // =======================================================
     // Player Car
-    // =====================================================
+    // =======================================================
 
     this.playerCar =
       new PlayerCar({
+
         x: 0,
+
         y: 0,
+
         z: 0,
+
         scale: 1,
+
+        // ---------------------------------------------------
+        // Effective Speed
+        // ---------------------------------------------------
 
         maxSpeed:
           selectedCarStats.maxSpeed,
 
+        // ---------------------------------------------------
+        // Effective Acceleration
+        // ---------------------------------------------------
+
         acceleration:
           selectedCarStats.acceleration,
 
-        /*
-         * Keep the previous 180 minimum cap
-         * while allowing faster cars to use
-         * their higher base max speed.
-         */
+        // ---------------------------------------------------
+        // Effective Handling
+        // ---------------------------------------------------
+
+        handling:
+          selectedCarStats.handling,
+
+        // ---------------------------------------------------
+        // Hard Speed Cap
+        // ---------------------------------------------------
+
         hardSpeedCap:
           Math.max(
             180,
             selectedCarStats.maxSpeed
           ),
 
-        /*
-         * Nitro is allowed above normal
-         * max speed but remains inside
-         * the hard speed cap.
-         */
+        // ---------------------------------------------------
+        // Nitro
+        // ---------------------------------------------------
+
         nitroSpeed:
           Math.min(
-            selectedCarStats.maxSpeed +
-              37,
+            selectedCarStats.maxSpeed + 37,
             Math.max(
               180,
               selectedCarStats.maxSpeed
             )
           ),
 
-        nitroDuration: 3
+        nitroDuration:
+          3
       });
 
     this.playerCar.addToScene(
       this.scene
     );
 
-    // =====================================================
-// Coin Spawner
-// =====================================================
+    // =======================================================
+    // Coin Spawner
+    // =======================================================
 
-this.coinSpawner =
-  new CoinSpawner(
-    this.scene,
-    this.economyManager,
-    {
-      laneWidth: 4,
-      laneCount: 3,
+    this.coinSpawner =
+      new CoinSpawner(
+        this.scene,
+        this.economyManager,
+        {
+          laneWidth: 4,
 
-      spawnDistance: 180,
-      despawnDistance: 60,
+          laneCount: 3,
 
-      coinSpacing: 10,
-      coinHeight: 1,
+          spawnDistance: 180,
 
-      maxCoins: 30,
+          despawnDistance: 60,
 
-      getRoadCenterX: (
-        worldZ: number
-      ) =>
-        this.world.getRoadCenterX(
-          worldZ
-        ),
+          coinSpacing: 10,
 
-      onCoinCollected: () => {
-        this.saveSystem.save({
-          ...this.playerProgress
-        });
-      }
-    }
-  );
+          coinHeight: 1,
 
-    // =====================================================
+          maxCoins: 30,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            ),
+
+          onCoinCollected: () => {
+
+            this.savePlayerData();
+          }
+        }
+      );
+
+    // =======================================================
     // Race HUD
-    // =====================================================
+    // =======================================================
 
     this.raceHUD =
       new RaceHUD(
         this.playerCar,
+
         () => {
           this.activateNitro();
         },
+
         this.economyManager
       );
 
-    // =====================================================
-// Garage UI
-// =====================================================
+    // =======================================================
+    // Garage UI
+    // =======================================================
 
-this.garageUI =
-  new Garage(
-    this.garageManager,
-    this.economyManager,
-    {
-      onChanged: () => {
-        /*
-         * Garage changes are persisted
-         * through the authoritative SaveSystem.
-         *
-         * M4.9.2 persistence remains untouched.
-         */
-        this.savePlayerData();
-      },
+    this.garageUI =
+      new Garage(
+        this.garageManager,
 
-      onCarSelected: (
-        carId
-      ) => {
-        /*
-         * M5.3 — Runtime Car Selection
-         *
-         * GarageManager
-         *      ↓
-         * CarData
-         *      ↓
-         * UpgradeSystem
-         *      ↓
-         * PlayerCar
-         */
+        this.economyManager,
 
-        const car =
-          this.garageManager.getSelectedCar();
+        {
 
-        /*
-         * Safety check:
-         * the selected car must match
-         * the selection event.
-         */
-        if (
-          car.id !== carId
-        ) {
-          return;
-        }
+          // -------------------------------------------------
+          // Garage Changed
+          // -------------------------------------------------
 
-        /*
-         * Get effective stats.
-         *
-         * Includes:
-         * - CarData base stats
-         * - UpgradeSystem upgrades
-         */
-        const stats =
-          this.upgradeSystem.getStats(
+          onChanged: () => {
+
+            this.savePlayerData();
+
+          },
+
+          // -------------------------------------------------
+          // Car Selected
+          // -------------------------------------------------
+
+          onCarSelected: (
             carId
-          );
+          ) => {
 
-        /*
-         * Apply the selected car's
-         * effective gameplay stats
-         * to the running PlayerCar.
-         */
-        this.playerCar.applyCarStats(
-          stats.maxSpeed,
-          stats.acceleration,
-          stats.handling
-        );
+            /*
+             * M5.3
+             *
+             * GarageManager
+             *      ↓
+             * CarData
+             *      ↓
+             * UpgradeSystem
+             *      ↓
+             * PlayerCar
+             */
 
-        /*
-         * Persist selected car/state.
-         */
-        this.savePlayerData();
+            const car =
+              this.garageManager
+                .getSelectedCar();
 
-        /*
-         * Refresh HUD.
-         */
-        this.raceHUD.update();
-      },
+            // -----------------------------------------------
+            // Safety check
+            // -----------------------------------------------
 
-      onClose: () => {
-        this.garageUI.hide();
+            if (
+              car.id !== carId
+            ) {
+              return;
+            }
+
+            // -----------------------------------------------
+            // Get effective stats
+            // -----------------------------------------------
+
+            const stats =
+              this.upgradeSystem.getStats(
+                carId
+              );
+
+            // -----------------------------------------------
+            // Apply runtime stats
+            // -----------------------------------------------
+
+            this.playerCar.applyCarStats(
+              stats.maxSpeed,
+              stats.acceleration,
+              stats.handling
+            );
+
+            // -----------------------------------------------
+            // Save
+            // -----------------------------------------------
+
+            this.savePlayerData();
+
+            // -----------------------------------------------
+            // HUD refresh
+            // -----------------------------------------------
+
+            this.raceHUD.update();
+          },
+
+          // -------------------------------------------------
+          // Garage Close
+          // -------------------------------------------------
+
+          onClose: () => {
+
+            this.closeGarage();
+
+          }
+        }
+      );
+
+    // Garage starts hidden.
+    this.garageUI.hide();
+
+    // =======================================================
+    // Garage Button
+    // =======================================================
+
+    this.garageButton =
+      document.createElement(
+        "button"
+      );
+
+    this.garageButton.type =
+      "button";
+
+    this.garageButton.textContent =
+      "GARAGE";
+
+    Object.assign(
+      this.garageButton.style,
+      {
+        position: "fixed",
+
+        right: "18px",
+
+        bottom: "18px",
+
+        zIndex: "1500",
+
+        minWidth: "120px",
+
+        minHeight: "48px",
+
+        padding:
+          "0 18px",
+
+        border:
+          "1px solid rgba(255,255,255,0.22)",
+
+        borderRadius:
+          "14px",
+
+        background:
+          "linear-gradient(135deg, #3478ff, #2253c9)",
+
+        color:
+          "#ffffff",
+
+        fontSize:
+          "15px",
+
+        fontWeight:
+          "900",
+
+        letterSpacing:
+          "0.6px",
+
+        cursor:
+          "pointer",
+
+        touchAction:
+          "manipulation",
+
+        boxShadow:
+          "0 8px 24px rgba(0,0,0,0.30)"
       }
-    }
-  );
+    );
 
-this.garageUI.hide();
+    this.garageButton.addEventListener(
+      "click",
+      this.handleGarageButtonClick
+    );
 
-// =====================================================
-// Car Controller
-// =====================================================
+    document.body.appendChild(
+      this.garageButton
+    );
 
-this.carController =
-  new CarController(
-    this.playerCar,
-    {
-      laneWidth: 4,
-      laneCount: 3,
-      steeringSpeed: 10,
+    // =======================================================
+    // Car Controller
+    // =======================================================
 
-      getRoadCenterX: (
-        worldZ: number
-      ) =>
-        this.world.getRoadCenterX(
-          worldZ
-        )
-    }
-  );
+    this.carController =
+      new CarController(
+        this.playerCar,
+        {
+          laneWidth: 4,
 
-    // =====================================================
+          laneCount: 3,
+
+          steeringSpeed: 10,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
+        }
+      );
+
+    // =======================================================
     // Swipe Controller
-    // =====================================================
+    // =======================================================
 
     this.swipeController =
       new SwipeController(
         this.carController,
         {
           swipeThreshold: 50,
+
           target:
             this.renderer.domElement
         }
       );
 
-    // =====================================================
+    // =======================================================
     // Traffic Manager
-    // =====================================================
+    // =======================================================
 
     this.trafficManager =
       new TrafficManager(
         this.scene,
         {
           laneWidth: 4,
+
           laneCount: 3,
 
           maxTraffic: 8,
 
           spawnDistance: 140,
+
           despawnDistance: 80,
 
           minSpeed: 55,
+
           maxSpeed: 95,
 
           getRoadCenterX: (
@@ -590,51 +684,69 @@ this.carController =
         }
       );
 
-    // =====================================================
-    // Traffic Collision System
-    // =====================================================
+    // =======================================================
+    // Collision System
+    // =======================================================
 
     this.trafficCollisionSystem =
       new TrafficCollisionSystem(
         this.playerCar,
         {
           collisionWidth: 1.8,
+
           collisionDepth: 3.4
         }
       );
 
-    // =====================================================
+    // =======================================================
     // Keyboard Nitro
-    // =====================================================
+    // =======================================================
 
     window.addEventListener(
       "keydown",
       this.handleNitroKeyDown
     );
 
-    // =====================================================
+    // =======================================================
     // Resize
-    // =====================================================
+    // =======================================================
 
     window.addEventListener(
       "resize",
       this.handleResize
     );
 
-    // =====================================================
+    // =======================================================
     // Initial HUD
-    // =====================================================
+    // =======================================================
 
     this.raceHUD.update();
   }
+
+  // =========================================================
+  // Garage Button Handler
+  // =========================================================
+
+  private handleGarageButtonClick = (
+    event: MouseEvent
+  ): void => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    this.openGarage();
+  };
 
   // =========================================================
   // Nitro Activation
   // =========================================================
 
   private activateNitro(): void {
+
     if (
-      this.trafficCollisionSystem.hasCrashed()
+      this.trafficCollisionSystem
+        .hasCrashed()
     ) {
       return;
     }
@@ -648,7 +760,7 @@ this.carController =
     this.playerCar.activateNitro();
 
     this.raceHUD.update();
-  }
+  };
 
   // =========================================================
   // Keyboard Nitro
@@ -657,6 +769,7 @@ this.carController =
   private handleNitroKeyDown = (
     event: KeyboardEvent
   ): void => {
+
     if (
       event.key.toLowerCase() !==
       "n"
@@ -678,6 +791,7 @@ this.carController =
   // =========================================================
 
   private setupLighting(): void {
+
     const ambientLight =
       new THREE.AmbientLight(
         0xffffff,
@@ -713,6 +827,7 @@ this.carController =
   // =========================================================
 
   public start(): void {
+
     this.clock.start();
 
     this.animate();
@@ -723,6 +838,7 @@ this.carController =
   // =========================================================
 
   private animate = (): void => {
+
     requestAnimationFrame(
       this.animate
     );
@@ -747,36 +863,41 @@ this.carController =
   private update(
     deltaTime: number
   ): void {
+
     if (
       deltaTime <= 0 ||
-      !Number.isFinite(deltaTime)
+      !Number.isFinite(
+        deltaTime
+      )
     ) {
       return;
     }
 
-    // =====================================================
-    // Player Forward Movement
-    // =====================================================
+    // =======================================================
+    // Player Movement
+    // =======================================================
 
     if (
-      !this.trafficCollisionSystem.hasCrashed()
+      !this.trafficCollisionSystem
+        .hasCrashed()
     ) {
+
       this.playerCar.update(
         deltaTime
       );
     }
 
-    // =====================================================
+    // =======================================================
     // Player Steering
-    // =====================================================
+    // =======================================================
 
     this.carController.update(
       deltaTime
     );
 
-    // =====================================================
+    // =======================================================
     // Player Position
-    // =====================================================
+    // =======================================================
 
     const playerPosition =
       this.playerCar.getPosition();
@@ -784,53 +905,51 @@ this.carController =
     const playerZ =
       playerPosition.z;
 
-    // =====================================================
+    // =======================================================
     // World
-    // =====================================================
+    // =======================================================
 
     this.world.update(
       playerZ
     );
 
-    // =====================================================
+    // =======================================================
     // Traffic
-    // =====================================================
+    // =======================================================
 
     this.trafficManager.update(
       deltaTime,
       playerZ
     );
 
-    // =====================================================
-    // Traffic Collision
-    // =====================================================
+    // =======================================================
+    // Collision
+    // =======================================================
 
     this.trafficCollisionSystem.update(
-      this.trafficManager.getTrafficCars()
+      this.trafficManager
+        .getTrafficCars()
     );
 
-    // =====================================================
-    // Coin System
-    // =====================================================
+    // =======================================================
+    // Coins
+    // =======================================================
 
     if (
-      !this.trafficCollisionSystem.hasCrashed()
+      !this.trafficCollisionSystem
+        .hasCrashed()
     ) {
+
       this.coinSpawner.update(
         deltaTime,
         playerPosition
       );
     }
 
-    // =====================================================
+    // =======================================================
     // Player Progress
-    // =====================================================
+    // =======================================================
 
-    /*
-     * Distance travelled is tracked in
-     * world units converted from the
-     * player's actual movement.
-     */
     const speed =
       this.playerCar.getSpeed();
 
@@ -838,20 +957,22 @@ this.carController =
       Number.isFinite(speed) &&
       speed > 0
     ) {
-      this.playerProgress.totalDistance +=
+
+      this.playerProgress
+        .totalDistance +=
         (speed / 3.6) *
         deltaTime;
     }
 
-    // =====================================================
+    // =======================================================
     // HUD
-    // =====================================================
+    // =======================================================
 
     this.raceHUD.update();
 
-    // =====================================================
-    // Chase Camera
-    // =====================================================
+    // =======================================================
+    // Camera
+    // =======================================================
 
     const targetCameraX =
       playerPosition.x;
@@ -862,31 +983,40 @@ this.carController =
     this.camera.position.x =
       THREE.MathUtils.damp(
         this.camera.position.x,
+
         targetCameraX,
+
         8,
+
         deltaTime
       );
 
     this.camera.position.z =
       THREE.MathUtils.damp(
         this.camera.position.z,
+
         targetCameraZ,
+
         5,
+
         deltaTime
       );
 
     this.camera.lookAt(
       playerPosition.x,
+
       0.5,
+
       playerZ - 20
     );
   };
 
-  // =========================================================
+    // =========================================================
   // Resize
   // =========================================================
 
   private handleResize = (): void => {
+
     const width =
       window.innerWidth;
 
@@ -922,11 +1052,14 @@ this.carController =
   // =========================================================
 
   public getCoinBalance(): number {
-    return this.economyManager.getCoins();
+
+    return this.economyManager
+      .getCoins();
   }
 
   public getEconomyManager():
     EconomyManager {
+
     return this.economyManager;
   }
 
@@ -936,26 +1069,41 @@ this.carController =
 
   public getGarageManager():
     GarageManager {
+
     return this.garageManager;
   }
 
   // =========================================================
-// Garage UI Access
-// =========================================================
+  // Garage UI Access
+  // =========================================================
 
-public openGarage(): void {
-  this.garageUI.open();
-}
+  public openGarage(): void {
 
-public closeGarage(): void {
-  this.garageUI.hide();
-}
+    this.garageButton.style.display =
+      "none";
 
-public isGarageOpen(): boolean {
-  return this.garageUI.isVisible();
-}
+    this.garageUI.open();
+  }
+
+  public closeGarage(): void {
+
+    this.garageUI.hide();
+
+    this.garageButton.style.display =
+      "block";
+  }
+
+  public isGarageOpen(): boolean {
+
+    return this.garageUI.isVisible();
+  }
+
+  // =========================================================
+  // Selected Car
+  // =========================================================
 
   public getSelectedCarId(): string {
+
     return this.garageManager
       .getSelectedCarId();
   }
@@ -966,6 +1114,7 @@ public isGarageOpen(): boolean {
 
   public getUpgradeSystem():
     UpgradeSystem {
+
     return this.upgradeSystem;
   }
 
@@ -975,22 +1124,30 @@ public isGarageOpen(): boolean {
 
   public getSaveSystem():
     SaveSystem {
+
     return this.saveSystem;
   }
- // =========================================================
+
+  // =========================================================
   // Player Progress
   // =========================================================
 
   public getPlayerProgress():
     PlayerProgress {
+
     return {
       ...this.playerProgress
     };
   }
 
+  // =========================================================
+  // Set Player Progress
+  // =========================================================
+
   public setPlayerProgress(
     progress: PlayerProgress
   ): void {
+
     if (
       !progress ||
       typeof progress !==
@@ -1000,9 +1157,11 @@ public isGarageOpen(): boolean {
     }
 
     this.playerProgress = {
+
       unlockedLevel:
         Math.max(
           1,
+
           Math.floor(
             Number.isFinite(
               progress.unlockedLevel
@@ -1015,6 +1174,7 @@ public isGarageOpen(): boolean {
       racesCompleted:
         Math.max(
           0,
+
           Math.floor(
             Number.isFinite(
               progress.racesCompleted
@@ -1027,6 +1187,7 @@ public isGarageOpen(): boolean {
       racesWon:
         Math.max(
           0,
+
           Math.floor(
             Number.isFinite(
               progress.racesWon
@@ -1039,6 +1200,7 @@ public isGarageOpen(): boolean {
       totalDistance:
         Math.max(
           0,
+
           Number.isFinite(
             progress.totalDistance
           )
@@ -1049,30 +1211,27 @@ public isGarageOpen(): boolean {
   }
 
   // =========================================================
-  // M4.8 Save Snapshot
+  // Complete Save Snapshot
   // =========================================================
 
-  /*
-   * Creates the complete in-memory
-   * PlayerSaveData structure.
-   *
-   * M4.9.1 keeps this method for
-   * compatibility with existing callers.
-   *
-   * No direct localStorage access.
-   * No network.
-   * No Pi.
-   */
   public getPlayerSaveData():
     PlayerSaveData {
+
     const save =
       createDefaultPlayerSaveData(
-        this.economyManager.getState(),
-        this.garageManager.getState(),
-        this.upgradeSystem.getState()
+
+        this.economyManager
+          .getState(),
+
+        this.garageManager
+          .getState(),
+
+        this.upgradeSystem
+          .getState()
       );
 
     return {
+
       ...save,
 
       version:
@@ -1088,42 +1247,25 @@ public isGarageOpen(): boolean {
   }
 
   // =========================================================
-  // M4.9.1 Save
+  // Save Player Data
   // =========================================================
 
-  /*
-   * Persists the current complete
-   * player state through SaveSystem.
-   *
-   * PlayerProgress is supplied separately
-   * because SaveSystem owns Economy +
-   * Garage + Upgrade restoration while
-   * RaceNovaEngine owns runtime progress.
-   */
-  public savePlayerData(): boolean {
+  public savePlayerData():
+    boolean {
+
     return this.saveSystem.save({
       ...this.playerProgress
     });
   }
 
   // =========================================================
-  // M4.8 Load Snapshot
+  // Load Player Save Snapshot
   // =========================================================
 
-  /*
-   * Restores Economy + Garage +
-   * Upgrades + Player Progress.
-   *
-   * Kept for compatibility with existing
-   * callers that already provide a
-   * PlayerSaveData object.
-   *
-   * New persistence code should prefer
-   * SaveSystem.load().
-   */
   public loadPlayerSaveData(
     save: unknown
   ): boolean {
+
     if (
       !isValidPlayerSaveData(
         save
@@ -1132,32 +1274,54 @@ public isGarageOpen(): boolean {
       return false;
     }
 
+    // -------------------------------------------------------
+    // Economy
+    // -------------------------------------------------------
+
     const economyLoaded =
       this.economyManager.loadState(
         save.economy
       );
 
-    if (!economyLoaded) {
+    if (
+      !economyLoaded
+    ) {
       return false;
     }
+
+    // -------------------------------------------------------
+    // Garage
+    // -------------------------------------------------------
 
     const garageLoaded =
       this.garageManager.loadState(
         save.garage
       );
 
-    if (!garageLoaded) {
+    if (
+      !garageLoaded
+    ) {
       return false;
     }
+
+    // -------------------------------------------------------
+    // Upgrades
+    // -------------------------------------------------------
 
     const upgradesLoaded =
       this.upgradeSystem.loadState(
         save.upgrades
       );
 
-    if (!upgradesLoaded) {
+    if (
+      !upgradesLoaded
+    ) {
       return false;
     }
+
+    // -------------------------------------------------------
+    // Progress
+    // -------------------------------------------------------
 
     this.setPlayerProgress(
       save.progress
@@ -1167,37 +1331,27 @@ public isGarageOpen(): boolean {
   }
 
   // =========================================================
-  // M4.9.1 Load
+  // Load Persistent Player Data
   // =========================================================
 
-  /*
-   * Loads persistent player data
-   * through the authoritative SaveSystem.
-   *
-   * SaveSystem handles:
-   * - localStorage
-   * - validation
-   * - version checking
-   * - Economy restoration
-   * - Garage restoration
-   * - Upgrade restoration
-   *
-   * RaceNovaEngine restores its own
-   * PlayerProgress from the validated
-   * save snapshot.
-   */
-  public loadPlayerData(): boolean {
+  public loadPlayerData():
+    boolean {
+
     const loaded =
       this.saveSystem.load();
 
-    if (!loaded) {
+    if (
+      !loaded
+    ) {
       return false;
     }
 
     const savedData =
       this.saveSystem.readSave();
 
-    if (!savedData) {
+    if (
+      !savedData
+    ) {
       return false;
     }
 
@@ -1209,10 +1363,11 @@ public isGarageOpen(): boolean {
   }
 
   // =========================================================
-  // Reset M4 State
+  // Reset Player Data
   // =========================================================
 
   public resetPlayerData(): void {
+
     this.saveSystem.resetProgress();
 
     this.playerProgress = {
@@ -1225,9 +1380,10 @@ public isGarageOpen(): boolean {
   // =========================================================
 
   public dispose(): void {
-    // -----------------------------------------------------
-    // Event listeners
-    // -----------------------------------------------------
+
+    // =======================================================
+    // Event Listeners
+    // =======================================================
 
     window.removeEventListener(
       "resize",
@@ -1239,77 +1395,100 @@ public isGarageOpen(): boolean {
       this.handleNitroKeyDown
     );
 
-    // -----------------------------------------------------
+    // =======================================================
+    // Garage Button
+    // =======================================================
+
+    this.garageButton.removeEventListener(
+      "click",
+      this.handleGarageButtonClick
+    );
+
+    if (
+      this.garageButton.parentElement
+    ) {
+
+      this.garageButton
+        .parentElement
+        .removeChild(
+          this.garageButton
+        );
+    }
+
+    // =======================================================
     // Controllers
-    // -----------------------------------------------------
+    // =======================================================
 
     this.swipeController.dispose();
 
     this.carController.dispose();
 
-    // -----------------------------------------------------
-    // Gameplay systems
-    // -----------------------------------------------------
+    // =======================================================
+    // Gameplay Systems
+    // =======================================================
 
     this.trafficManager.dispose();
 
     this.trafficCollisionSystem.dispose();
 
-    // -----------------------------------------------------
+    // =======================================================
     // Coin / Economy
-    // -----------------------------------------------------
+    // =======================================================
 
     this.coinSpawner.dispose();
 
     this.economyManager.dispose();
 
-    // -----------------------------------------------------
+    // =======================================================
     // Garage / Upgrade
-    // -----------------------------------------------------
+    // =======================================================
 
     this.garageManager.reset();
 
     this.upgradeSystem.reset();
 
-    // -----------------------------------------------------
+    // =======================================================
     // Save System
-    // -----------------------------------------------------
+    // =======================================================
 
     this.saveSystem.dispose();
 
-    // -----------------------------------------------------
+    // =======================================================
     // Player / World
-    // -----------------------------------------------------
+    // =======================================================
 
     this.playerCar.dispose();
 
     this.world.dispose();
 
-    // -----------------------------------------------------
+    // =======================================================
     // HUD
-    // -----------------------------------------------------
+    // =======================================================
 
     this.raceHUD.dispose();
 
-    // -----------------------------------------------------
-// Garage UI
-// -----------------------------------------------------
+    // =======================================================
+    // Garage UI
+    // =======================================================
 
-this.garageUI.dispose();
+    this.garageUI.dispose();
 
-    // -----------------------------------------------------
+    // =======================================================
     // Renderer
-    // -----------------------------------------------------
+    // =======================================================
 
     this.renderer.dispose();
 
     if (
-      this.renderer.domElement.parentElement
+      this.renderer.domElement
+        .parentElement
     ) {
-      this.renderer.domElement.parentElement.removeChild(
-        this.renderer.domElement
-      );
+
+      this.renderer.domElement
+        .parentElement
+        .removeChild(
+          this.renderer.domElement
+        );
     }
   }
 }
-  
