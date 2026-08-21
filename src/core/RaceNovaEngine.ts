@@ -11,6 +11,7 @@ import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 
 import { RaceHUD } from "../ui/RaceHUD";
 import { Garage } from "../ui/Garage";
+import { UpgradeScreen } from "../ui/UpgradeScreen";
 
 import { EconomyManager } from "../economy/EconomyManager";
 import { CoinSpawner } from "../economy/CoinSpawner";
@@ -130,6 +131,13 @@ export class RaceNovaEngine {
 
   private readonly garageUI:
     Garage;
+
+  // =========================================================
+  // Upgrade UI
+  // =========================================================
+
+  private readonly upgradeScreen:
+    UpgradeScreen;
 
   // =========================================================
   // Constructor
@@ -534,6 +542,43 @@ export class RaceNovaEngine {
 
     // Garage starts hidden.
     this.garageUI.hide();
+
+    // =====================================================
+// Upgrade UI
+// =====================================================
+
+this.upgradeScreen =
+  new UpgradeScreen(
+    this.garageManager,
+    this.upgradeSystem,
+    this.economyManager,
+    {
+      onChanged: () => {
+        /*
+         * UpgradeSystem has already
+         * charged EconomyManager and
+         * updated the upgrade level.
+         *
+         * SaveSystem remains the
+         * authoritative persistence layer.
+         */
+        this.savePlayerData();
+
+        /*
+         * Refresh HUD so the current
+         * economy state is immediately
+         * visible.
+         */
+        this.raceHUD.update();
+      },
+
+      onClose: () => {
+        this.upgradeScreen.hide();
+      }
+    }
+  );
+
+this.upgradeScreen.hide();
 
     // =======================================================
     // Car Controller
@@ -1007,6 +1052,25 @@ export class RaceNovaEngine {
   }
 
   // =========================================================
+// Upgrade UI Access
+// =========================================================
+
+public openUpgrades(): void {
+
+  this.upgradeScreen.open();
+}
+
+public closeUpgrades(): void {
+
+  this.upgradeScreen.hide();
+}
+
+public isUpgradeScreenOpen(): boolean {
+
+  return this.upgradeScreen.isVisible();
+}
+
+  // =========================================================
   // Selected Car
   // =========================================================
 
@@ -1356,11 +1420,17 @@ export class RaceNovaEngine {
 
     this.raceHUD.dispose();
 
-    // =======================================================
-    // Garage UI
-    // =======================================================
+    // -----------------------------------------------------
+// Garage UI
+// -----------------------------------------------------
 
-    this.garageUI.dispose();
+this.garageUI.dispose();
+
+// -----------------------------------------------------
+// Upgrade UI
+// -----------------------------------------------------
+
+this.upgradeScreen.dispose();
 
     // =======================================================
     // Renderer
