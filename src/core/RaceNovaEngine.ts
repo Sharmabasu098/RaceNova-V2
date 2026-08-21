@@ -542,10 +542,11 @@ export class RaceNovaEngine {
 
     // Garage starts hidden.
     this.garageUI.hide();
-
-    // =====================================================
+    
+// =======================================================
 // Upgrade UI
-// =====================================================
+// M5.5 — Apply Upgrades Gameplay
+// =======================================================
 
 this.upgradeScreen =
   new UpgradeScreen(
@@ -554,23 +555,65 @@ this.upgradeScreen =
     this.economyManager,
     {
       onChanged: () => {
-        /*
-         * UpgradeSystem has already
-         * charged EconomyManager and
-         * updated the upgrade level.
-         *
-         * SaveSystem remains the
-         * authoritative persistence layer.
-         */
+
+        // -------------------------------------------------
+        // Get currently selected car
+        // -------------------------------------------------
+
+        const selectedCar =
+          this.garageManager.getSelectedCar();
+
+        if (!selectedCar) {
+          return;
+        }
+
+        // -------------------------------------------------
+        // Get effective upgraded stats
+        // -------------------------------------------------
+        //
+        // CarData base stats
+        //        +
+        // UpgradeSystem upgrade levels
+        //        ↓
+        // Effective gameplay stats
+        //
+
+        const stats =
+          this.upgradeSystem.getStats(
+            selectedCar.id
+          );
+
+        // -------------------------------------------------
+        // Apply upgraded stats to running PlayerCar
+        // -------------------------------------------------
+        //
+        // Speed        → actual max speed
+        // Acceleration → actual acceleration
+        // Handling     → CarController steering response
+        //
+
+        this.playerCar.applyCarStats(
+          stats.maxSpeed,
+          stats.acceleration,
+          stats.handling
+        );
+
+        // -------------------------------------------------
+        // Save complete player state
+        // -------------------------------------------------
+
         this.savePlayerData();
 
-        /*
-         * Refresh HUD so the current
-         * economy state is immediately
-         * visible.
-         */
+        // -------------------------------------------------
+        // Refresh HUD
+        // -------------------------------------------------
+
         this.raceHUD.update();
       },
+
+      // ---------------------------------------------------
+      // Upgrade Screen Close
+      // ---------------------------------------------------
 
       onClose: () => {
         this.upgradeScreen.hide();
