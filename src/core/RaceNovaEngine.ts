@@ -441,94 +441,65 @@ export class RaceNovaEngine {
   );
 
     // =======================================================
-    // Garage UI
-    // =======================================================
+// Garage UI
+// =======================================================
 
-    this.garageUI =
-      new Garage(
-        this.garageManager,
+this.garageUI =
+  new Garage(
+    this.garageManager,
 
-        this.economyManager,
+    this.economyManager,
 
-        {
+    {
+      // -------------------------------------------------
+      // Garage Changed
+      // -------------------------------------------------
 
-          // -------------------------------------------------
-          // Garage Changed
-          // -------------------------------------------------
+      onChanged: () => {
 
-          onChanged: () => {
+        this.savePlayerData();
 
-            this.savePlayerData();
+      },
 
-          },
+      // -------------------------------------------------
+      // Car Selected
+      // -------------------------------------------------
 
-          // -------------------------------------------------
-          // Car Selected
-          // -------------------------------------------------
+      onCarSelected: (
+        carId
+      ) => {
 
-          onCarSelected: (
+        const car =
+          this.garageManager
+            .getSelectedCar();
+
+        // Safety check
+        if (
+          car.id !== carId
+        ) {
+          return;
+        }
+
+        const stats =
+          this.upgradeSystem.getStats(
             carId
-          ) => {
+          );
 
-            /*
-             * M5.3
-             *
-             * GarageManager
-             *      ↓
-             * CarData
-             *      ↓
-             * UpgradeSystem
-             *      ↓
-             * PlayerCar
-             */
+        // Apply selected car stats
+        this.playerCar.applyCarStats(
+          stats.maxSpeed,
+          stats.acceleration,
+          stats.handling
+        );
 
-            const car =
-              this.garageManager
-                .getSelectedCar();
+        // Save selection
+        this.savePlayerData();
 
-            // -----------------------------------------------
-            // Safety check
-            // -----------------------------------------------
+        // Refresh HUD
+        this.raceHUD.update();
+      },
 
-            if (
-              car.id !== carId
-            ) {
-              return;
-            }
-
-            // -----------------------------------------------
-            // Get effective stats
-            // -----------------------------------------------
-
-            const stats =
-              this.upgradeSystem.getStats(
-                carId
-              );
-
-            // -----------------------------------------------
-            // Apply runtime stats
-            // -----------------------------------------------
-
-            this.playerCar.applyCarStats(
-              stats.maxSpeed,
-              stats.acceleration,
-              stats.handling
-            );
-
-            // -----------------------------------------------
-            // Save
-            // -----------------------------------------------
-
-            this.savePlayerData();
-
-            // -----------------------------------------------
-            // HUD refresh
-            // -----------------------------------------------
-
-            this.raceHUD.update();
-          },
-
-                // -------------------------------------------------
+      // -------------------------------------------------
       // Upgrade System
       // -------------------------------------------------
 
@@ -563,21 +534,11 @@ export class RaceNovaEngine {
         this.closeGarage();
 
       }
+    }
+  );
 
-          // -------------------------------------------------
-          // Garage Close
-          // -------------------------------------------------
-
-          onClose: () => {
-
-            this.closeGarage();
-
-          }
-        }
-      );
-
-    // Garage starts hidden.
-    this.garageUI.hide();
+// Garage starts hidden.
+this.garageUI.hide();
     
 // =======================================================
 // Upgrade UI
