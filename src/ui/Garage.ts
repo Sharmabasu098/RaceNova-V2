@@ -11,8 +11,8 @@
  * - Show car stats
  * - Buy / unlock cars
  * - Select owned cars
- * - Display upgrade UI
- * - Purchase Speed / Acceleration / Handling upgrades
+ * - Display upgrade information
+ * - Open UpgradeScreen through callback
  * - Notify external systems about changes
  *
  * IMPORTANT:
@@ -53,19 +53,11 @@ export interface GarageUIConfig {
    * Called after:
    * - successful car purchase
    * - car selection
-   * - successful upgrade
-   *
-   * RaceNovaEngine uses this to
-   * persist through SaveSystem.
    */
   onChanged?: () => void;
 
   /**
-   * Called when the player selects
-   * a car.
-   *
-   * M5.3 runtime car switching uses
-   * this callback.
+   * Called when player selects a car.
    */
   onCarSelected?: (
     carId: CarId
@@ -73,23 +65,25 @@ export interface GarageUIConfig {
 
   /**
    * UpgradeSystem is authoritative
-   * for upgrade levels, costs and stats.
+   * for upgrade levels and stats.
    */
   upgradeSystem?: UpgradeSystem;
+
+  /**
+   * Called when player presses
+   * the UPGRADE CAR button.
+   *
+   * RaceNovaEngine opens UpgradeScreen.
+   */
+  onUpgrade?: (
+    carId: CarId
+  ) => void;
 
   /**
    * Optional close callback.
    */
   onClose?: () => void;
 }
-
-  /**
-   * Called when the player wants to upgrade
-   * the currently selected car.
-   */
-  onUpgrade?: (
-    carId: CarId
-  ) => void;
 
 // ============================================================
 // Garage UI
@@ -120,11 +114,11 @@ export class Garage {
   private readonly onCarSelected:
     (carId: CarId) => void;
 
-  private readonly onClose:
-    () => void;
-  
   private readonly onUpgrade:
     (carId: CarId) => void;
+
+  private readonly onClose:
+    () => void;
 
   // ==========================================================
   // DOM
@@ -175,12 +169,12 @@ export class Garage {
       config.onCarSelected ??
       (() => undefined);
 
-    this.onClose =
-      config.onClose ??
-      (() => undefined);
-
     this.onUpgrade =
       config.onUpgrade ??
+      (() => undefined);
+
+    this.onClose =
+      config.onClose ??
       (() => undefined);
 
     // ========================================================
@@ -481,10 +475,6 @@ export class Garage {
       return;
     }
 
-    // --------------------------------------------------------
-    // Coins
-    // --------------------------------------------------------
-
     const coins =
       this.economyManager.getCoins();
 
@@ -498,16 +488,8 @@ export class Garage {
         )
       ).toString();
 
-    // --------------------------------------------------------
-    // Clear Cars
-    // --------------------------------------------------------
-
     this.carsContainer.innerHTML =
       "";
-
-    // --------------------------------------------------------
-    // Cars
-    // --------------------------------------------------------
 
     const cars =
       this.garageManager.getAllCars();
@@ -623,7 +605,7 @@ export class Garage {
     );
 
     // ========================================================
-    // Base / Effective Stats
+    // Stats
     // ========================================================
 
     const stats =
@@ -750,7 +732,7 @@ export class Garage {
     );
 
     // ========================================================
-    // M5.4 Upgrade Panel
+    // Upgrade Information
     // ========================================================
 
     if (
@@ -765,8 +747,8 @@ export class Garage {
       );
     }
 
-        // ========================================================
-    // Action Button
+    // ========================================================
+    // Main Action Button
     // ========================================================
 
     const button =
@@ -790,10 +772,6 @@ export class Garage {
           "manipulation"
       }
     );
-
-    // ========================================================
-    // Action Button State
-    // ========================================================
 
     if (
       selected
@@ -854,15 +832,12 @@ export class Garage {
       );
     }
 
+    card.appendChild(
+      button
+    );
+
     // ========================================================
     // Upgrade Button
-    // ========================================================
-    //
-    // Only owned cars can be upgraded.
-    //
-    // Garage.ts does NOT open UpgradeScreen directly.
-    // It only notifies RaceNovaEngine through onUpgrade().
-    //
     // ========================================================
 
     if (
@@ -909,7 +884,6 @@ export class Garage {
         ) => {
 
           event.preventDefault();
-
           event.stopPropagation();
 
           this.onUpgrade(
@@ -923,17 +897,155 @@ export class Garage {
       );
     }
 
-    // ========================================================
-    // Add Main Action Button
-    // ========================================================
-
-    card.appendChild(
-      button
-    );
-
     return card;
+  }
 
   // ==========================================================
+  // Stat Row
+  // ==========================================================
+
+  private createStatRow(
+    label: string,
+    value: number,
+    maximum: number
+  ): HTMLDivElement {
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      wrapper.style,
+      {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px"
+      }
+    );
+
+    const top =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      top.style,
+      {
+        display: "flex",
+        justifyContent:
+          "space-between",
+        alignItems:
+          "center"
+      }
+    );
+
+    const labelElement =
+      document.createElement(
+        "span"
+      );
+
+    labelElement.textContent =
+      label;
+
+    Object.assign(
+      labelElement.style,
+      {
+        fontSize: "10px",
+        fontWeight: "800",
+        opacity: "0.65",
+        letterSpacing: "0.7px"
+      }
+    );
+
+    const valueElement =
+      document.createElement(
+        "span"
+      );
+
+    valueElement.textContent =
+      Number.isFinite(value)
+        ? value.toString()
+        : "0";
+
+    Object.assign(
+      valueElement.style,
+      {
+        fontSize: "12px",
+        fontWeight: "800"
+      }
+    );
+
+    top.appendChild(
+      labelElement
+    );
+
+    top.appendChild(
+      valueElement
+    );
+
+    const track =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      track.style,
+      {
+        width: "100%",
+        height: "6px",
+        borderRadius: "99px",
+        overflow: "hidden",
+        background:
+          "rgba(255,255,255,0.10)"
+      }
+    );
+
+    const fill =
+      document.createElement(
+        "div"
+      );
+
+    const percentage =
+      maximum > 0
+        ? Math.min(
+            100,
+            Math.max(
+              0,
+              (value / maximum) *
+                100
+            )
+          )
+        : 0;
+
+    Object.assign(
+      fill.style,
+      {
+        width:
+          `${percentage}%`,
+        height: "100%",
+        borderRadius: "99px",
+        background:
+          "rgba(80,145,255,0.90)"
+      }
+    );
+
+    track.appendChild(
+      fill
+    );
+
+    wrapper.appendChild(
+      top
+    );
+
+    wrapper.appendChild(
+      track
+    );
+
+    return wrapper;
+        }
+
+    // ==========================================================
   // Upgrade Panel
   // ==========================================================
 
@@ -1107,7 +1219,7 @@ export class Garage {
     );
 
     // ========================================================
-    // Upgrade Cost
+    // Cost
     // ========================================================
 
     const cost =
@@ -1116,90 +1228,85 @@ export class Garage {
         type
       );
 
-    const canUpgrade =
-      this.upgradeSystem!.canUpgrade(
-        carId,
-        type
-      );
-
-   const maxed =
-      level >= maxLevel;
-
-    // ========================================================
-    // Button
-    // ========================================================
-
-    const button =
+    const upgradeButton =
       document.createElement(
         "button"
       );
 
     Object.assign(
-      button.style,
+      upgradeButton.style,
       {
-        minWidth: "112px",
-        minHeight: "34px",
-        padding: "6px 10px",
+        minWidth: "92px",
+        minHeight: "36px",
         border: "0",
-        borderRadius: "9px",
+        borderRadius: "10px",
+        background:
+          "linear-gradient(135deg, #3478ff, #2253c9)",
         color: "#ffffff",
-        fontSize: "10px",
+        fontSize: "11px",
         fontWeight: "900",
-        cursor:
-          maxed
-            ? "default"
-            : canUpgrade
-              ? "pointer"
-              : "not-allowed",
+        cursor: "pointer",
         touchAction:
-          "manipulation",
-        opacity:
-          maxed || canUpgrade
-            ? "1"
-            : "0.55"
+          "manipulation"
       }
     );
 
     if (
-      maxed
+      level >= maxLevel
     ) {
 
-      button.textContent =
+      upgradeButton.textContent =
         "MAX";
 
-      button.disabled =
+      upgradeButton.disabled =
         true;
 
-      button.style.background =
+      upgradeButton.style.background =
         "rgba(255,255,255,0.10)";
+
+      upgradeButton.style.color =
+        "rgba(255,255,255,0.45)";
+
+      upgradeButton.style.cursor =
+        "default";
 
     } else {
 
-      button.textContent =
+      upgradeButton.textContent =
         `UPGRADE ${cost}`;
 
-      button.style.background =
-        canUpgrade
-          ? "linear-gradient(135deg, #3478ff, #2253c9)"
-          : "rgba(255,255,255,0.10)";
-
-      button.disabled =
-        !canUpgrade;
+      const canUpgrade =
+        this.upgradeSystem!.canUpgrade(
+          carId,
+          type
+        );
 
       if (
-        canUpgrade
+        !canUpgrade
       ) {
 
-        button.addEventListener(
-          "click",
-          () => {
-            this.upgradeCar(
-              carId,
-              type
-            );
-          }
-        );
+        upgradeButton.style.background =
+          "rgba(255,255,255,0.10)";
+
+        upgradeButton.style.color =
+          "rgba(255,255,255,0.45)";
       }
+
+      upgradeButton.addEventListener(
+        "click",
+        (
+          event
+        ) => {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          this.upgradeCar(
+            carId,
+            type
+          );
+        }
+      );
     }
 
     row.appendChild(
@@ -1207,157 +1314,73 @@ export class Garage {
     );
 
     row.appendChild(
-      button
+      upgradeButton
     );
 
     return row;
   }
 
   // ==========================================================
-  // Stat Row
+  // Upgrade Car
   // ==========================================================
 
-  private createStatRow(
-    label: string,
-    value: number,
-    maximum: number
-  ): HTMLDivElement {
+  private upgradeCar(
+    carId: CarId,
+    type: UpgradeType
+  ): void {
 
-    const wrapper =
-      document.createElement(
-        "div"
+    if (
+      this.disposed ||
+      !this.upgradeSystem
+    ) {
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Only owned cars can be upgraded
+    // --------------------------------------------------------
+
+    if (
+      !this.garageManager.ownsCar(
+        carId
+      )
+    ) {
+      return;
+    }
+
+    // --------------------------------------------------------
+    // UpgradeSystem is authoritative
+    // --------------------------------------------------------
+
+    const result =
+      this.upgradeSystem.upgrade(
+        carId,
+        type
       );
 
-    Object.assign(
-      wrapper.style,
-      {
-        display: "flex",
-        flexDirection: "column",
-        gap: "4px"
-      }
-    );
+    if (
+      !result.success
+    ) {
 
-    const top =
-      document.createElement(
-        "div"
-      );
+      this.render();
 
-    Object.assign(
-      top.style,
-      {
-        display: "flex",
-        justifyContent:
-          "space-between",
-        alignItems:
-          "center"
-      }
-    );
+      return;
+    }
 
-    const labelElement =
-      document.createElement(
-        "span"
-      );
+    // --------------------------------------------------------
+    // Notify external persistence
+    // --------------------------------------------------------
 
-    labelElement.textContent =
-      label;
+    this.onChanged();
 
-    Object.assign(
-      labelElement.style,
-      {
-        fontSize: "10px",
-        fontWeight: "800",
-        opacity: "0.65",
-        letterSpacing: "0.7px"
-      }
-    );
+    // --------------------------------------------------------
+    // Refresh Garage UI
+    // --------------------------------------------------------
 
-    const valueElement =
-      document.createElement(
-        "span"
-      );
-
-    valueElement.textContent =
-      Number.isFinite(value)
-        ? value.toString()
-        : "0";
-
-    Object.assign(
-      valueElement.style,
-      {
-        fontSize: "12px",
-        fontWeight: "800"
-      }
-    );
-
-    top.appendChild(
-      labelElement
-    );
-
-    top.appendChild(
-      valueElement
-    );
-
-    const track =
-      document.createElement(
-        "div"
-      );
-
-    Object.assign(
-      track.style,
-      {
-        width: "100%",
-        height: "6px",
-        borderRadius: "99px",
-        overflow: "hidden",
-        background:
-          "rgba(255,255,255,0.10)"
-      }
-    );
-
-    const fill =
-      document.createElement(
-        "div"
-      );
-
-    const percentage =
-      maximum > 0
-        ? Math.min(
-            100,
-            Math.max(
-              0,
-              (value / maximum) * 100
-            )
-          )
-        : 0;
-
-    Object.assign(
-      fill.style,
-      {
-        width:
-          `${percentage}%`,
-        height: "100%",
-        borderRadius: "99px",
-        background:
-          "rgba(80,145,255,0.90)"
-      }
-    );
-
-    track.appendChild(
-      fill
-    );
-
-    wrapper.appendChild(
-      top
-    );
-
-    wrapper.appendChild(
-      track
-    );
-
-    return wrapper;
+    this.render();
   }
 
-    // ==========================================================
+  // ==========================================================
   // Buy Car
   // ==========================================================
 
@@ -1376,24 +1399,24 @@ export class Garage {
         car.id
       );
 
-    if (!success) {
+    if (
+      !success
+    ) {
+
       this.render();
+
       return;
     }
 
-    /*
-     * GarageManager has already:
-     * - validated ownership
-     * - validated unlock cost
-     * - charged EconomyManager
-     * - unlocked the car
-     */
+    // --------------------------------------------------------
+    // Persist ownership/economy change
+    // --------------------------------------------------------
 
     this.onChanged();
 
-    // ========================================================
-    // Automatically select newly purchased car
-    // ========================================================
+    // --------------------------------------------------------
+    // Automatically select purchased car
+    // --------------------------------------------------------
 
     const selected =
       this.garageManager.selectCar(
@@ -1404,13 +1427,6 @@ export class Garage {
       selected
     ) {
 
-      /*
-       * M5.3
-       *
-       * Notify RaceNovaEngine so the
-       * runtime PlayerCar can switch
-       * to the newly selected car.
-       */
       this.onCarSelected(
         car.id
       );
@@ -1438,105 +1454,32 @@ export class Garage {
         carId
       );
 
-    if (!success) {
+    if (
+      !success
+    ) {
 
       this.render();
 
       return;
     }
 
-    /*
-     * M5.3 Runtime Car Selection
-     *
-     * GarageManager remains the
-     * authoritative owner of selection.
-     *
-     * RaceNovaEngine receives the event
-     * and applies the selected car stats
-     * to PlayerCar.
-     */
+    // --------------------------------------------------------
+    // Runtime PlayerCar switching
+    // --------------------------------------------------------
+
     this.onCarSelected(
       carId
     );
 
-    /*
-     * Persist selected car through
-     * RaceNovaEngine / SaveSystem.
-     */
+    // --------------------------------------------------------
+    // Persist selected car
+    // --------------------------------------------------------
+
     this.onChanged();
 
-    this.render();
-  }
-
-  // ==========================================================
-  // Upgrade Car
-  // ==========================================================
-
-  private upgradeCar(
-    carId: CarId,
-    type: UpgradeType
-  ): void {
-
-    if (
-      this.disposed ||
-      !this.upgradeSystem
-    ) {
-      return;
-    }
-
-    /*
-     * UpgradeSystem is authoritative.
-     *
-     * It handles:
-     * - validation
-     * - max level
-     * - upgrade cost
-     * - EconomyManager payment
-     * - new upgrade level
-     * - effective stats
-     */
-
-    const result =
-      this.upgradeSystem.upgrade(
-        carId,
-        type
-      );
-
-    // ========================================================
-    // Upgrade Failed
-    // ========================================================
-
-    if (
-      !result.success
-    ) {
-
-      /*
-       * Refresh coins / levels / buttons.
-       */
-      this.render();
-
-      return;
-    }
-
-    // ========================================================
-    // Upgrade Successful
-    // ========================================================
-
-    /*
-     * Persist the upgraded state.
-     *
-     * SaveSystem remains outside Garage.
-     */
-    this.onChanged();
-
-    /*
-     * IMPORTANT:
-     *
-     * If this car is currently selected,
-     * RaceNovaEngine receives the change
-     * through onChanged and can keep the
-     * runtime state synchronized.
-     */
+    // --------------------------------------------------------
+    // Refresh UI
+    // --------------------------------------------------------
 
     this.render();
   }
@@ -1618,18 +1561,18 @@ export class Garage {
     this.disposed =
       true;
 
-    // ========================================================
-    // Close Button
-    // ========================================================
+    // --------------------------------------------------------
+    // Close Button Listener
+    // --------------------------------------------------------
 
     this.closeButton.removeEventListener(
       "click",
       this.handleClose
     );
 
-    // ========================================================
+    // --------------------------------------------------------
     // Remove Root
-    // ========================================================
+    // --------------------------------------------------------
 
     if (
       this.root.parentElement
