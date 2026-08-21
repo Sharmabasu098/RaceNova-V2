@@ -83,6 +83,14 @@ export interface GarageUIConfig {
   onClose?: () => void;
 }
 
+  /**
+   * Called when the player wants to upgrade
+   * the currently selected car.
+   */
+  onUpgrade?: (
+    carId: CarId
+  ) => void;
+
 // ============================================================
 // Garage UI
 // ============================================================
@@ -114,6 +122,9 @@ export class Garage {
 
   private readonly onClose:
     () => void;
+  
+  private readonly onUpgrade:
+    (carId: CarId) => void;
 
   // ==========================================================
   // DOM
@@ -166,6 +177,10 @@ export class Garage {
 
     this.onClose =
       config.onClose ??
+      (() => undefined);
+
+    this.onUpgrade =
+      config.onUpgrade ??
       (() => undefined);
 
     // ========================================================
@@ -750,7 +765,7 @@ export class Garage {
       );
     }
 
-    // ========================================================
+        // ========================================================
     // Action Button
     // ========================================================
 
@@ -775,6 +790,10 @@ export class Garage {
           "manipulation"
       }
     );
+
+    // ========================================================
+    // Action Button State
+    // ========================================================
 
     if (
       selected
@@ -805,9 +824,11 @@ export class Garage {
       button.addEventListener(
         "click",
         () => {
+
           this.selectCar(
             car.id
           );
+
         }
       );
 
@@ -824,19 +845,93 @@ export class Garage {
       button.addEventListener(
         "click",
         () => {
+
           this.buyCar(
             car
           );
+
         }
       );
     }
+
+    // ========================================================
+    // Upgrade Button
+    // ========================================================
+    //
+    // Only owned cars can be upgraded.
+    //
+    // Garage.ts does NOT open UpgradeScreen directly.
+    // It only notifies RaceNovaEngine through onUpgrade().
+    //
+    // ========================================================
+
+    if (
+      owned
+    ) {
+
+      const upgradeButton =
+        document.createElement(
+          "button"
+        );
+
+      Object.assign(
+        upgradeButton.style,
+        {
+          width: "100%",
+          minHeight: "44px",
+          border:
+            "1px solid rgba(80,145,255,0.45)",
+          borderRadius: "13px",
+          background:
+            "rgba(80,145,255,0.12)",
+          color:
+            "#75a9ff",
+          fontSize:
+            "13px",
+          fontWeight:
+            "900",
+          letterSpacing:
+            "0.5px",
+          cursor:
+            "pointer",
+          touchAction:
+            "manipulation"
+        }
+      );
+
+      upgradeButton.textContent =
+        "UPGRADE CAR";
+
+      upgradeButton.addEventListener(
+        "click",
+        (
+          event
+        ) => {
+
+          event.preventDefault();
+
+          event.stopPropagation();
+
+          this.onUpgrade(
+            car.id
+          );
+        }
+      );
+
+      card.appendChild(
+        upgradeButton
+      );
+    }
+
+    // ========================================================
+    // Add Main Action Button
+    // ========================================================
 
     card.appendChild(
       button
     );
 
     return card;
-  }
 
   // ==========================================================
   // Upgrade Panel
