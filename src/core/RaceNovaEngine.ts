@@ -452,50 +452,43 @@ this.garageUI =
 
     {
       // -------------------------------------------------
-      // Garage Changed
+      // Garage Changed / M5.6 Live Upgrade Stats
       // -------------------------------------------------
 
       onChanged: () => {
 
-        this.savePlayerData();
+        // =================================================
+        // M5.6 — Apply Live Upgrade Stats
+        // =================================================
 
-      },
+        const selectedCarId =
+          this.garageManager.getSelectedCarId();
 
-      // -------------------------------------------------
-      // Car Selected
-      // -------------------------------------------------
-
-      onCarSelected: (
-        carId
-      ) => {
-
-        const car =
-          this.garageManager
-            .getSelectedCar();
-
-        // Safety check
-        if (
-          car.id !== carId
-        ) {
-          return;
-        }
-
-        const stats =
+        const upgradedStats =
           this.upgradeSystem.getStats(
-            carId
+            selectedCarId
           );
 
-        // Apply selected car stats
+        // -------------------------------------------------
+        // Apply upgraded stats to active PlayerCar
+        // -------------------------------------------------
+
         this.playerCar.applyCarStats(
-          stats.maxSpeed,
-          stats.acceleration,
-          stats.handling
+          upgradedStats.maxSpeed,
+          upgradedStats.acceleration,
+          upgradedStats.handling
         );
 
-        // Save selection
+        // -------------------------------------------------
+        // Save upgraded state
+        // -------------------------------------------------
+
         this.savePlayerData();
 
+        // -------------------------------------------------
         // Refresh HUD
+        // -------------------------------------------------
+
         this.raceHUD.update();
       },
 
@@ -532,7 +525,6 @@ this.garageUI =
       onClose: () => {
 
         this.closeGarage();
-
       }
     }
   );
