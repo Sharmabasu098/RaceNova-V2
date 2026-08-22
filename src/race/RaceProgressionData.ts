@@ -693,17 +693,32 @@ export function normalizeRaceProgressionState(
       }
     );
 
+  // ==========================================================
+  // Safe Unlocked Level
+  // ==========================================================
+
+  const unlockedLevel =
+    Number.isFinite(
+      data.unlockedLevel
+    )
+      ? data.unlockedLevel
+      : defaults.unlockedLevel;
+
+  // ==========================================================
+  // Return Normalized State
+  // ==========================================================
+
   return {
 
     version:
       RACE_PROGRESSION_VERSION,
 
     unlockedLevel:
-  safeInteger(
-    data.unlockedLevel ?? defaults.unlockedLevel,
-    defaults.unlockedLevel,
-    1
-  ),
+      safeInteger(
+        unlockedLevel,
+        defaults.unlockedLevel,
+        1
+      ),
 
     selectedRaceId:
       typeof data.selectedRaceId ===
