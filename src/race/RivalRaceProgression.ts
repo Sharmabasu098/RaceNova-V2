@@ -376,26 +376,27 @@ export class RivalRaceProgression {
 
     return {
 
-      level,
+  level,
 
-      rivalCount,
+  rivalCount,
 
-      difficulty,
+  difficulty,
 
-      tier:
-        difficultyProfile.tier,
+  tier:
+    difficultyProfile.tier === "boss"
+      ? "expert"
+      : difficultyProfile.tier,
 
-      speedMultiplier,
+  speedMultiplier,
 
-      reactionMultiplier,
+  reactionMultiplier,
 
-      aggression,
+  aggression,
 
-      overtakingPressure,
+  overtakingPressure,
 
-      laneChangePressure
-    };
-  }
+  laneChangePressure
+};
 
   // ==========================================================
   // Speed Multiplier
