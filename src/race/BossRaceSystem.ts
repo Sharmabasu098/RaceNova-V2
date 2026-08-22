@@ -483,11 +483,15 @@ export class BossRaceSystem {
     // "expert" here.
     // --------------------------------------------------------
 
-    const tier =
-      difficultyProfile.tier === "boss"
-        ? "expert"
-        : difficultyProfile.tier;
-
+    const tier:
+  BossRaceProfile["tier"] =
+    difficultyProfile.tier === "easy"
+      ? "easy"
+      : difficultyProfile.tier === "normal"
+        ? "normal"
+        : difficultyProfile.tier === "hard"
+          ? "hard"
+          : "expert";
     // --------------------------------------------------------
     // Boss Speed
     // --------------------------------------------------------
