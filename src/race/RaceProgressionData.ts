@@ -699,11 +699,11 @@ export function normalizeRaceProgressionState(
       RACE_PROGRESSION_VERSION,
 
     unlockedLevel:
-      safeInteger(
-        data.unlockedLevel,
-        defaults.unlockedLevel,
-        1
-      ),
+  safeInteger(
+    data.unlockedLevel ?? defaults.unlockedLevel,
+    defaults.unlockedLevel,
+    1
+  ),
 
     selectedRaceId:
       typeof data.selectedRaceId ===
