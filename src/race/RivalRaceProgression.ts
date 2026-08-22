@@ -22,7 +22,7 @@
  * - No Economy dependency
  * - Does NOT rewrite RivalAI
  * - Does NOT spawn rivals
- * - Does NOT control gameplay directly
+ * - Does NOT directly control gameplay
  *
  * M6.5:
  * DifficultySystem
@@ -45,29 +45,14 @@ import {
 
 export interface RivalRaceProgressionConfig {
 
-  /**
-   * Minimum number of rivals.
-   */
   baseRivalCount?: number;
 
-  /**
-   * Maximum number of rivals.
-   */
   maxRivalCount?: number;
 
-  /**
-   * Additional rival count per race level.
-   */
   rivalsPerLevel?: number;
 
-  /**
-   * Minimum rival speed multiplier.
-   */
   minSpeedMultiplier?: number;
 
-  /**
-   * Maximum rival speed multiplier.
-   */
   maxSpeedMultiplier?: number;
 }
 
@@ -77,61 +62,26 @@ export interface RivalRaceProgressionConfig {
 
 export interface RivalRaceProfile {
 
-  /**
-   * Race level.
-   */
   level: number;
 
-  /**
-   * Number of rivals for the race.
-   */
   rivalCount: number;
 
-  /**
-   * Difficulty value from M6.5.
-   */
   difficulty: number;
 
-  /**
-   * Difficulty tier.
-   */
   tier:
     | "easy"
     | "normal"
     | "hard"
     | "expert";
 
-  /**
-   * Rival speed multiplier.
-   */
   speedMultiplier: number;
 
-  /**
-   * Rival reaction multiplier.
-   *
-   * Lower value means faster reaction.
-   */
   reactionMultiplier: number;
 
-  /**
-   * Rival aggression.
-   *
-   * 0 → passive
-   * 1 → highly aggressive
-   */
   aggression: number;
 
-  /**
-   * Overtaking pressure.
-   *
-   * Higher value means rivals
-   * attempt overtakes more often.
-   */
   overtakingPressure: number;
 
-  /**
-   * Lane-change pressure.
-   */
   laneChangePressure: number;
 }
 
@@ -142,7 +92,7 @@ export interface RivalRaceProfile {
 export class RivalRaceProgression {
 
   // ==========================================================
-  // Difficulty
+  // Difficulty System
   // ==========================================================
 
   private readonly difficultySystem:
@@ -172,11 +122,8 @@ export class RivalRaceProgression {
   // ==========================================================
 
   constructor(
-    difficultySystem:
-      DifficultySystem,
-
-    config:
-      RivalRaceProgressionConfig = {}
+    difficultySystem: DifficultySystem,
+    config: RivalRaceProgressionConfig = {}
   ) {
 
     this.difficultySystem =
@@ -240,7 +187,7 @@ export class RivalRaceProgression {
   }
 
   // ==========================================================
-  // Get Rival Count
+  // Rival Count
   // ==========================================================
 
   public getRivalCount(
@@ -248,9 +195,7 @@ export class RivalRaceProgression {
   ): number {
 
     if (
-      !Number.isFinite(
-        level
-      )
+      !Number.isFinite(level)
     ) {
       return this.baseRivalCount;
     }
@@ -258,9 +203,7 @@ export class RivalRaceProgression {
     const safeLevel =
       Math.max(
         1,
-        Math.floor(
-          level
-        )
+        Math.floor(level)
       );
 
     const additionalRivals =
@@ -278,20 +221,47 @@ export class RivalRaceProgression {
   }
 
   // ==========================================================
-  // Get Profile
+  // Profile
   // ==========================================================
 
   public getProfile(
     level: number
   ): RivalRaceProfile {
 
+    const safeLevel =
+      Number.isFinite(level)
+        ? Math.max(
+            1,
+            Math.floor(level)
+          )
+        : 1;
+
     const difficultyProfile =
       this.difficultySystem.getProfile(
-        level
+        safeLevel
       );
 
     const difficulty =
-      difficultyProfile.difficulty;
+      this.clamp(
+        difficultyProfile.difficulty,
+        0,
+        1
+      );
+
+    // --------------------------------------------------------
+    // Tier
+    // --------------------------------------------------------
+    //
+    // Boss tier is intentionally converted to
+    // expert for the normal rival profile.
+    //
+    // Boss difficulty belongs to M6.7/M6.8.
+    // --------------------------------------------------------
+
+    const tier =
+      difficultyProfile.tier === "boss"
+        ? "expert"
+        : difficultyProfile.tier;
 
     // --------------------------------------------------------
     // Rival Count
@@ -299,32 +269,23 @@ export class RivalRaceProgression {
 
     const rivalCount =
       this.getRivalCount(
-        level
+        safeLevel
       );
 
     // --------------------------------------------------------
     // Speed
-    //
-    // Uses M6.5 difficulty but remains
-    // bounded for gameplay stability.
     // --------------------------------------------------------
-
-    const rawSpeedMultiplier =
-      difficultyProfile
-        .rivalSpeedMultiplier;
 
     const speedMultiplier =
       this.clamp(
-        rawSpeedMultiplier,
+        difficultyProfile
+          .rivalSpeedMultiplier,
         this.minSpeedMultiplier,
         this.maxSpeedMultiplier
       );
 
     // --------------------------------------------------------
     // Reaction
-    //
-    // M6.5 already decreases reaction
-    // time as difficulty increases.
     // --------------------------------------------------------
 
     const reactionMultiplier =
@@ -342,8 +303,7 @@ export class RivalRaceProgression {
     const aggression =
       this.clamp(
         0.15 +
-          difficulty *
-            0.70,
+          difficulty * 0.70,
         0,
         1
       );
@@ -355,8 +315,7 @@ export class RivalRaceProgression {
     const overtakingPressure =
       this.clamp(
         0.20 +
-          difficulty *
-            0.65,
+          difficulty * 0.65,
         0,
         1
       );
@@ -368,35 +327,37 @@ export class RivalRaceProgression {
     const laneChangePressure =
       this.clamp(
         0.20 +
-          difficulty *
-            0.55,
+          difficulty * 0.55,
         0,
         1
       );
 
+    // ========================================================
+    // Final Profile
+    // ========================================================
+
     return {
 
-  level,
+      level:
+        safeLevel,
 
-  rivalCount,
+      rivalCount,
 
-  difficulty,
+      difficulty,
 
-  tier:
-    difficultyProfile.tier === "boss"
-      ? "expert"
-      : difficultyProfile.tier,
+      tier,
 
-  speedMultiplier,
+      speedMultiplier,
 
-  reactionMultiplier,
+      reactionMultiplier,
 
-  aggression,
+      aggression,
 
-  overtakingPressure,
+      overtakingPressure,
 
-  laneChangePressure
-};
+      laneChangePressure
+    };
+  }
 
   // ==========================================================
   // Speed Multiplier
@@ -464,7 +425,7 @@ export class RivalRaceProgression {
   }
 
   // ==========================================================
-  // Is Competitive
+  // Competitive Check
   // ==========================================================
 
   public isCompetitive(
@@ -472,15 +433,13 @@ export class RivalRaceProgression {
   ): boolean {
 
     return (
-      this.getProfile(
-        level
-      ).aggression >=
-      0.50
+      this.getProfile(level)
+        .aggression >= 0.50
     );
   }
 
   // ==========================================================
-  // Is High Pressure
+  // High Pressure Check
   // ==========================================================
 
   public isHighPressure(
@@ -488,9 +447,7 @@ export class RivalRaceProgression {
   ): boolean {
 
     const profile =
-      this.getProfile(
-        level
-      );
+      this.getProfile(level);
 
     return (
       profile.overtakingPressure >=
@@ -501,7 +458,7 @@ export class RivalRaceProgression {
   }
 
   // ==========================================================
-  // Get Configuration
+  // Configuration
   // ==========================================================
 
   public getConfig():
@@ -551,10 +508,8 @@ export class RivalRaceProgression {
 
   public reset(): void {
     /*
-     * No mutable runtime state.
-     *
-     * Configuration remains immutable
-     * for the lifetime of the system.
+     * M6.6 currently has no mutable
+     * runtime progression state.
      */
   }
 }
