@@ -126,9 +126,6 @@ export interface BossRaceProfile {
 
   /**
    * Difficulty tier.
-   *
-   * Boss remains represented as expert
-   * inside the normal difficulty tier model.
    */
   tier:
     | "easy"
@@ -237,6 +234,10 @@ export class BossRaceSystem {
     this.races =
       races;
 
+    // --------------------------------------------------------
+    // Speed Configuration
+    // --------------------------------------------------------
+
     this.minSpeedMultiplier =
       Math.max(
         0.1,
@@ -256,6 +257,10 @@ export class BossRaceSystem {
           ? config.maxSpeedMultiplier!
           : 1.40
       );
+
+    // --------------------------------------------------------
+    // Aggression Configuration
+    // --------------------------------------------------------
 
     this.minAggression =
       this.clamp(
@@ -278,6 +283,10 @@ export class BossRaceSystem {
         this.minAggression,
         1
       );
+
+    // --------------------------------------------------------
+    // Durability Configuration
+    // --------------------------------------------------------
 
     this.minDurability =
       Math.max(
@@ -458,14 +467,60 @@ export class BossRaceSystem {
     race: RaceDefinition
   ): BossRaceProfile {
 
+    // --------------------------------------------------------
+    // Safe Race Data
+    // --------------------------------------------------------
+    //
+    // RaceDefinition may expose optional
+    // name/description fields.
+    //
+    // BossRaceProfile requires strict strings.
+    // Therefore normalize them here.
+    // --------------------------------------------------------
+
+    const raceId =
+      typeof race.id === "string"
+        ? race.id
+        : "";
+
+    const level =
+      Number.isFinite(race.level)
+        ? Math.max(
+            1,
+            Math.floor(race.level)
+          )
+        : 1;
+
+    const name =
+      typeof race.name === "string"
+        ? race.name
+        : `Boss Race ${level}`;
+
+    const description =
+      typeof race.description === "string"
+        ? race.description
+        : "Face a powerful RaceNova boss.";
+
+    // --------------------------------------------------------
+    // Difficulty Profile
+    // --------------------------------------------------------
+
     const difficultyProfile =
       this.difficultySystem.getProfile(
-        race.level
+        level
       );
+
+    // --------------------------------------------------------
+    // Difficulty
+    // --------------------------------------------------------
 
     const difficulty =
       this.clamp(
-        difficultyProfile.difficulty,
+        Number.isFinite(
+          difficultyProfile.difficulty
+        )
+          ? difficultyProfile.difficulty
+          : 0,
         0,
         1
       );
@@ -474,31 +529,40 @@ export class BossRaceSystem {
     // Difficulty Tier
     // --------------------------------------------------------
     //
-    // DifficultySystem may expose "boss".
+    // M6.5 uses the normal difficulty tiers.
     //
-    // BossRaceProfile intentionally keeps
-    // the normal rival tier model.
+    // BossRaceProfile deliberately does NOT
+    // introduce a new "boss" tier.
     //
-    // Therefore Boss is represented as
-    // "expert" here.
+    // Unknown/unsupported values safely
+    // fall back to "expert".
     // --------------------------------------------------------
 
+    const rawTier =
+      difficultyProfile.tier;
+
     const tier:
-  BossRaceProfile["tier"] =
-    difficultyProfile.tier === "easy"
-      ? "easy"
-      : difficultyProfile.tier === "normal"
-        ? "normal"
-        : difficultyProfile.tier === "hard"
-          ? "hard"
-          : "expert";
+      BossRaceProfile["tier"] =
+        rawTier === "easy"
+          ? "easy"
+          : rawTier === "normal"
+            ? "normal"
+            : rawTier === "hard"
+              ? "hard"
+              : "expert";
+
     // --------------------------------------------------------
-    // Boss Speed
+    // Rival Speed
     // --------------------------------------------------------
 
     const baseRivalSpeed =
-      difficultyProfile
-        .rivalSpeedMultiplier;
+      Number.isFinite(
+        difficultyProfile
+          .rivalSpeedMultiplier
+      )
+        ? difficultyProfile
+            .rivalSpeedMultiplier
+        : 1;
 
     const speedMultiplier =
       this.clamp(
@@ -510,12 +574,17 @@ export class BossRaceSystem {
       );
 
     // --------------------------------------------------------
-    // Boss Reaction
+    // Rival Reaction
     // --------------------------------------------------------
 
     const baseReaction =
-      difficultyProfile
-        .rivalReactionMultiplier;
+      Number.isFinite(
+        difficultyProfile
+          .rivalReactionMultiplier
+      )
+        ? difficultyProfile
+            .rivalReactionMultiplier
+        : 0.75;
 
     const reactionMultiplier =
       this.clamp(
@@ -586,36 +655,38 @@ export class BossRaceSystem {
     // Boss Challenge
     // --------------------------------------------------------
 
+    const normalizedSpeed =
+      this.maxSpeedMultiplier > 0
+        ? speedMultiplier /
+          this.maxSpeedMultiplier
+        : 0;
+
     const challenge =
       this.clamp(
         (
           difficulty +
-          (
-            speedMultiplier /
-            this.maxSpeedMultiplier
-          ) +
+          normalizedSpeed +
           aggression +
           overtakingPressure +
           laneChangePressure
-        ) /
-        5,
+        ) / 5,
         0,
         1
       );
 
+    // --------------------------------------------------------
+    // Final Boss Profile
+    // --------------------------------------------------------
+
     return {
 
-      raceId:
-        race.id,
+      raceId,
 
-      level:
-        race.level,
+      level,
 
-      name:
-        race.name,
+      name,
 
-      description:
-        race.description,
+      description,
 
       isBossRace:
         true,
@@ -821,10 +892,10 @@ export class BossRaceSystem {
   public reset(): void {
 
     /*
-     * No mutable runtime state.
+     * M6.7 is configuration/profile based.
      *
-     * RaceDefinitions and configuration remain
-     * immutable for the lifetime of the system.
+     * There is no mutable runtime state
+     * to reset.
      */
   }
 }
