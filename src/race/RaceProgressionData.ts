@@ -588,10 +588,18 @@ export function normalizeRaceProgressionState(
   races: RaceDefinition[]
 ): RaceProgressionState {
 
+  // ==========================================================
+  // Default State
+  // ==========================================================
+
   const defaults =
     createDefaultRaceProgressionState(
       races
     );
+
+  // ==========================================================
+  // Validate Input Object
+  // ==========================================================
 
   if (
     !value ||
@@ -600,8 +608,16 @@ export function normalizeRaceProgressionState(
     return defaults;
   }
 
+  // ==========================================================
+  // Safe Partial Data
+  // ==========================================================
+
   const data =
     value as Partial<RaceProgressionState>;
+
+  // ==========================================================
+  // Saved Race List
+  // ==========================================================
 
   const savedRaces =
     Array.isArray(
@@ -609,6 +625,10 @@ export function normalizeRaceProgressionState(
     )
       ? data.races
       : [];
+
+  // ==========================================================
+  // Normalize Individual Race Progress
+  // ==========================================================
 
   const normalizedRaces =
     races.map(
@@ -625,12 +645,21 @@ export function normalizeRaceProgressionState(
                 definition.id
           );
 
+        // ----------------------------------------------------
+        // No saved progress
+        // ----------------------------------------------------
+
         if (!saved) {
+
           return createDefaultRaceProgress(
             definition.id,
             index === 0
           );
         }
+
+        // ----------------------------------------------------
+        // Completion Count
+        // ----------------------------------------------------
 
         const completionCount =
           safeInteger(
@@ -638,11 +667,19 @@ export function normalizeRaceProgressionState(
             0
           );
 
+        // ----------------------------------------------------
+        // Win Count
+        // ----------------------------------------------------
+
         const winCount =
           safeInteger(
             saved.winCount,
             0
           );
+
+        // ----------------------------------------------------
+        // Race Status
+        // ----------------------------------------------------
 
         let status:
           RaceStatus;
@@ -650,20 +687,30 @@ export function normalizeRaceProgressionState(
         if (
           winCount > 0
         ) {
+
           status =
             "completed";
+
         } else if (
           saved.status ===
           "available"
         ) {
+
           status =
             "available";
+
         } else {
+
           status =
             "locked";
         }
 
+        // ----------------------------------------------------
+        // Return Normalized Race
+        // ----------------------------------------------------
+
         return {
+
           raceId:
             definition.id,
 
@@ -695,17 +742,95 @@ export function normalizeRaceProgressionState(
 
   // ==========================================================
   // Safe Unlocked Level
+  // M6.1
   // ==========================================================
 
+  /*
+   * IMPORTANT:
+   *
+   * Read unlockedLevel through an
+   * unknown record value.
+   *
+   * This prevents TypeScript
+   * TS18048 optional-property
+   * narrowing errors.
+   */
+
+  const rawUnlockedLevel =
+    (
+      data as Record<
+        string,
+        unknown
+      >
+    )[
+      "unlockedLevel"
+    ];
+
   const unlockedLevel =
+    typeof rawUnlockedLevel ===
+      "number" &&
     Number.isFinite(
-      data.unlockedLevel
+      rawUnlockedLevel
     )
-      ? data.unlockedLevel
+      ? rawUnlockedLevel
       : defaults.unlockedLevel;
 
   // ==========================================================
-  // Return Normalized State
+  // Safe Selected Race
+  // ==========================================================
+
+  const rawSelectedRaceId =
+    (
+      data as Record<
+        string,
+        unknown
+      >
+    )[
+      "selectedRaceId"
+    ];
+
+  const selectedRaceId =
+    typeof rawSelectedRaceId ===
+      "string"
+      ? rawSelectedRaceId
+      : defaults.selectedRaceId;
+
+  // ==========================================================
+  // Safe Race Counters
+  // ==========================================================
+
+  const rawRacesCompleted =
+    (
+      data as Record<
+        string,
+        unknown
+      >
+    )[
+      "racesCompleted"
+    ];
+
+  const rawRacesWon =
+    (
+      data as Record<
+        string,
+        unknown
+      >
+    )[
+      "racesWon"
+    ];
+
+  const rawBossesDefeated =
+    (
+      data as Record<
+        string,
+        unknown
+      >
+    )[
+      "bossesDefeated"
+    ];
+
+  // ==========================================================
+  // Return Normalized Progression State
   // ==========================================================
 
   return {
@@ -721,26 +846,23 @@ export function normalizeRaceProgressionState(
       ),
 
     selectedRaceId:
-      typeof data.selectedRaceId ===
-        "string"
-        ? data.selectedRaceId
-        : defaults.selectedRaceId,
+      selectedRaceId,
 
     racesCompleted:
       safeInteger(
-        data.racesCompleted,
+        rawRacesCompleted,
         0
       ),
 
     racesWon:
       safeInteger(
-        data.racesWon,
+        rawRacesWon,
         0
       ),
 
     bossesDefeated:
       safeInteger(
-        data.bossesDefeated,
+        rawBossesDefeated,
         0
       ),
 
