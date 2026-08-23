@@ -660,35 +660,6 @@ export function normalizePlayerProgress(
       raceProgression.selectedRaceId;
   }
 
-  // ----------------------------------------------------------
-  // Keep progression selection synchronized.
-  // ----------------------------------------------------------
-
-  const finalProgression =
-    cloneRaceProgression(
-      /*
-       * This object is reconstructed below.
-       * The cast is avoided by directly using the
-       * normalized progression state.
-       */
-      {
-        raceId:
-          "",
-        status:
-          "locked",
-        completionCount:
-          0,
-        winCount:
-          0,
-        bestPosition:
-          0,
-        bestTime:
-          0,
-        bossDefeated:
-          false
-      }
-    );
-
   /*
    * The temporary object above is not used as state.
    * Build the actual progression state directly.
