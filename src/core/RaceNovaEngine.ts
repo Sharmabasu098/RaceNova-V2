@@ -25,16 +25,11 @@ import {
   type PlayerSaveData,
   type PlayerProgress,
   PLAYER_SAVE_VERSION,
-  DEFAULT_PLAYER_PROGRESS,
   createDefaultPlayerSaveData,
+  createDefaultPlayerProgress,
+  normalizePlayerProgress,
   isValidPlayerSaveData
 } from "../save/PlayerSaveData";
-
-import {
-  type RaceProgressionState,
-  createDefaultRaceProgressionState,
-  normalizeRaceProgressionState
-} from "../race/RaceProgressionData";
 
 import {
   RACE_DEFINITIONS
@@ -121,22 +116,14 @@ export class RaceNovaEngine {
 
   // =========================================================
   // Player Progress
+  // M6.9
   // =========================================================
 
   private playerProgress:
-    PlayerProgress = {
-      ...DEFAULT_PLAYER_PROGRESS
-    };
-
-  // =========================================================
-// M6.9 — Race Progression State
-// =========================================================
-
-private raceProgression:
-  RaceProgressionState =
-    createDefaultRaceProgressionState(
-      RACE_DEFINITIONS
-    );
+    PlayerProgress =
+      createDefaultPlayerProgress(
+        RACE_DEFINITIONS
+      );
 
   // =========================================================
   // HUD
@@ -308,55 +295,25 @@ private raceProgression:
       );
 
     // =======================================================
-// Restore Persistent Save
-// M6.9
-// =======================================================
-
-if (
-  this.saveSystem.load()
-) {
-
-  const savedData =
-    this.saveSystem.readSave();
-
-  if (
-    savedData
-  ) {
-
-    // ---------------------------------------------------
-    // M4.9 Player Progress
-    // ---------------------------------------------------
-
-    this.setPlayerProgress(
-      savedData.progress
-    );
-
-    // ---------------------------------------------------
-    // M6.9 Race Progression
-    // ---------------------------------------------------
+    // Restore Save
+    // =======================================================
 
     if (
-      "raceProgression" in savedData
+      this.saveSystem.load()
     ) {
 
-      const savedRaceProgression =
-        (
-          savedData as PlayerSaveData & {
-            raceProgression?: unknown;
-          }
-        ).raceProgression;
+      const savedData =
+        this.saveSystem.readSave();
 
       if (
-        savedRaceProgression
+        savedData
       ) {
 
-        this.setRaceProgression(
-          savedRaceProgression
+        this.setPlayerProgress(
+          savedData.progress
         );
       }
     }
-  }
-}
 
     // =======================================================
     // Selected Car
@@ -385,40 +342,20 @@ if (
 
         scale: 1,
 
-        // ---------------------------------------------------
-        // Effective Speed
-        // ---------------------------------------------------
-
         maxSpeed:
           selectedCarStats.maxSpeed,
-
-        // ---------------------------------------------------
-        // Effective Acceleration
-        // ---------------------------------------------------
 
         acceleration:
           selectedCarStats.acceleration,
 
-        // ---------------------------------------------------
-        // Effective Handling
-        // ---------------------------------------------------
-
         handling:
           selectedCarStats.handling,
-
-        // ---------------------------------------------------
-        // Hard Speed Cap
-        // ---------------------------------------------------
 
         hardSpeedCap:
           Math.max(
             180,
             selectedCarStats.maxSpeed
           ),
-
-        // ---------------------------------------------------
-        // Nitro
-        // ---------------------------------------------------
 
         nitroSpeed:
           Math.min(
@@ -474,193 +411,150 @@ if (
         }
       );
 
-    // =======================================================
+          // =======================================================
     // Race HUD
     // =======================================================
 
     this.raceHUD =
-  new RaceHUD(
-    this.playerCar,
-    () => {
-      this.activateNitro();
-    },
-    this.economyManager,
-    () => {
-      this.openGarage();
-    }
-  );
+      new RaceHUD(
+        this.playerCar,
+        () => {
+          this.activateNitro();
+        },
+        this.economyManager,
+        () => {
+          this.openGarage();
+        }
+      );
 
     // =======================================================
-// Garage UI
-// =======================================================
+    // Garage UI
+    // =======================================================
 
-this.garageUI =
-  new Garage(
-    this.garageManager,
+    this.garageUI =
+      new Garage(
+        this.garageManager,
 
-    this.economyManager,
+        this.economyManager,
 
-    {
-      // -------------------------------------------------
-      // Garage Changed / M5.6 Live Upgrade Stats
-      // -------------------------------------------------
+        {
+          // -------------------------------------------------
+          // Garage Changed / Live Upgrade Stats
+          // -------------------------------------------------
 
-      onChanged: () => {
+          onChanged: () => {
 
-        // =================================================
-        // M5.6 — Apply Live Upgrade Stats
-        // =================================================
+            const selectedCarId =
+              this.garageManager
+                .getSelectedCarId();
 
-        const selectedCarId =
-          this.garageManager.getSelectedCarId();
+            const upgradedStats =
+              this.upgradeSystem.getStats(
+                selectedCarId
+              );
 
-        const upgradedStats =
-          this.upgradeSystem.getStats(
-            selectedCarId
-          );
+            this.playerCar.applyCarStats(
+              upgradedStats.maxSpeed,
+              upgradedStats.acceleration,
+              upgradedStats.handling
+            );
 
-        // -------------------------------------------------
-        // Apply upgraded stats to active PlayerCar
-        // -------------------------------------------------
+            this.savePlayerData();
 
-        this.playerCar.applyCarStats(
-          upgradedStats.maxSpeed,
-          upgradedStats.acceleration,
-          upgradedStats.handling
-        );
+            this.raceHUD.update();
+          },
 
-        // -------------------------------------------------
-        // Save upgraded state
-        // -------------------------------------------------
+          // -------------------------------------------------
+          // Upgrade System
+          // -------------------------------------------------
 
-        this.savePlayerData();
+          upgradeSystem:
+            this.upgradeSystem,
 
-        // -------------------------------------------------
-        // Refresh HUD
-        // -------------------------------------------------
+          // -------------------------------------------------
+          // Upgrade Car
+          // -------------------------------------------------
 
-        this.raceHUD.update();
-      },
+          onUpgrade: (
+            carId
+          ) => {
 
-      // -------------------------------------------------
-      // Upgrade System
-      // -------------------------------------------------
+            if (
+              this.garageManager
+                .getSelectedCarId() !==
+              carId
+            ) {
+              return;
+            }
 
-      upgradeSystem:
+            this.openUpgrades();
+          },
+
+          // -------------------------------------------------
+          // Garage Close
+          // -------------------------------------------------
+
+          onClose: () => {
+
+            this.closeGarage();
+          }
+        }
+      );
+
+    // Garage starts hidden.
+
+    this.garageUI.hide();
+
+    // =======================================================
+    // Upgrade UI
+    // =======================================================
+
+    this.upgradeScreen =
+      new UpgradeScreen(
+        this.garageManager,
         this.upgradeSystem,
+        this.economyManager,
+        {
+          onChanged: () => {
 
-      // -------------------------------------------------
-      // Upgrade Car
-      // -------------------------------------------------
+            const selectedCar =
+              this.garageManager
+                .getSelectedCar();
 
-      onUpgrade: (
-        carId
-      ) => {
+            if (
+              !selectedCar
+            ) {
+              return;
+            }
 
-        if (
-          this.garageManager
-            .getSelectedCarId() !==
-          carId
-        ) {
-          return;
+            const stats =
+              this.upgradeSystem.getStats(
+                selectedCar.id
+              );
+
+            this.playerCar.applyCarStats(
+              stats.maxSpeed,
+              stats.acceleration,
+              stats.handling
+            );
+
+            this.savePlayerData();
+
+            this.raceHUD.update();
+          },
+
+          // -------------------------------------------------
+          // Upgrade Screen Close
+          // -------------------------------------------------
+
+          onClose: () => {
+
+            this.upgradeScreen.hide();
+          }
         }
+      );
 
-        this.openUpgrades();
-      },
-
-      // -------------------------------------------------
-      // Garage Close
-      // -------------------------------------------------
-
-      onClose: () => {
-
-        this.closeGarage();
-      }
-    }
-  );
-
-// Garage starts hidden.
-this.garageUI.hide();
-    
-// =======================================================
-// Upgrade UI
-// M5.5 — Apply Upgrades Gameplay
-// =======================================================
-
-this.upgradeScreen =
-  new UpgradeScreen(
-    this.garageManager,
-    this.upgradeSystem,
-    this.economyManager,
-    {
-      onChanged: () => {
-
-        // -------------------------------------------------
-        // Get currently selected car
-        // -------------------------------------------------
-
-        const selectedCar =
-          this.garageManager.getSelectedCar();
-
-        if (!selectedCar) {
-          return;
-        }
-
-        // -------------------------------------------------
-        // Get effective upgraded stats
-        // -------------------------------------------------
-        //
-        // CarData base stats
-        //        +
-        // UpgradeSystem upgrade levels
-        //        ↓
-        // Effective gameplay stats
-        //
-
-        const stats =
-          this.upgradeSystem.getStats(
-            selectedCar.id
-          );
-
-        // -------------------------------------------------
-        // Apply upgraded stats to running PlayerCar
-        // -------------------------------------------------
-        //
-        // Speed        → actual max speed
-        // Acceleration → actual acceleration
-        // Handling     → CarController steering response
-        //
-
-        this.playerCar.applyCarStats(
-          stats.maxSpeed,
-          stats.acceleration,
-          stats.handling
-        );
-
-        // -------------------------------------------------
-        // Save complete player state
-        // -------------------------------------------------
-
-        this.savePlayerData();
-
-        // -------------------------------------------------
-        // Refresh HUD
-        // -------------------------------------------------
-
-        this.raceHUD.update();
-      },
-
-      // ---------------------------------------------------
-      // Upgrade Screen Close
-      // ---------------------------------------------------
-
-      onClose: () => {
-        this.upgradeScreen.hide();
-      }
-    }
-  );
-
-this.upgradeScreen.hide();
+    this.upgradeScreen.hide();
 
     // =======================================================
     // Car Controller
@@ -869,7 +763,7 @@ this.upgradeScreen.hide();
     );
   }
 
-  // =========================================================
+    // =========================================================
   // Start
   // =========================================================
 
@@ -1030,35 +924,27 @@ this.upgradeScreen.hide();
     this.camera.position.x =
       THREE.MathUtils.damp(
         this.camera.position.x,
-
         targetCameraX,
-
         8,
-
         deltaTime
       );
 
     this.camera.position.z =
       THREE.MathUtils.damp(
         this.camera.position.z,
-
         targetCameraZ,
-
         5,
-
         deltaTime
       );
 
     this.camera.lookAt(
       playerPosition.x,
-
       0.5,
-
       playerZ - 20
     );
   };
 
-    // =========================================================
+  // =========================================================
   // Resize
   // =========================================================
 
@@ -1094,7 +980,7 @@ this.upgradeScreen.hide();
     );
   };
 
-    // =========================================================
+  // =========================================================
   // Economy Access
   // =========================================================
 
@@ -1134,23 +1020,23 @@ this.upgradeScreen.hide();
   }
 
   // =========================================================
-// Upgrade UI Access
-// =========================================================
+  // Upgrade UI Access
+  // =========================================================
 
-public openUpgrades(): void {
+  public openUpgrades(): void {
 
-  this.upgradeScreen.open();
-}
+    this.upgradeScreen.open();
+  }
 
-public closeUpgrades(): void {
+  public closeUpgrades(): void {
 
-  this.upgradeScreen.hide();
-}
+    this.upgradeScreen.hide();
+  }
 
-public isUpgradeScreenOpen(): boolean {
+  public isUpgradeScreenOpen(): boolean {
 
-  return this.upgradeScreen.isVisible();
-}
+    return this.upgradeScreen.isVisible();
+  }
 
   // =========================================================
   // Selected Car
@@ -1171,7 +1057,7 @@ public isUpgradeScreenOpen(): boolean {
 
     return this.upgradeSystem;
   }
-  
+
   // =========================================================
   // Save System Access
   // =========================================================
@@ -1182,7 +1068,7 @@ public isUpgradeScreenOpen(): boolean {
     return this.saveSystem;
   }
 
-  // =========================================================
+    // =========================================================
   // Player Progress
   // =========================================================
 
@@ -1190,46 +1076,28 @@ public isUpgradeScreenOpen(): boolean {
     PlayerProgress {
 
     return {
-      ...this.playerProgress
+
+      ...this.playerProgress,
+
+      raceProgression: {
+
+        ...this.playerProgress
+          .raceProgression,
+
+        races:
+          this.playerProgress
+            .raceProgression.races.map(
+              (race) => ({
+                ...race
+              })
+            )
+      }
     };
   }
 
   // =========================================================
-// M6.9 — Race Progression Access
-// =========================================================
-
-public getRaceProgression():
-  RaceProgressionState {
-
-  return {
-    ...this.raceProgression,
-
-    races:
-      this.raceProgression.races.map(
-        (race) => ({
-          ...race
-        })
-      )
-  };
-}
-
-// =========================================================
-// M6.9 — Set Race Progression
-// =========================================================
-
-public setRaceProgression(
-  value: unknown
-): void {
-
-  this.raceProgression =
-    normalizeRaceProgressionState(
-      value,
-      RACE_DEFINITIONS
-    );
-}
-
-  // =========================================================
   // Set Player Progress
+  // M6.9
   // =========================================================
 
   public setPlayerProgress(
@@ -1244,96 +1112,82 @@ public setRaceProgression(
       return;
     }
 
+    const normalized =
+      normalizePlayerProgress(
+        progress,
+        RACE_DEFINITIONS
+      );
+
     this.playerProgress = {
 
-      unlockedLevel:
-        Math.max(
-          1,
+      ...normalized,
 
-          Math.floor(
-            Number.isFinite(
-              progress.unlockedLevel
-            )
-              ? progress.unlockedLevel
-              : 1
+      raceProgression: {
+
+        ...normalized.raceProgression,
+
+        races:
+          normalized.raceProgression.races.map(
+            (race) => ({
+              ...race
+            })
           )
-        ),
-
-      racesCompleted:
-        Math.max(
-          0,
-
-          Math.floor(
-            Number.isFinite(
-              progress.racesCompleted
-            )
-              ? progress.racesCompleted
-              : 0
-          )
-        ),
-
-      racesWon:
-        Math.max(
-          0,
-
-          Math.floor(
-            Number.isFinite(
-              progress.racesWon
-            )
-              ? progress.racesWon
-              : 0
-          )
-        ),
-
-      totalDistance:
-        Math.max(
-          0,
-
-          Number.isFinite(
-            progress.totalDistance
-          )
-            ? progress.totalDistance
-            : 0
-        )
+      }
     };
   }
 
   // =========================================================
-// Complete Save Snapshot
-// M6.9
-// =========================================================
+  // Complete Save Snapshot
+  // =========================================================
 
-public getPlayerSaveData():
-  PlayerSaveData {
+  public getPlayerSaveData():
+    PlayerSaveData {
 
-  const save =
-    createDefaultPlayerSaveData(
+    const save =
+      createDefaultPlayerSaveData(
 
-      this.economyManager
-        .getState(),
+        this.economyManager
+          .getState(),
 
-      this.garageManager
-        .getState(),
+        this.garageManager
+          .getState(),
 
-      this.upgradeSystem
-        .getState()
-    );
+        this.upgradeSystem
+          .getState(),
 
-  return {
+        RACE_DEFINITIONS
+      );
 
-    ...save,
+    return {
 
-    version:
-      PLAYER_SAVE_VERSION,
+      ...save,
 
-    progress: {
-      ...this.playerProgress
-    },
+      version:
+        PLAYER_SAVE_VERSION,
 
-    updatedAt:
-      Date.now()
-  };
-}
+      progress: {
+
+        ...this.playerProgress,
+
+        raceProgression: {
+
+          ...this.playerProgress
+            .raceProgression,
+
+          races:
+            this.playerProgress
+              .raceProgression.races.map(
+                (race) => ({
+                  ...race
+                })
+              )
+        }
+      },
+
+      updatedAt:
+        Date.now()
+    };
+  }
 
   // =========================================================
   // Save Player Data
@@ -1343,7 +1197,21 @@ public getPlayerSaveData():
     boolean {
 
     return this.saveSystem.save({
-      ...this.playerProgress
+      ...this.playerProgress,
+
+      raceProgression: {
+
+        ...this.playerProgress
+          .raceProgression,
+
+        races:
+          this.playerProgress
+            .raceProgression.races.map(
+              (race) => ({
+                ...race
+              })
+            )
+      }
     });
   }
 
@@ -1459,9 +1327,10 @@ public getPlayerSaveData():
 
     this.saveSystem.resetProgress();
 
-    this.playerProgress = {
-      ...DEFAULT_PLAYER_PROGRESS
-    };
+    this.playerProgress =
+      createDefaultPlayerProgress(
+        RACE_DEFINITIONS
+      );
   }
 
   // =========================================================
@@ -1483,7 +1352,6 @@ public getPlayerSaveData():
       "keydown",
       this.handleNitroKeyDown
     );
-
 
     // =======================================================
     // Controllers
@@ -1537,17 +1405,17 @@ public getPlayerSaveData():
 
     this.raceHUD.dispose();
 
-    // -----------------------------------------------------
-// Garage UI
-// -----------------------------------------------------
+    // =======================================================
+    // Garage UI
+    // =======================================================
 
-this.garageUI.dispose();
+    this.garageUI.dispose();
 
-// -----------------------------------------------------
-// Upgrade UI
-// -----------------------------------------------------
+    // =======================================================
+    // Upgrade UI
+    // =======================================================
 
-this.upgradeScreen.dispose();
+    this.upgradeScreen.dispose();
 
     // =======================================================
     // Renderer
@@ -1568,3 +1436,7 @@ this.upgradeScreen.dispose();
     }
   }
 }
+
+  
+
+      
