@@ -30,6 +30,16 @@ import {
   isValidPlayerSaveData
 } from "../save/PlayerSaveData";
 
+import {
+  type RaceProgressionState,
+  createDefaultRaceProgressionState,
+  normalizeRaceProgressionState
+} from "../race/RaceProgressionData";
+
+import {
+  RACE_DEFINITIONS
+} from "../race/RaceDefinitions";
+
 export class RaceNovaEngine {
 
   // =========================================================
@@ -117,6 +127,16 @@ export class RaceNovaEngine {
     PlayerProgress = {
       ...DEFAULT_PLAYER_PROGRESS
     };
+
+  // =========================================================
+// M6.9 — Race Progression State
+// =========================================================
+
+private raceProgression:
+  RaceProgressionState =
+    createDefaultRaceProgressionState(
+      RACE_DEFINITIONS
+    );
 
   // =========================================================
   // HUD
@@ -288,25 +308,55 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
-    // Restore Save
-    // =======================================================
+// Restore Persistent Save
+// M6.9
+// =======================================================
+
+if (
+  this.saveSystem.load()
+) {
+
+  const savedData =
+    this.saveSystem.readSave();
+
+  if (
+    savedData
+  ) {
+
+    // ---------------------------------------------------
+    // M4.9 Player Progress
+    // ---------------------------------------------------
+
+    this.setPlayerProgress(
+      savedData.progress
+    );
+
+    // ---------------------------------------------------
+    // M6.9 Race Progression
+    // ---------------------------------------------------
 
     if (
-      this.saveSystem.load()
+      "raceProgression" in savedData
     ) {
 
-      const savedData =
-        this.saveSystem.readSave();
+      const savedRaceProgression =
+        (
+          savedData as PlayerSaveData & {
+            raceProgression?: unknown;
+          }
+        ).raceProgression;
 
       if (
-        savedData
+        savedRaceProgression
       ) {
 
-        this.setPlayerProgress(
-          savedData.progress
+        this.setRaceProgression(
+          savedRaceProgression
         );
       }
     }
+  }
+}
 
     // =======================================================
     // Selected Car
@@ -1145,6 +1195,40 @@ public isUpgradeScreenOpen(): boolean {
   }
 
   // =========================================================
+// M6.9 — Race Progression Access
+// =========================================================
+
+public getRaceProgression():
+  RaceProgressionState {
+
+  return {
+    ...this.raceProgression,
+
+    races:
+      this.raceProgression.races.map(
+        (race) => ({
+          ...race
+        })
+      )
+  };
+}
+
+// =========================================================
+// M6.9 — Set Race Progression
+// =========================================================
+
+public setRaceProgression(
+  value: unknown
+): void {
+
+  this.raceProgression =
+    normalizeRaceProgressionState(
+      value,
+      RACE_DEFINITIONS
+    );
+}
+
+  // =========================================================
   // Set Player Progress
   // =========================================================
 
@@ -1215,40 +1299,41 @@ public isUpgradeScreenOpen(): boolean {
   }
 
   // =========================================================
-  // Complete Save Snapshot
-  // =========================================================
+// Complete Save Snapshot
+// M6.9
+// =========================================================
 
-  public getPlayerSaveData():
-    PlayerSaveData {
+public getPlayerSaveData():
+  PlayerSaveData {
 
-    const save =
-      createDefaultPlayerSaveData(
+  const save =
+    createDefaultPlayerSaveData(
 
-        this.economyManager
-          .getState(),
+      this.economyManager
+        .getState(),
 
-        this.garageManager
-          .getState(),
+      this.garageManager
+        .getState(),
 
-        this.upgradeSystem
-          .getState()
-      );
+      this.upgradeSystem
+        .getState()
+    );
 
-    return {
+  return {
 
-      ...save,
+    ...save,
 
-      version:
-        PLAYER_SAVE_VERSION,
+    version:
+      PLAYER_SAVE_VERSION,
 
-      progress: {
-        ...this.playerProgress
-      },
+    progress: {
+      ...this.playerProgress
+    },
 
-      updatedAt:
-        Date.now()
-    };
-  }
+    updatedAt:
+      Date.now()
+  };
+}
 
   // =========================================================
   // Save Player Data
