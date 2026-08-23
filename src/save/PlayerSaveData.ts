@@ -49,7 +49,7 @@ import {
   type RaceDefinition,
   createDefaultRaceProgressionState,
   normalizeRaceProgressionState
-} from "../progression/RaceProgressionData";
+} from "../race/RaceProgressionData";
 
 // ============================================================
 // Save Version
