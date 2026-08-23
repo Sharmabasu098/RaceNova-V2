@@ -35,6 +35,18 @@ import {
   RACE_DEFINITIONS
 } from "../race/RaceDefinitions";
 
+// ============================================================
+// M6.7 — Boss System
+// ============================================================
+
+import {
+  BossManager
+} from "../boss/BossManager";
+
+import {
+  BossRace
+} from "../boss/BossRace";
+
 export class RaceNovaEngine {
 
   // =========================================================
@@ -145,6 +157,39 @@ export class RaceNovaEngine {
 
   private readonly upgradeScreen:
     UpgradeScreen;
+
+  // =========================================================
+  // M6.7 — Boss Manager
+  // =========================================================
+
+  private readonly bossManager:
+    BossManager;
+
+  // =========================================================
+  // M6.7 — Boss Race
+  // =========================================================
+
+  private readonly bossRace:
+    BossRace;
+
+  // =========================================================
+  // M6.7.4 — Boss 3D
+  // =========================================================
+
+  private readonly bossMesh:
+    THREE.Group;
+
+  /**
+   * M6.7.4 verification flag.
+   *
+   * Boss is started automatically so the 3D
+   * integration can be tested immediately.
+   *
+   * M6.8 will replace this with proper
+   * Boss Unlock logic.
+   */
+  private bossEncounterStarted:
+    boolean = false;
 
   // =========================================================
   // Constructor
@@ -411,7 +456,7 @@ export class RaceNovaEngine {
         }
       );
 
-          // =======================================================
+    // =======================================================
     // Race HUD
     // =======================================================
 
@@ -438,10 +483,6 @@ export class RaceNovaEngine {
         this.economyManager,
 
         {
-          // -------------------------------------------------
-          // Garage Changed / Live Upgrade Stats
-          // -------------------------------------------------
-
           onChanged: () => {
 
             const selectedCarId =
@@ -464,16 +505,8 @@ export class RaceNovaEngine {
             this.raceHUD.update();
           },
 
-          // -------------------------------------------------
-          // Upgrade System
-          // -------------------------------------------------
-
           upgradeSystem:
             this.upgradeSystem,
-
-          // -------------------------------------------------
-          // Upgrade Car
-          // -------------------------------------------------
 
           onUpgrade: (
             carId
@@ -490,18 +523,12 @@ export class RaceNovaEngine {
             this.openUpgrades();
           },
 
-          // -------------------------------------------------
-          // Garage Close
-          // -------------------------------------------------
-
           onClose: () => {
 
             this.closeGarage();
           }
         }
       );
-
-    // Garage starts hidden.
 
     this.garageUI.hide();
 
@@ -543,10 +570,6 @@ export class RaceNovaEngine {
             this.raceHUD.update();
           },
 
-          // -------------------------------------------------
-          // Upgrade Screen Close
-          // -------------------------------------------------
-
           onClose: () => {
 
             this.upgradeScreen.hide();
@@ -579,7 +602,7 @@ export class RaceNovaEngine {
         }
       );
 
-    // =======================================================
+        // =======================================================
     // Swipe Controller
     // =======================================================
 
@@ -640,6 +663,66 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
+    // M6.7 — Boss Manager
+    // =======================================================
+
+    this.bossManager =
+      new BossManager({
+        spawnLane: 1,
+
+        spawnDistance: 80,
+
+        ai: {
+
+          laneCount: 3,
+
+          laneWidth: 4,
+
+          laneChangeSpeed: 8,
+
+          laneChangeCooldown: 1.25,
+
+          playerAwarenessDistance: 90,
+
+          pursuitDistance: 45,
+
+          maxSpeed: 120,
+
+          acceleration: 35
+        }
+      });
+
+    // =======================================================
+    // M6.7 — Boss Race
+    // =======================================================
+
+    this.bossRace =
+      new BossRace(
+        this.bossManager,
+        {
+          bossSpawnDistance: 80,
+
+          maxDuration: 0,
+
+          requiredDistance: 0
+        }
+      );
+
+    // =======================================================
+    // M6.7.4 — Boss 3D Mesh
+    // =======================================================
+
+    this.bossMesh =
+      this.createBossMesh();
+
+    this.bossMesh.visible =
+      false;
+
+    this.scene.add(
+      this.bossMesh
+    );
+
+    // =======================================================
     // Keyboard Nitro
     // =======================================================
 
@@ -662,6 +745,362 @@ export class RaceNovaEngine {
     // =======================================================
 
     this.raceHUD.update();
+  }
+
+  // =========================================================
+  // M6.7.4 — Create Boss 3D Mesh
+  // =========================================================
+
+  private createBossMesh():
+    THREE.Group {
+
+    const boss =
+      new THREE.Group();
+
+    // =======================================================
+    // Boss Body
+    // =======================================================
+
+    const bodyGeometry =
+      new THREE.BoxGeometry(
+        3.2,
+        0.9,
+        5.2
+      );
+
+    const bodyMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x7a0f16,
+
+        metalness: 0.55,
+
+        roughness: 0.3
+      });
+
+    const body =
+      new THREE.Mesh(
+        bodyGeometry,
+        bodyMaterial
+      );
+
+    body.position.y =
+      0.85;
+
+    body.castShadow =
+      true;
+
+    body.receiveShadow =
+      true;
+
+    boss.add(
+      body
+    );
+
+    // =======================================================
+    // Boss Cabin
+    // =======================================================
+
+    const cabinGeometry =
+      new THREE.BoxGeometry(
+        2.35,
+        0.75,
+        2.4
+      );
+
+    const cabinMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x20252b,
+
+        metalness: 0.35,
+
+        roughness: 0.25
+      });
+
+    const cabin =
+      new THREE.Mesh(
+        cabinGeometry,
+        cabinMaterial
+      );
+
+    cabin.position.y =
+      1.55;
+
+    cabin.position.z =
+      -0.15;
+
+    cabin.castShadow =
+      true;
+
+    cabin.receiveShadow =
+      true;
+
+    boss.add(
+      cabin
+    );
+
+    // =======================================================
+    // Boss Roof
+    // =======================================================
+
+    const roofGeometry =
+      new THREE.BoxGeometry(
+        2.15,
+        0.18,
+        1.9
+      );
+
+    const roofMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x111318,
+
+        metalness: 0.5,
+
+        roughness: 0.25
+      });
+
+    const roof =
+      new THREE.Mesh(
+        roofGeometry,
+        roofMaterial
+      );
+
+    roof.position.y =
+      1.98;
+
+    roof.position.z =
+      -0.15;
+
+    roof.castShadow =
+      true;
+
+    boss.add(
+      roof
+    );
+
+    // =======================================================
+    // Wheels
+    // =======================================================
+
+    const wheelGeometry =
+      new THREE.CylinderGeometry(
+        0.48,
+        0.48,
+        0.38,
+        16
+      );
+
+    const wheelMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x111111,
+
+        roughness: 0.75
+      });
+
+    const wheelPositions: Array<
+      [number, number, number]
+    > = [
+      [-1.55, 0.48, -1.7],
+      [1.55, 0.48, -1.7],
+      [-1.55, 0.48, 1.7],
+      [1.55, 0.48, 1.7]
+    ];
+
+    for (
+      const position
+      of wheelPositions
+    ) {
+
+      const wheel =
+        new THREE.Mesh(
+          wheelGeometry,
+          wheelMaterial
+        );
+
+      wheel.rotation.z =
+        Math.PI / 2;
+
+      wheel.position.set(
+        position[0],
+        position[1],
+        position[2]
+      );
+
+      wheel.castShadow =
+        true;
+
+      wheel.receiveShadow =
+        true;
+
+      boss.add(
+        wheel
+      );
+    }
+
+    // =======================================================
+    // Boss Front Light
+    // =======================================================
+
+    const lightGeometry =
+      new THREE.BoxGeometry(
+        0.55,
+        0.22,
+        0.12
+      );
+
+    const lightMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xffe6b0,
+
+        emissive: 0xffaa33,
+
+        emissiveIntensity: 1.5
+      });
+
+    const leftLight =
+      new THREE.Mesh(
+        lightGeometry,
+        lightMaterial
+      );
+
+    leftLight.position.set(
+      -0.9,
+      1.0,
+      -2.62
+    );
+
+    boss.add(
+      leftLight
+    );
+
+    const rightLight =
+      new THREE.Mesh(
+        lightGeometry,
+        lightMaterial
+      );
+
+    rightLight.position.set(
+      0.9,
+      1.0,
+      -2.62
+    );
+
+    boss.add(
+      rightLight
+    );
+
+    // =======================================================
+    // Boss Scale
+    // =======================================================
+
+    boss.scale.set(
+      1,
+      1,
+      1
+    );
+
+    boss.position.set(
+      0,
+      0,
+      -80
+    );
+
+    return boss;
+  }
+
+  // =========================================================
+  // M6.7.4 — Update Boss 3D
+  // =========================================================
+
+  private updateBoss3D():
+    void {
+
+    if (
+      !this.bossManager.isActive()
+    ) {
+
+      this.bossMesh.visible =
+        false;
+
+      return;
+    }
+
+    const bossPosition =
+      this.bossManager.getPosition();
+
+    if (
+      !bossPosition
+    ) {
+
+      this.bossMesh.visible =
+        false;
+
+      return;
+    }
+
+    const roadCenterX =
+      this.world.getRoadCenterX(
+        bossPosition.z
+      );
+
+    this.bossMesh.position.x =
+      roadCenterX +
+      bossPosition.x;
+
+    this.bossMesh.position.y =
+      0;
+
+    this.bossMesh.position.z =
+      bossPosition.z;
+
+    this.bossMesh.visible =
+      true;
+
+    // -------------------------------------------------------
+    // Boss faces forward on the road.
+    // RaceNova forward direction is -Z.
+    // -------------------------------------------------------
+
+    this.bossMesh.rotation.y =
+      Math.PI;
+  }
+
+  // =========================================================
+  // M6.7.4 — Start Boss Encounter
+  // =========================================================
+
+  private startBossEncounter(
+    playerZ: number
+  ): void {
+
+    if (
+      this.bossEncounterStarted
+    ) {
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        playerZ
+      )
+    ) {
+      return;
+    }
+
+    const result =
+      this.bossRace.start(
+        "boss_race_01",
+        playerZ
+      );
+
+    if (
+      result.success
+    ) {
+
+      this.bossEncounterStarted =
+        true;
+
+      this.updateBoss3D();
+    }
   }
 
   // =========================================================
@@ -763,7 +1202,7 @@ export class RaceNovaEngine {
     );
   }
 
-    // =========================================================
+  // =========================================================
   // Start
   // =========================================================
 
@@ -773,8 +1212,8 @@ export class RaceNovaEngine {
 
     this.animate();
   }
-
-  // =========================================================
+  
+   // =========================================================
   // Animation
   // =========================================================
 
@@ -886,6 +1325,46 @@ export class RaceNovaEngine {
         playerPosition
       );
     }
+
+    // =======================================================
+    // M6.7.4 — Start Boss
+    // =======================================================
+
+    if (
+      !this.bossEncounterStarted
+    ) {
+
+      this.startBossEncounter(
+        playerZ
+      );
+    }
+
+    // =======================================================
+    // M6.7.4 — Boss Race Update
+    // =======================================================
+
+    if (
+      this.bossRace.isActive() &&
+      !this.trafficCollisionSystem
+        .hasCrashed()
+    ) {
+
+      this.bossRace.update(
+        deltaTime,
+
+        playerPosition.x,
+
+        playerZ,
+
+        this.playerCar.getSpeed()
+      );
+    }
+
+    // =======================================================
+    // M6.7.4 — Boss 3D Update
+    // =======================================================
+
+    this.updateBoss3D();
 
     // =======================================================
     // Player Progress
@@ -1068,7 +1547,53 @@ export class RaceNovaEngine {
     return this.saveSystem;
   }
 
-    // =========================================================
+  // =========================================================
+  // Boss Manager Access
+  // M6.7.4
+  // =========================================================
+
+  public getBossManager():
+    BossManager {
+
+    return this.bossManager;
+  }
+
+  // =========================================================
+  // Boss Race Access
+  // M6.7.4
+  // =========================================================
+
+  public getBossRace():
+    BossRace {
+
+    return this.bossRace;
+  }
+
+  // =========================================================
+  // Boss State
+  // M6.7.4
+  // =========================================================
+
+  public isBossActive(): boolean {
+
+    return this.bossManager.isActive();
+  }
+
+  // =========================================================
+  // Boss Position
+  // M6.7.4
+  // =========================================================
+
+  public getBossPosition(): {
+    x: number;
+    z: number;
+  } | null {
+
+    return this.bossManager
+      .getPosition();
+  }
+
+  // =========================================================
   // Player Progress
   // =========================================================
 
@@ -1287,7 +1812,7 @@ export class RaceNovaEngine {
     return true;
   }
 
-  // =========================================================
+      // =========================================================
   // Load Persistent Player Data
   // =========================================================
 
@@ -1351,6 +1876,58 @@ export class RaceNovaEngine {
     window.removeEventListener(
       "keydown",
       this.handleNitroKeyDown
+    );
+
+    // =======================================================
+    // Boss System
+    // =======================================================
+
+    this.bossRace.reset();
+
+    this.bossRace.dispose();
+
+    this.bossManager.dispose();
+
+    // =======================================================
+    // Boss 3D Resources
+    // =======================================================
+
+    this.bossMesh.traverse(
+      (
+        object
+      ) => {
+
+        if (
+          object instanceof
+          THREE.Mesh
+        ) {
+
+          object.geometry.dispose();
+
+          if (
+            Array.isArray(
+              object.material
+            )
+          ) {
+
+            for (
+              const material
+              of object.material
+            ) {
+
+              material.dispose();
+            }
+
+          } else {
+
+            object.material.dispose();
+          }
+        }
+      }
+    );
+
+    this.scene.remove(
+      this.bossMesh
     );
 
     // =======================================================
@@ -1436,7 +2013,4 @@ export class RaceNovaEngine {
     }
   }
 }
-
-  
-
       
