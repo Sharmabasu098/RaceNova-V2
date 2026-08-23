@@ -21,6 +21,7 @@
  * - Best position
  * - Best time
  * - Boss defeat state
+ * - Progression save / reload
  *
  * IMPORTANT:
  * - No UI logic
@@ -55,7 +56,8 @@ import {
 // Save Version
 // ============================================================
 
-export const PLAYER_SAVE_VERSION = 1;
+export const PLAYER_SAVE_VERSION =
+  1;
 
 // ============================================================
 // Player Progress
@@ -86,7 +88,7 @@ export interface PlayerProgress {
   totalDistance: number;
 
   /**
-   * Currently selected campaign race.
+   * Currently selected race.
    *
    * M6.9.
    */
@@ -100,12 +102,12 @@ export interface PlayerProgress {
   bossesDefeated: number;
 
   /**
-   * Complete RaceNova campaign
-   * progression state.
+   * Complete campaign progression.
    *
    * M6.9 authoritative progression data.
    */
-  raceProgression: RaceProgressionState;
+  raceProgression:
+    RaceProgressionState;
 }
 
 // ============================================================
@@ -140,12 +142,12 @@ export const DEFAULT_PLAYER_PROGRESS:
   };
 
 // ============================================================
-// Create Default Progress
+// Create Default Player Progress
 // ============================================================
 
 export function createDefaultPlayerProgress(
   races:
-    RaceDefinition[] = []
+    readonly RaceDefinition[] = []
 ): PlayerProgress {
 
   const progression =
@@ -220,7 +222,8 @@ export interface PlayerSaveData {
 // ============================================================
 
 function cloneRaceProgress(
-  race: RaceProgress
+  race:
+    RaceProgress
 ): RaceProgress {
 
   return {
@@ -321,7 +324,21 @@ function clonePlayerProgress(
 }
 
 // ============================================================
-// Create Default Save Data
+// Create Default Player Save Data
+// ============================================================
+//
+// `races` is optional so existing M4.9 SaveSystem calls:
+//
+// createDefaultPlayerSaveData(
+//   economy,
+//   garage,
+//   upgrades
+// )
+//
+// remain valid.
+//
+// readonly is intentional because RACE_DEFINITIONS
+// is a readonly configuration array.
 // ============================================================
 
 export function createDefaultPlayerSaveData(
@@ -335,7 +352,7 @@ export function createDefaultPlayerSaveData(
     UpgradeState,
 
   races:
-    RaceDefinition[] = []
+    readonly RaceDefinition[] = []
 ): PlayerSaveData {
 
   const progress =
@@ -484,13 +501,17 @@ export function clonePlayerSaveData(
 // ============================================================
 // Normalize Player Progress
 // ============================================================
+//
+// Accepts readonly RaceDefinition[] so RaceNovaEngine can
+// pass RACE_DEFINITIONS directly without TS2345.
+// ============================================================
 
 export function normalizePlayerProgress(
   value:
     unknown,
 
   races:
-    RaceDefinition[] = []
+    readonly RaceDefinition[] = []
 ): PlayerProgress {
 
   const defaults =
@@ -498,11 +519,16 @@ export function normalizePlayerProgress(
       races
     );
 
+  // ==========================================================
+  // Validate Input
+  // ==========================================================
+
   if (
     !value ||
     typeof value !==
       "object"
   ) {
+
     return defaults;
   }
 
@@ -512,9 +538,9 @@ export function normalizePlayerProgress(
       unknown
     >;
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Legacy / Basic Progress
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const unlockedLevel =
     Number.isFinite(
@@ -562,9 +588,9 @@ export function normalizePlayerProgress(
         )
       : 0;
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Race Progression
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const raceProgression =
     normalizeRaceProgressionState(
@@ -572,9 +598,9 @@ export function normalizePlayerProgress(
       races
     );
 
-  // ----------------------------------------------------------
-  // Keep legacy counters synchronized
-  // ----------------------------------------------------------
+  // ==========================================================
+  // Synchronize Legacy Counters
+  // ==========================================================
 
   const finalUnlockedLevel =
     Math.max(
@@ -594,27 +620,106 @@ export function normalizePlayerProgress(
       raceProgression.racesWon
     );
 
+  const storedBossesDefeated =
+    Number.isFinite(
+      data["bossesDefeated"]
+    )
+      ? Math.max(
+          0,
+          Math.floor(
+            data["bossesDefeated"] as number
+          )
+        )
+      : 0;
+
   const finalBossesDefeated =
     Math.max(
-      Number.isFinite(
-        data["bossesDefeated"]
-      )
-        ? Math.max(
-            0,
-            Math.floor(
-              data["bossesDefeated"] as number
-            )
-          )
-        : 0,
-
+      storedBossesDefeated,
       raceProgression.bossesDefeated
     );
 
-  const selectedRaceId =
+  // ==========================================================
+  // Selected Race
+  // ==========================================================
+
+  let selectedRaceId =
     typeof data["selectedRaceId"] ===
       "string"
       ? data["selectedRaceId"] as string
       : raceProgression.selectedRaceId;
+
+  // ----------------------------------------------------------
+  // If selected race is empty, use progression selection.
+  // ----------------------------------------------------------
+
+  if (
+    !selectedRaceId
+  ) {
+
+    selectedRaceId =
+      raceProgression.selectedRaceId;
+  }
+
+  // ----------------------------------------------------------
+  // Keep progression selection synchronized.
+  // ----------------------------------------------------------
+
+  const finalProgression =
+    cloneRaceProgression(
+      /*
+       * This object is reconstructed below.
+       * The cast is avoided by directly using the
+       * normalized progression state.
+       */
+      {
+        raceId:
+          "",
+        status:
+          "locked",
+        completionCount:
+          0,
+        winCount:
+          0,
+        bestPosition:
+          0,
+        bestTime:
+          0,
+        bossDefeated:
+          false
+      }
+    );
+
+  /*
+   * The temporary object above is not used as state.
+   * Build the actual progression state directly.
+   */
+
+  const synchronizedProgression:
+    RaceProgressionState = {
+
+    ...raceProgression,
+
+    unlockedLevel:
+      finalUnlockedLevel,
+
+    racesCompleted:
+      finalRacesCompleted,
+
+    racesWon:
+      finalRacesWon,
+
+    bossesDefeated:
+      finalBossesDefeated,
+
+    selectedRaceId:
+      selectedRaceId
+  };
+
+  /*
+   * Keep TypeScript happy without mutating the normalized
+   * source object unexpectedly.
+   */
+  void finalProgression;
 
   return {
 
@@ -634,25 +739,8 @@ export function normalizePlayerProgress(
     bossesDefeated:
       finalBossesDefeated,
 
-    raceProgression: {
-
-      ...raceProgression,
-
-      unlockedLevel:
-        finalUnlockedLevel,
-
-      racesCompleted:
-        finalRacesCompleted,
-
-      racesWon:
-        finalRacesWon,
-
-      bossesDefeated:
-        finalBossesDefeated,
-
-      selectedRaceId:
-        selectedRaceId
-    }
+    raceProgression:
+      synchronizedProgression
   };
 }
 
@@ -678,9 +766,9 @@ export function isValidPlayerSaveData(
       PlayerSaveData
     >;
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Version
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     typeof save.version !==
@@ -693,9 +781,9 @@ export function isValidPlayerSaveData(
     return false;
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Economy
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !save.economy ||
@@ -739,9 +827,9 @@ export function isValidPlayerSaveData(
     return false;
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Garage
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !save.garage ||
@@ -766,9 +854,9 @@ export function isValidPlayerSaveData(
     return false;
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Upgrades
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !save.upgrades ||
@@ -786,9 +874,9 @@ export function isValidPlayerSaveData(
     return false;
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Progress
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !save.progress ||
@@ -800,6 +888,10 @@ export function isValidPlayerSaveData(
 
   const progress =
     save.progress;
+
+  // ----------------------------------------------------------
+  // Basic Progress
+  // ----------------------------------------------------------
 
   if (
     !Number.isFinite(
@@ -837,12 +929,20 @@ export function isValidPlayerSaveData(
     return false;
   }
 
+  // ----------------------------------------------------------
+  // Selected Race
+  // ----------------------------------------------------------
+
   if (
     typeof progress.selectedRaceId !==
       "string"
   ) {
     return false;
   }
+
+  // ----------------------------------------------------------
+  // Boss Counter
+  // ----------------------------------------------------------
 
   if (
     !Number.isFinite(
@@ -853,9 +953,9 @@ export function isValidPlayerSaveData(
     return false;
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Race Progression
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !progress.raceProgression ||
@@ -868,13 +968,22 @@ export function isValidPlayerSaveData(
   const progression =
     progress.raceProgression;
 
+  // ----------------------------------------------------------
+  // Progression Version
+  // ----------------------------------------------------------
+
   if (
     !Number.isFinite(
       progression.version
-    )
+    ) ||
+    progression.version < 1
   ) {
     return false;
   }
+
+  // ----------------------------------------------------------
+  // Unlocked Level
+  // ----------------------------------------------------------
 
   if (
     !Number.isFinite(
@@ -885,12 +994,20 @@ export function isValidPlayerSaveData(
     return false;
   }
 
+  // ----------------------------------------------------------
+  // Selected Race
+  // ----------------------------------------------------------
+
   if (
     typeof progression.selectedRaceId !==
       "string"
   ) {
     return false;
   }
+
+  // ----------------------------------------------------------
+  // Completion Counter
+  // ----------------------------------------------------------
 
   if (
     !Number.isFinite(
@@ -901,6 +1018,10 @@ export function isValidPlayerSaveData(
     return false;
   }
 
+  // ----------------------------------------------------------
+  // Win Counter
+  // ----------------------------------------------------------
+
   if (
     !Number.isFinite(
       progression.racesWon
@@ -909,6 +1030,10 @@ export function isValidPlayerSaveData(
   ) {
     return false;
   }
+
+  // ----------------------------------------------------------
+  // Boss Counter
+  // ----------------------------------------------------------
 
   if (
     !Number.isFinite(
@@ -919,6 +1044,10 @@ export function isValidPlayerSaveData(
     return false;
   }
 
+  // ----------------------------------------------------------
+  // Race List
+  // ----------------------------------------------------------
+
   if (
     !Array.isArray(
       progression.races
@@ -926,6 +1055,10 @@ export function isValidPlayerSaveData(
   ) {
     return false;
   }
+
+  // ==========================================================
+  // Individual Race Validation
+  // ==========================================================
 
   for (
     const race
@@ -940,12 +1073,20 @@ export function isValidPlayerSaveData(
       return false;
     }
 
+    // --------------------------------------------------------
+    // Race ID
+    // --------------------------------------------------------
+
     if (
       typeof race.raceId !==
         "string"
     ) {
       return false;
     }
+
+    // --------------------------------------------------------
+    // Status
+    // --------------------------------------------------------
 
     if (
       race.status !==
@@ -958,6 +1099,10 @@ export function isValidPlayerSaveData(
       return false;
     }
 
+    // --------------------------------------------------------
+    // Completion Count
+    // --------------------------------------------------------
+
     if (
       !Number.isFinite(
         race.completionCount
@@ -966,6 +1111,10 @@ export function isValidPlayerSaveData(
     ) {
       return false;
     }
+
+    // --------------------------------------------------------
+    // Win Count
+    // --------------------------------------------------------
 
     if (
       !Number.isFinite(
@@ -976,6 +1125,10 @@ export function isValidPlayerSaveData(
       return false;
     }
 
+    // --------------------------------------------------------
+    // Best Position
+    // --------------------------------------------------------
+
     if (
       !Number.isFinite(
         race.bestPosition
@@ -984,6 +1137,10 @@ export function isValidPlayerSaveData(
     ) {
       return false;
     }
+
+    // --------------------------------------------------------
+    // Best Time
+    // --------------------------------------------------------
 
     if (
       !Number.isFinite(
@@ -994,6 +1151,10 @@ export function isValidPlayerSaveData(
       return false;
     }
 
+    // --------------------------------------------------------
+    // Boss Defeated
+    // --------------------------------------------------------
+
     if (
       race.bossDefeated !== true &&
       race.bossDefeated !== false
@@ -1002,9 +1163,9 @@ export function isValidPlayerSaveData(
     }
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // Timestamp
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     typeof save.updatedAt !==
@@ -1023,16 +1184,157 @@ export function isValidPlayerSaveData(
 // ============================================================
 // Sanitize Progress
 // ============================================================
+//
+// Kept compatible with existing SaveSystem.
+//
+// Existing SaveSystem calls:
+//
+// sanitizePlayerProgress({
+//   ...snapshot.progress,
+//   ...progressOverride
+// })
+//
+// No race definitions are required here because the
+// already-existing raceProgression state is normalized
+// directly from the supplied PlayerProgress.
+// ============================================================
 
 export function sanitizePlayerProgress(
   progress:
     PlayerProgress
 ): PlayerProgress {
 
-  return normalizePlayerProgress(
-    progress,
-    []
-  );
+  if (
+    !progress ||
+    typeof progress !==
+      "object"
+  ) {
+
+    return {
+      ...DEFAULT_PLAYER_PROGRESS
+    };
+  }
+
+  const data =
+    progress as PlayerProgress;
+
+  const normalizedRaceProgression =
+    normalizeRaceProgressionState(
+      data.raceProgression,
+      []
+    );
+
+  const unlockedLevel =
+    Math.max(
+      1,
+      Math.floor(
+        Number.isFinite(
+          data.unlockedLevel
+        )
+          ? data.unlockedLevel
+          : 1
+      )
+    );
+
+  const racesCompleted =
+    Math.max(
+      0,
+      Math.floor(
+        Number.isFinite(
+          data.racesCompleted
+        )
+          ? data.racesCompleted
+          : 0
+      )
+    );
+
+  const racesWon =
+    Math.max(
+      0,
+      Math.floor(
+        Number.isFinite(
+          data.racesWon
+        )
+          ? data.racesWon
+          : 0
+      )
+    );
+
+  const totalDistance =
+    Math.max(
+      0,
+      Number.isFinite(
+        data.totalDistance
+      )
+        ? data.totalDistance
+        : 0
+    );
+
+  const bossesDefeated =
+    Math.max(
+      0,
+      Math.floor(
+        Number.isFinite(
+          data.bossesDefeated
+        )
+          ? data.bossesDefeated
+          : 0
+      )
+    );
+
+  const selectedRaceId =
+    typeof data.selectedRaceId ===
+      "string"
+      ? data.selectedRaceId
+      : "";
+
+  return {
+
+    unlockedLevel,
+
+    racesCompleted,
+
+    racesWon,
+
+    totalDistance,
+
+    selectedRaceId,
+
+    bossesDefeated,
+
+    raceProgression: {
+
+      ...normalizedRaceProgression,
+
+      unlockedLevel:
+        Math.max(
+          unlockedLevel,
+          normalizedRaceProgression.unlockedLevel
+        ),
+
+      racesCompleted:
+        Math.max(
+          racesCompleted,
+          normalizedRaceProgression.racesCompleted
+        ),
+
+      racesWon:
+        Math.max(
+          racesWon,
+          normalizedRaceProgression.racesWon
+        ),
+
+      bossesDefeated:
+        Math.max(
+          bossesDefeated,
+          normalizedRaceProgression.bossesDefeated
+        ),
+
+      selectedRaceId:
+        selectedRaceId ||
+        normalizedRaceProgression.selectedRaceId
+    }
+  };
 }
 
 // ============================================================
