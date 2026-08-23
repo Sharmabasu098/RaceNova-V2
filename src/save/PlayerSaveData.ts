@@ -690,31 +690,48 @@ export function normalizePlayerProgress(
    * Keep TypeScript happy without mutating the normalized
    * source object unexpectedly.
    */
-  void finalProgression;
+  const synchronizedProgression:
+  RaceProgressionState = {
 
-  return {
+  ...raceProgression,
 
-    unlockedLevel:
-      finalUnlockedLevel,
+  unlockedLevel:
+    finalUnlockedLevel,
 
-    racesCompleted:
-      finalRacesCompleted,
+  racesCompleted:
+    finalRacesCompleted,
 
-    racesWon:
-      finalRacesWon,
+  racesWon:
+    finalRacesWon,
 
-    totalDistance,
+  bossesDefeated:
+    finalBossesDefeated,
 
-    selectedRaceId,
+  selectedRaceId:
+    selectedRaceId
+};
 
-    bossesDefeated:
-      finalBossesDefeated,
+return {
 
-    raceProgression:
-      synchronizedProgression
-  };
-}
+  unlockedLevel:
+    finalUnlockedLevel,
 
+  racesCompleted:
+    finalRacesCompleted,
+
+  racesWon:
+    finalRacesWon,
+
+  totalDistance,
+
+  selectedRaceId,
+
+  bossesDefeated:
+    finalBossesDefeated,
+
+  raceProgression:
+    synchronizedProgression
+};
 // ============================================================
 // Validation
 // ============================================================
