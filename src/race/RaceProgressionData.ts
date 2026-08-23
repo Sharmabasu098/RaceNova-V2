@@ -16,7 +16,6 @@
  * - Best time
  * - Boss defeat tracking
  * - Safe save-data normalization
- * - Readonly race-definition compatibility
  *
  * IMPORTANT:
  * - No DOM dependency
@@ -25,23 +24,9 @@
  * - No SaveSystem dependency
  * - Pure progression data layer
  *
- * M6.1:
- * - Race progression foundation
- *
- * M6.2:
- * - Race definitions
- *
- * M6.3:
- * - Race unlock support
- *
- * M6.7:
- * - Boss race support
- *
- * M6.8:
- * - Boss unlock + difficulty support
- *
  * M6.9:
- * - Progression save / reload support
+ * - Progression Save / Reload compatibility
+ * - readonly RaceDefinition[] support
  * ============================================================
  */
 
@@ -272,6 +257,12 @@ export function createDefaultRaceProgress(
 // ============================================================
 // Default Progression State
 // ============================================================
+//
+// IMPORTANT:
+// readonly RaceDefinition[] is intentional.
+// RACE_DEFINITIONS is a readonly array and
+// progression only reads the definitions.
+// ============================================================
 
 export function createDefaultRaceProgressionState(
   races: readonly RaceDefinition[]
@@ -296,25 +287,22 @@ export function createDefaultRaceProgressionState(
       ? races[0].id
       : "";
 
-  const firstRaceLevel =
-    races.length > 0
-      ? safeInteger(
-          races[0].level,
-          1,
-          1
-        )
-      : 1;
-
   return {
 
     version:
       RACE_PROGRESSION_VERSION,
 
     unlockedLevel:
-      Math.max(
-        1,
-        firstRaceLevel
-      ),
+      races.length > 0
+        ? Math.max(
+            1,
+            safeInteger(
+              races[0].level,
+              1,
+              1
+            )
+          )
+        : 1,
 
     selectedRaceId:
       firstRace,
@@ -335,6 +323,14 @@ export function createDefaultRaceProgressionState(
 
 // ============================================================
 // Normalize Progression State
+// ============================================================
+//
+// IMPORTANT:
+// readonly RaceDefinition[] is intentional.
+// This allows the function to accept:
+// - RaceDefinition[]
+// - readonly RaceDefinition[]
+// - RACE_DEFINITIONS
 // ============================================================
 
 export function normalizeRaceProgressionState(
@@ -396,14 +392,11 @@ export function normalizeRaceProgressionState(
 
         const saved =
           savedRaces.find(
-            (
-              item
-            ) => {
+            (item) => {
 
               if (
                 !item ||
-                typeof item !==
-                  "object"
+                typeof item !== "object"
               ) {
                 return false;
               }
@@ -427,8 +420,7 @@ export function normalizeRaceProgressionState(
 
         if (
           !saved ||
-          typeof saved !==
-            "object"
+          typeof saved !== "object"
         ) {
 
           return createDefaultRaceProgress(
@@ -516,16 +508,13 @@ export function normalizeRaceProgressionState(
         // Best Time
         // ----------------------------------------------------
 
-        const rawBestTime =
-          safeNumber(
-            race["bestTime"],
-            0
-          );
-
         const bestTime =
           Math.max(
             0,
-            rawBestTime
+            safeNumber(
+              race["bestTime"],
+              0
+            )
           );
 
         // ----------------------------------------------------
@@ -588,21 +577,20 @@ export function normalizeRaceProgressionState(
       : defaults.selectedRaceId;
 
   // ----------------------------------------------------------
-  // Make sure selected race exists
+  // Ensure selected race exists.
   // ----------------------------------------------------------
 
   const selectedRaceExists =
-    races.some(
-      (
-        race
-      ) =>
-        race.id ===
+    normalizedRaces.some(
+      (race) =>
+        race.raceId ===
         selectedRaceId
     );
 
   if (
     !selectedRaceExists
   ) {
+
     selectedRaceId =
       defaults.selectedRaceId;
   }
@@ -675,11 +663,8 @@ export function getRaceProgress(
   }
 
   return state.races.find(
-    (
-      race
-    ) =>
-      race.raceId ===
-      raceId
+    (race) =>
+      race.raceId === raceId
   );
 }
 
@@ -753,9 +738,7 @@ export function getNextLockedRace(
   }
 
   return state.races.find(
-    (
-      race
-    ) =>
+    (race) =>
       race.status ===
       "locked"
   );
@@ -791,9 +774,7 @@ export function cloneRaceProgressionState(
 
     races:
       state.races.map(
-        (
-          race
-        ) => ({
+        (race) => ({
 
           raceId:
             race.raceId,
