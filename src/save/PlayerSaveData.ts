@@ -2,20 +2,32 @@
  * ============================================================
  * RaceNova V2
  * Player Save Data
- * M4.7
+ * M6.9
  * ============================================================
  *
- * Defines the complete player progress structure.
+ * Complete persistent player save structure.
+ *
+ * M4.9:
+ * - Economy
+ * - Garage
+ * - Upgrades
+ * - Basic player progress
+ *
+ * M6.9:
+ * - Race progression
+ * - Selected race
+ * - Race completion
+ * - Race wins
+ * - Best position
+ * - Best time
+ * - Boss defeat state
  *
  * IMPORTANT:
  * - No UI logic
  * - No localStorage logic
- * - No Pi payment logic
  * - No Three.js dependency
- * - No direct save/load storage
- *
- * This file only defines and validates the data structure
- * that the future Save System will persist.
+ * - No direct storage access
+ * - SaveSystem remains the only storage layer
  * ============================================================
  */
 
@@ -31,6 +43,14 @@ import type {
   UpgradeState
 } from "../garage/UpgradeSystem";
 
+import {
+  type RaceProgressionState,
+  type RaceProgress,
+  type RaceDefinition,
+  createDefaultRaceProgressionState,
+  normalizeRaceProgressionState
+} from "../progression/RaceProgressionData";
+
 // ============================================================
 // Save Version
 // ============================================================
@@ -42,8 +62,11 @@ export const PLAYER_SAVE_VERSION = 1;
 // ============================================================
 
 export interface PlayerProgress {
+
   /**
-   * Highest race/world unlocked.
+   * Highest campaign level unlocked.
+   *
+   * M4.9 compatibility field.
    */
   unlockedLevel: number;
 
@@ -61,61 +84,240 @@ export interface PlayerProgress {
    * Total distance travelled.
    */
   totalDistance: number;
+
+  /**
+   * Currently selected campaign race.
+   *
+   * M6.9.
+   */
+  selectedRaceId: string;
+
+  /**
+   * Total bosses defeated.
+   *
+   * M6.9.
+   */
+  bossesDefeated: number;
+
+  /**
+   * Complete RaceNova campaign
+   * progression state.
+   *
+   * M6.9 authoritative progression data.
+   */
+  raceProgression: RaceProgressionState;
 }
 
 // ============================================================
 // Default Player Progress
 // ============================================================
 
-export const DEFAULT_PLAYER_PROGRESS: PlayerProgress = {
-  unlockedLevel: 1,
-  racesCompleted: 0,
-  racesWon: 0,
-  totalDistance: 0
-};
+export const DEFAULT_PLAYER_PROGRESS:
+  PlayerProgress = {
+
+    unlockedLevel:
+      1,
+
+    racesCompleted:
+      0,
+
+    racesWon:
+      0,
+
+    totalDistance:
+      0,
+
+    selectedRaceId:
+      "",
+
+    bossesDefeated:
+      0,
+
+    raceProgression:
+      createDefaultRaceProgressionState(
+        []
+      )
+  };
+
+// ============================================================
+// Create Default Progress
+// ============================================================
+
+export function createDefaultPlayerProgress(
+  races:
+    RaceDefinition[] = []
+): PlayerProgress {
+
+  const progression =
+    createDefaultRaceProgressionState(
+      races
+    );
+
+  return {
+
+    unlockedLevel:
+      progression.unlockedLevel,
+
+    racesCompleted:
+      progression.racesCompleted,
+
+    racesWon:
+      progression.racesWon,
+
+    totalDistance:
+      0,
+
+    selectedRaceId:
+      progression.selectedRaceId,
+
+    bossesDefeated:
+      progression.bossesDefeated,
+
+    raceProgression:
+      progression
+  };
+}
 
 // ============================================================
 // Complete Player Save Data
 // ============================================================
 
 export interface PlayerSaveData {
+
   /**
    * Save-data schema version.
-   *
-   * Used for future migrations.
    */
   version: number;
 
   /**
    * Economy state.
-   *
-   * Contains coin balance and transaction history.
    */
   economy: EconomyState;
 
   /**
    * Garage state.
-   *
-   * Contains owned cars and selected car.
    */
   garage: GarageState;
 
   /**
    * Upgrade state.
-   *
-   * Contains upgrade levels for each car.
    */
   upgrades: UpgradeState;
 
   /**
-   * General player progress.
+   * General + campaign progress.
    */
   progress: PlayerProgress;
 
   /**
-   * Timestamp when the save was created/updated.
+   * Save timestamp.
    */
   updatedAt: number;
+}
+
+// ============================================================
+// Clone Race Progress
+// ============================================================
+
+function cloneRaceProgress(
+  race: RaceProgress
+): RaceProgress {
+
+  return {
+
+    raceId:
+      race.raceId,
+
+    status:
+      race.status,
+
+    completionCount:
+      race.completionCount,
+
+    winCount:
+      race.winCount,
+
+    bestPosition:
+      race.bestPosition,
+
+    bestTime:
+      race.bestTime,
+
+    bossDefeated:
+      race.bossDefeated
+  };
+}
+
+// ============================================================
+// Clone Race Progression
+// ============================================================
+
+function cloneRaceProgression(
+  progression:
+    RaceProgressionState
+): RaceProgressionState {
+
+  return {
+
+    version:
+      progression.version,
+
+    unlockedLevel:
+      progression.unlockedLevel,
+
+    selectedRaceId:
+      progression.selectedRaceId,
+
+    racesCompleted:
+      progression.racesCompleted,
+
+    racesWon:
+      progression.racesWon,
+
+    bossesDefeated:
+      progression.bossesDefeated,
+
+    races:
+      progression.races.map(
+        cloneRaceProgress
+      )
+  };
+}
+
+// ============================================================
+// Clone Player Progress
+// ============================================================
+
+function clonePlayerProgress(
+  progress:
+    PlayerProgress
+): PlayerProgress {
+
+  return {
+
+    unlockedLevel:
+      progress.unlockedLevel,
+
+    racesCompleted:
+      progress.racesCompleted,
+
+    racesWon:
+      progress.racesWon,
+
+    totalDistance:
+      progress.totalDistance,
+
+    selectedRaceId:
+      progress.selectedRaceId,
+
+    bossesDefeated:
+      progress.bossesDefeated,
+
+    raceProgression:
+      cloneRaceProgression(
+        progress.raceProgression
+      )
+  };
 }
 
 // ============================================================
@@ -123,50 +325,84 @@ export interface PlayerSaveData {
 // ============================================================
 
 export function createDefaultPlayerSaveData(
-  economy: EconomyState,
-  garage: GarageState,
-  upgrades: UpgradeState
+  economy:
+    EconomyState,
+
+  garage:
+    GarageState,
+
+  upgrades:
+    UpgradeState,
+
+  races:
+    RaceDefinition[] = []
 ): PlayerSaveData {
+
+  const progress =
+    createDefaultPlayerProgress(
+      races
+    );
+
   return {
-    version: PLAYER_SAVE_VERSION,
+
+    version:
+      PLAYER_SAVE_VERSION,
 
     economy: {
+
       wallet: {
         ...economy.wallet
       },
-      transactions: economy.transactions.map(
-        (transaction) => ({
-          ...transaction
-        })
-      ),
-      version: economy.version
+
+      transactions:
+        economy.transactions.map(
+          (
+            transaction
+          ) => ({
+            ...transaction
+          })
+        ),
+
+      version:
+        economy.version
     },
 
     garage: {
+
       ownedCars: [
         ...garage.ownedCars
       ],
-      selectedCar: garage.selectedCar
+
+      selectedCar:
+        garage.selectedCar
     },
 
     upgrades: {
-      upgrades: Object.fromEntries(
-        Object.entries(upgrades.upgrades).map(
-          ([carId, levels]) => [
-            carId,
-            {
-              ...levels
-            }
-          ]
-        )
-      ) as UpgradeState["upgrades"]
+
+      upgrades:
+        Object.fromEntries(
+          Object.entries(
+            upgrades.upgrades
+          ).map(
+            (
+              [
+                carId,
+                levels
+              ]
+            ) => [
+              carId,
+              {
+                ...levels
+              }
+            ]
+          )
+        ) as UpgradeState["upgrades"]
     },
 
-    progress: {
-      ...DEFAULT_PLAYER_PROGRESS
-    },
+    progress,
 
-    updatedAt: Date.now()
+    updatedAt:
+      Date.now()
   };
 }
 
@@ -175,48 +411,248 @@ export function createDefaultPlayerSaveData(
 // ============================================================
 
 export function clonePlayerSaveData(
-  data: PlayerSaveData
+  data:
+    PlayerSaveData
 ): PlayerSaveData {
+
   return {
-    version: data.version,
+
+    version:
+      data.version,
 
     economy: {
+
       wallet: {
         ...data.economy.wallet
       },
-      transactions: data.economy.transactions.map(
-        (transaction) => ({
-          ...transaction
-        })
-      ),
-      version: data.economy.version
+
+      transactions:
+        data.economy.transactions.map(
+          (
+            transaction
+          ) => ({
+            ...transaction
+          })
+        ),
+
+      version:
+        data.economy.version
     },
 
     garage: {
+
       ownedCars: [
         ...data.garage.ownedCars
       ],
-      selectedCar: data.garage.selectedCar
+
+      selectedCar:
+        data.garage.selectedCar
     },
 
     upgrades: {
-      upgrades: Object.fromEntries(
-        Object.entries(data.upgrades.upgrades).map(
-          ([carId, levels]) => [
-            carId,
-            {
-              ...levels
-            }
-          ]
+
+      upgrades:
+        Object.fromEntries(
+          Object.entries(
+            data.upgrades.upgrades
+          ).map(
+            (
+              [
+                carId,
+                levels
+              ]
+            ) => [
+              carId,
+              {
+                ...levels
+              }
+            ]
+          )
+        ) as UpgradeState["upgrades"]
+    },
+
+    progress:
+      clonePlayerProgress(
+        data.progress
+      ),
+
+    updatedAt:
+      data.updatedAt
+  };
+}
+
+// ============================================================
+// Normalize Player Progress
+// ============================================================
+
+export function normalizePlayerProgress(
+  value:
+    unknown,
+
+  races:
+    RaceDefinition[] = []
+): PlayerProgress {
+
+  const defaults =
+    createDefaultPlayerProgress(
+      races
+    );
+
+  if (
+    !value ||
+    typeof value !==
+      "object"
+  ) {
+    return defaults;
+  }
+
+  const data =
+    value as Record<
+      string,
+      unknown
+    >;
+
+  // ----------------------------------------------------------
+  // Legacy / Basic Progress
+  // ----------------------------------------------------------
+
+  const unlockedLevel =
+    Number.isFinite(
+      data["unlockedLevel"]
+    )
+      ? Math.max(
+          1,
+          Math.floor(
+            data["unlockedLevel"] as number
+          )
         )
-      ) as UpgradeState["upgrades"]
-    },
+      : defaults.unlockedLevel;
 
-    progress: {
-      ...data.progress
-    },
+  const racesCompleted =
+    Number.isFinite(
+      data["racesCompleted"]
+    )
+      ? Math.max(
+          0,
+          Math.floor(
+            data["racesCompleted"] as number
+          )
+        )
+      : 0;
 
-    updatedAt: data.updatedAt
+  const racesWon =
+    Number.isFinite(
+      data["racesWon"]
+    )
+      ? Math.max(
+          0,
+          Math.floor(
+            data["racesWon"] as number
+          )
+        )
+      : 0;
+
+  const totalDistance =
+    Number.isFinite(
+      data["totalDistance"]
+    )
+      ? Math.max(
+          0,
+          data["totalDistance"] as number
+        )
+      : 0;
+
+  // ----------------------------------------------------------
+  // Race Progression
+  // ----------------------------------------------------------
+
+  const raceProgression =
+    normalizeRaceProgressionState(
+      data["raceProgression"],
+      races
+    );
+
+  // ----------------------------------------------------------
+  // Keep legacy counters synchronized
+  // ----------------------------------------------------------
+
+  const finalUnlockedLevel =
+    Math.max(
+      unlockedLevel,
+      raceProgression.unlockedLevel
+    );
+
+  const finalRacesCompleted =
+    Math.max(
+      racesCompleted,
+      raceProgression.racesCompleted
+    );
+
+  const finalRacesWon =
+    Math.max(
+      racesWon,
+      raceProgression.racesWon
+    );
+
+  const finalBossesDefeated =
+    Math.max(
+      Number.isFinite(
+        data["bossesDefeated"]
+      )
+        ? Math.max(
+            0,
+            Math.floor(
+              data["bossesDefeated"] as number
+            )
+          )
+        : 0,
+
+      raceProgression.bossesDefeated
+    );
+
+  const selectedRaceId =
+    typeof data["selectedRaceId"] ===
+      "string"
+      ? data["selectedRaceId"] as string
+      : raceProgression.selectedRaceId;
+
+  return {
+
+    unlockedLevel:
+      finalUnlockedLevel,
+
+    racesCompleted:
+      finalRacesCompleted,
+
+    racesWon:
+      finalRacesWon,
+
+    totalDistance,
+
+    selectedRaceId,
+
+    bossesDefeated:
+      finalBossesDefeated,
+
+    raceProgression: {
+
+      ...raceProgression,
+
+      unlockedLevel:
+        finalUnlockedLevel,
+
+      racesCompleted:
+        finalRacesCompleted,
+
+      racesWon:
+        finalRacesWon,
+
+      bossesDefeated:
+        finalBossesDefeated,
+
+      selectedRaceId:
+        selectedRaceId
+    }
   };
 }
 
@@ -225,26 +661,33 @@ export function clonePlayerSaveData(
 // ============================================================
 
 export function isValidPlayerSaveData(
-  data: unknown
+  data:
+    unknown
 ): data is PlayerSaveData {
 
   if (
     !data ||
-    typeof data !== "object"
+    typeof data !==
+      "object"
   ) {
     return false;
   }
 
   const save =
-    data as Partial<PlayerSaveData>;
+    data as Partial<
+      PlayerSaveData
+    >;
 
   // ----------------------------------------------------------
   // Version
   // ----------------------------------------------------------
 
   if (
-    typeof save.version !== "number" ||
-    !Number.isFinite(save.version) ||
+    typeof save.version !==
+      "number" ||
+    !Number.isFinite(
+      save.version
+    ) ||
     save.version < 1
   ) {
     return false;
@@ -256,34 +699,42 @@ export function isValidPlayerSaveData(
 
   if (
     !save.economy ||
-    typeof save.economy !== "object"
+    typeof save.economy !==
+      "object"
   ) {
     return false;
   }
 
   if (
     !save.economy.wallet ||
-    typeof save.economy.wallet !== "object"
+    typeof save.economy.wallet !==
+      "object"
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.economy.wallet.coin) ||
+    !Number.isFinite(
+      save.economy.wallet.coin
+    ) ||
     save.economy.wallet.coin < 0
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.economy.wallet.pi) ||
+    !Number.isFinite(
+      save.economy.wallet.pi
+    ) ||
     save.economy.wallet.pi < 0
   ) {
     return false;
   }
 
   if (
-    !Array.isArray(save.economy.transactions)
+    !Array.isArray(
+      save.economy.transactions
+    )
   ) {
     return false;
   }
@@ -294,19 +745,23 @@ export function isValidPlayerSaveData(
 
   if (
     !save.garage ||
-    typeof save.garage !== "object"
+    typeof save.garage !==
+      "object"
   ) {
     return false;
   }
 
   if (
-    !Array.isArray(save.garage.ownedCars)
+    !Array.isArray(
+      save.garage.ownedCars
+    )
   ) {
     return false;
   }
 
   if (
-    typeof save.garage.selectedCar !== "string"
+    typeof save.garage.selectedCar !==
+      "string"
   ) {
     return false;
   }
@@ -317,14 +772,16 @@ export function isValidPlayerSaveData(
 
   if (
     !save.upgrades ||
-    typeof save.upgrades !== "object"
+    typeof save.upgrades !==
+      "object"
   ) {
     return false;
   }
 
   if (
     !save.upgrades.upgrades ||
-    typeof save.upgrades.upgrades !== "object"
+    typeof save.upgrades.upgrades !==
+      "object"
   ) {
     return false;
   }
@@ -335,37 +792,214 @@ export function isValidPlayerSaveData(
 
   if (
     !save.progress ||
-    typeof save.progress !== "object"
+    typeof save.progress !==
+      "object"
+  ) {
+    return false;
+  }
+
+  const progress =
+    save.progress;
+
+  if (
+    !Number.isFinite(
+      progress.unlockedLevel
+    ) ||
+    progress.unlockedLevel < 1
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.progress.unlockedLevel) ||
-    save.progress.unlockedLevel < 1
+    !Number.isFinite(
+      progress.racesCompleted
+    ) ||
+    progress.racesCompleted < 0
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.progress.racesCompleted) ||
-    save.progress.racesCompleted < 0
+    !Number.isFinite(
+      progress.racesWon
+    ) ||
+    progress.racesWon < 0
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.progress.racesWon) ||
-    save.progress.racesWon < 0
+    !Number.isFinite(
+      progress.totalDistance
+    ) ||
+    progress.totalDistance < 0
   ) {
     return false;
   }
 
   if (
-    !Number.isFinite(save.progress.totalDistance) ||
-    save.progress.totalDistance < 0
+    typeof progress.selectedRaceId !==
+      "string"
   ) {
     return false;
+  }
+
+  if (
+    !Number.isFinite(
+      progress.bossesDefeated
+    ) ||
+    progress.bossesDefeated < 0
+  ) {
+    return false;
+  }
+
+  // ----------------------------------------------------------
+  // Race Progression
+  // ----------------------------------------------------------
+
+  if (
+    !progress.raceProgression ||
+    typeof progress.raceProgression !==
+      "object"
+  ) {
+    return false;
+  }
+
+  const progression =
+    progress.raceProgression;
+
+  if (
+    !Number.isFinite(
+      progression.version
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      progression.unlockedLevel
+    ) ||
+    progression.unlockedLevel < 1
+  ) {
+    return false;
+  }
+
+  if (
+    typeof progression.selectedRaceId !==
+      "string"
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      progression.racesCompleted
+    ) ||
+    progression.racesCompleted < 0
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      progression.racesWon
+    ) ||
+    progression.racesWon < 0
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      progression.bossesDefeated
+    ) ||
+    progression.bossesDefeated < 0
+  ) {
+    return false;
+  }
+
+  if (
+    !Array.isArray(
+      progression.races
+    )
+  ) {
+    return false;
+  }
+
+  for (
+    const race
+    of progression.races
+  ) {
+
+    if (
+      !race ||
+      typeof race !==
+        "object"
+    ) {
+      return false;
+    }
+
+    if (
+      typeof race.raceId !==
+        "string"
+    ) {
+      return false;
+    }
+
+    if (
+      race.status !==
+        "locked" &&
+      race.status !==
+        "available" &&
+      race.status !==
+        "completed"
+    ) {
+      return false;
+    }
+
+    if (
+      !Number.isFinite(
+        race.completionCount
+      ) ||
+      race.completionCount < 0
+    ) {
+      return false;
+    }
+
+    if (
+      !Number.isFinite(
+        race.winCount
+      ) ||
+      race.winCount < 0
+    ) {
+      return false;
+    }
+
+    if (
+      !Number.isFinite(
+        race.bestPosition
+      ) ||
+      race.bestPosition < 0
+    ) {
+      return false;
+    }
+
+    if (
+      !Number.isFinite(
+        race.bestTime
+      ) ||
+      race.bestTime < 0
+    ) {
+      return false;
+    }
+
+    if (
+      race.bossDefeated !== true &&
+      race.bossDefeated !== false
+    ) {
+      return false;
+    }
   }
 
   // ----------------------------------------------------------
@@ -373,8 +1007,11 @@ export function isValidPlayerSaveData(
   // ----------------------------------------------------------
 
   if (
-    typeof save.updatedAt !== "number" ||
-    !Number.isFinite(save.updatedAt) ||
+    typeof save.updatedAt !==
+      "number" ||
+    !Number.isFinite(
+      save.updatedAt
+    ) ||
     save.updatedAt <= 0
   ) {
     return false;
@@ -388,53 +1025,14 @@ export function isValidPlayerSaveData(
 // ============================================================
 
 export function sanitizePlayerProgress(
-  progress: PlayerProgress
+  progress:
+    PlayerProgress
 ): PlayerProgress {
 
-  if (
-    !progress ||
-    typeof progress !== "object"
-  ) {
-    return {
-      ...DEFAULT_PLAYER_PROGRESS
-    };
-  }
-
-  return {
-    unlockedLevel: Math.max(
-      1,
-      Math.floor(
-        Number.isFinite(progress.unlockedLevel)
-          ? progress.unlockedLevel
-          : 1
-      )
-    ),
-
-    racesCompleted: Math.max(
-      0,
-      Math.floor(
-        Number.isFinite(progress.racesCompleted)
-          ? progress.racesCompleted
-          : 0
-      )
-    ),
-
-    racesWon: Math.max(
-      0,
-      Math.floor(
-        Number.isFinite(progress.racesWon)
-          ? progress.racesWon
-          : 0
-      )
-    ),
-
-    totalDistance: Math.max(
-      0,
-      Number.isFinite(progress.totalDistance)
-        ? progress.totalDistance
-        : 0
-    )
-  };
+  return normalizePlayerProgress(
+    progress,
+    []
+  );
 }
 
 // ============================================================
@@ -442,11 +1040,16 @@ export function sanitizePlayerProgress(
 // ============================================================
 
 export function touchPlayerSaveData(
-  data: PlayerSaveData
+  data:
+    PlayerSaveData
 ): PlayerSaveData {
+
   return {
+
     ...data,
-    updatedAt: Date.now()
+
+    updatedAt:
+      Date.now()
   };
 }
 
@@ -455,10 +1058,17 @@ export function touchPlayerSaveData(
 // ============================================================
 
 export function isSupportedPlayerSaveVersion(
-  version: number
+  version:
+    number
 ): boolean {
+
   return (
-    Number.isFinite(version) &&
-    Math.floor(version) === PLAYER_SAVE_VERSION
+    Number.isFinite(
+      version
+    ) &&
+    Math.floor(
+      version
+    ) ===
+      PLAYER_SAVE_VERSION
   );
 }
