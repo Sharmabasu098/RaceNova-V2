@@ -41,11 +41,11 @@ import {
 
 import {
   BossManager
-} from "../boss/BossManager";
+} from "../bosses/BossManager";
 
 import {
   BossRace
-} from "../boss/BossRace";
+} from "../bosses/BossRace";
 
 export class RaceNovaEngine {
 
