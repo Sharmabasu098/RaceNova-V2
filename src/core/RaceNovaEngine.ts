@@ -712,30 +712,27 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
-    // M6.7.4 — Boss 3D Mesh
-    // =======================================================
+// M6.7.4 — Boss 3D Mesh
+// =======================================================
 
-    this.bossMesh =
-      this.createBossMesh();
+this.bossMesh =
+  this.createBossMesh();
 
-    this.bossMesh.visible =
-      false;
+this.bossMesh.visible =
+  false;
 
-    this.scene.add(
-      this.bossMesh
-    );
+this.scene.add(
+  this.bossMesh
+);
 
-    private createBossVerificationMarker():
-  THREE.Group {
+// =======================================================
+// Keyboard Nitro
+// =======================================================
 
-    // =======================================================
-    // Keyboard Nitro
-    // =======================================================
-
-    window.addEventListener(
-      "keydown",
-      this.handleNitroKeyDown
-    );
+window.addEventListener(
+  "keydown",
+  this.handleNitroKeyDown
+);
 
     // =======================================================
     // Resize
