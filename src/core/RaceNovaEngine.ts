@@ -179,9 +179,6 @@ export class RaceNovaEngine {
   private readonly bossMesh:
     THREE.Group;
 
-  private readonly bossVerificationMarker:
-  THREE.Group;
-
   /**
    * M6.7.4 verification flag.
    *
