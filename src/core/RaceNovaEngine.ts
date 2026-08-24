@@ -41,11 +41,11 @@ import {
 
 import {
   BossManager
-} from "../bosses/BossManager";
+} from "../boss/BossManager";
 
 import {
   BossRace
-} from "../bosses/BossRace";
+} from "../boss/BossRace";
 
 export class RaceNovaEngine {
 
@@ -602,7 +602,7 @@ export class RaceNovaEngine {
         }
       );
 
-        // =======================================================
+         // =======================================================
     // Swipe Controller
     // =======================================================
 
@@ -709,27 +709,27 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
-// M6.7.4 — Boss 3D Mesh
-// =======================================================
+    // M6.7.4 — Boss 3D Mesh
+    // =======================================================
 
-this.bossMesh =
-  this.createBossMesh();
+    this.bossMesh =
+      this.createBossMesh();
 
-this.bossMesh.visible =
-  false;
+    this.bossMesh.visible =
+      false;
 
-this.scene.add(
-  this.bossMesh
-);
+    this.scene.add(
+      this.bossMesh
+    );
 
-// =======================================================
-// Keyboard Nitro
-// =======================================================
+    // =======================================================
+    // Keyboard Nitro
+    // =======================================================
 
-window.addEventListener(
-  "keydown",
-  this.handleNitroKeyDown
-);
+    window.addEventListener(
+      "keydown",
+      this.handleNitroKeyDown
+    );
 
     // =======================================================
     // Resize
@@ -1055,12 +1055,6 @@ window.addEventListener(
     this.bossMesh.visible =
       true;
 
-    this.bossVerificationMarker.visible =
-  true;
-
-this.bossVerificationMarker.rotation.y +=
-  0.04;
-
     // -------------------------------------------------------
     // Boss faces forward on the road.
     // RaceNova forward direction is -Z.
@@ -1218,8 +1212,8 @@ this.bossVerificationMarker.rotation.y +=
 
     this.animate();
   }
-  
-   // =========================================================
+
+    // =========================================================
   // Animation
   // =========================================================
 
@@ -1818,7 +1812,7 @@ this.bossVerificationMarker.rotation.y +=
     return true;
   }
 
-      // =========================================================
+    // =========================================================
   // Load Persistent Player Data
   // =========================================================
 
@@ -2019,4 +2013,3 @@ this.bossVerificationMarker.rotation.y +=
     }
   }
 }
-      
