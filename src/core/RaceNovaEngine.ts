@@ -179,6 +179,9 @@ export class RaceNovaEngine {
   private readonly bossMesh:
     THREE.Group;
 
+  private readonly bossVerificationMarker:
+  THREE.Group;
+
   /**
    * M6.7.4 verification flag.
    *
@@ -722,6 +725,9 @@ export class RaceNovaEngine {
       this.bossMesh
     );
 
+    private createBossVerificationMarker():
+  THREE.Group {
+
     // =======================================================
     // Keyboard Nitro
     // =======================================================
@@ -1054,6 +1060,12 @@ export class RaceNovaEngine {
 
     this.bossMesh.visible =
       true;
+
+    this.bossVerificationMarker.visible =
+  true;
+
+this.bossVerificationMarker.rotation.y +=
+  0.04;
 
     // -------------------------------------------------------
     // Boss faces forward on the road.
