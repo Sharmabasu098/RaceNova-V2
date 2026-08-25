@@ -47,6 +47,12 @@ import {
   BossRace
 } from "../bosses/BossRace";
 
+import {
+  BossUnlockRules,
+  type BossUnlockProgress,
+  type BossUnlockConfig
+} from "../bosses/BossUnlockRules";
+
 export class RaceNovaEngine {
 
   // =========================================================
@@ -171,6 +177,26 @@ export class RaceNovaEngine {
 
   private readonly bossRace:
     BossRace;
+
+    // =========================================================
+  // M6.8.3 — Boss Unlock Rules
+  // =========================================================
+
+  private readonly bossUnlockConfig:
+    BossUnlockConfig = {
+
+      bossId:
+        "boss_race_01",
+
+      requiredLevel:
+        2,
+
+      requiredRacesCompleted:
+        3,
+
+      requiredRacesWon:
+        2
+    };
 
   // =========================================================
   // M6.7.4 — Boss 3D
@@ -1064,19 +1090,66 @@ export class RaceNovaEngine {
       Math.PI;
   }
 
+      // =========================================================
+  // M6.8.3 — Check Boss Unlock
   // =========================================================
-  // M6.7.4 — Start Boss Encounter
+
+  private isBossUnlocked(): boolean {
+
+    const progression =
+      this.playerProgress
+        .raceProgression;
+
+    const unlockProgress:
+      BossUnlockProgress = {
+
+      unlockedLevel:
+        this.playerProgress
+          .unlockedLevel,
+
+      racesCompleted:
+        this.playerProgress
+          .racesCompleted,
+
+      racesWon:
+        this.playerProgress
+          .racesWon,
+
+      bossesDefeated:
+        this.playerProgress
+          .bossesDefeated,
+
+      races:
+        progression.races
+    };
+
+    return BossUnlockRules.isUnlocked(
+      unlockProgress,
+      this.bossUnlockConfig
+    );
+  }
+
+    // =========================================================
+  // M6.8.3 — Start Boss Encounter
   // =========================================================
 
   private startBossEncounter(
     playerZ: number
   ): void {
 
+    // -------------------------------------------------------
+    // Already started
+    // -------------------------------------------------------
+
     if (
       this.bossEncounterStarted
     ) {
       return;
     }
+
+    // -------------------------------------------------------
+    // Invalid player position
+    // -------------------------------------------------------
 
     if (
       !Number.isFinite(
@@ -1086,11 +1159,38 @@ export class RaceNovaEngine {
       return;
     }
 
+    // -------------------------------------------------------
+    // Boss Unlock Check
+    // -------------------------------------------------------
+
+    if (
+      !this.isBossUnlocked()
+    ) {
+
+      /*
+       * Boss is still locked.
+       *
+       * IMPORTANT:
+       * Do not call BossRace.start().
+       * Do not spawn BossManager.
+       */
+
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Start Boss Race
+    // -------------------------------------------------------
+
     const result =
       this.bossRace.start(
-        "boss_race_01",
+        this.bossUnlockConfig.bossId,
         playerZ
       );
+
+    // -------------------------------------------------------
+    // Confirm Start
+    // -------------------------------------------------------
 
     if (
       result.success
