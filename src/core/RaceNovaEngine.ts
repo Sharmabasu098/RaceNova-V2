@@ -1814,6 +1814,72 @@ export class RaceNovaEngine {
     };
   }
 
+    // =========================================================
+  // M6.8.5 — Record Boss Defeat
+  // =========================================================
+
+  private recordBossDefeat(): void {
+
+    const raceId =
+      this.bossRace.getRaceId();
+
+    if (!raceId) {
+      return;
+    }
+
+    const progression =
+      this.playerProgress.raceProgression;
+
+    const race =
+      progression.races.find(
+        (entry) =>
+          entry.raceId === raceId
+      );
+
+    if (
+      !race ||
+      race.bossDefeated
+    ) {
+      return;
+    }
+
+    const updatedRaces =
+      progression.races.map(
+        (entry) =>
+          entry.raceId === raceId
+            ? {
+                ...entry,
+                bossDefeated: true
+              }
+            : {
+                ...entry
+              }
+      );
+
+    this.playerProgress = {
+
+      ...this.playerProgress,
+
+      bossesDefeated:
+        this.playerProgress
+          .bossesDefeated + 1,
+
+      raceProgression: {
+
+        ...progression,
+
+        bossesDefeated:
+          progression
+            .bossesDefeated + 1,
+
+        races:
+          updatedRaces
+      }
+    };
+
+    this.savePlayerData();
+  }
+
   // =========================================================
   // Save Player Data
   // =========================================================
