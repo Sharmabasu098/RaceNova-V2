@@ -719,20 +719,24 @@ export class RaceNovaEngine {
       });
 
     // =======================================================
-    // M6.7 — Boss Race
-    // =======================================================
+// M6.7 — Boss Race
+// M6.8.6 — Boss Race Finish Distance
+// =======================================================
 
-    this.bossRace =
-      new BossRace(
-        this.bossManager,
-        {
-          bossSpawnDistance: 80,
+this.bossRace =
+  new BossRace(
+    this.bossManager,
+    {
+      bossSpawnDistance: 80,
 
-          maxDuration: 0,
+      maxDuration: 0,
 
-          requiredDistance: 0
-        }
-      );
+      // Boss race virtual finish distance.
+      // Endless road continues; only the
+      // Boss encounter has a 1500m finish.
+      requiredDistance: 1500
+    }
+  );
 
     // =======================================================
     // M6.7.4 — Boss 3D Mesh
