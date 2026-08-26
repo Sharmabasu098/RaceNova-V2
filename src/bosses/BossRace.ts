@@ -5,34 +5,11 @@
  * M6.7.3
  * ============================================================
  *
- * Responsibilities:
- * - Control Boss race encounter state
- * - Start Boss race
- * - Track Boss race progress
- * - Detect Boss defeat
- * - Detect Boss race completion
- * - Handle Boss race failure
- * - Provide safe Boss race state
- *
- * IMPORTANT:
- * - No Three.js dependency
- * - No DOM dependency
- * - No localStorage dependency
- * - No SaveSystem dependency
- * - No Economy dependency
- * - No UI dependency
- *
- * M6.7.1:
- * BossAI
- *
- * M6.7.2:
- * BossManager
- *
- * M6.7.3:
- * Boss Race
- *
  * M6.8:
  * Boss Unlock + Boss Difficulty
+ *
+ * M6.8.6:
+ * Boss Race Finish Logic
  * ============================================================
  */
 
@@ -68,24 +45,14 @@ export type BossRaceResult =
 
 export interface BossRaceConfig {
 
-  /**
-   * Distance between player and Boss
-   * when the encounter starts.
-   */
   bossSpawnDistance?: number;
 
-  /**
-   * Maximum Boss race duration.
-   *
-   * 0 = unlimited.
-   */
   maxDuration?: number;
 
   /**
-   * Required progress/distance for
-   * completing the Boss encounter.
+   * Virtual Boss race finish distance.
    *
-   * 0 = no distance requirement.
+   * 0 = unlimited.
    */
   requiredDistance?: number;
 }
@@ -96,41 +63,18 @@ export interface BossRaceConfig {
 
 export interface BossRaceState {
 
-  /**
-   * Current Boss race status.
-   */
   status: BossRaceStatus;
 
-  /**
-   * Final result.
-   */
   result: BossRaceResult;
 
-  /**
-   * Boss race ID.
-   */
   raceId: string;
 
-  /**
-   * Elapsed race time.
-   */
   elapsedTime: number;
 
-  /**
-   * Distance travelled during
-   * Boss encounter.
-   */
   distance: number;
 
-  /**
-   * Whether Boss has been defeated.
-   */
   bossDefeated: boolean;
 
-  /**
-   * Whether player has completed
-   * the Boss encounter.
-   */
   playerCompleted: boolean;
 }
 
@@ -185,11 +129,8 @@ export class BossRace {
   // ==========================================================
 
   constructor(
-    bossManager:
-      BossManager,
-
-    config:
-      BossRaceConfig = {}
+    bossManager: BossManager,
+    config: BossRaceConfig = {}
   ) {
 
     this.bossManager =
@@ -254,12 +195,6 @@ export class BossRace {
   // Start Race
   // ==========================================================
 
-  /**
-   * Starts a Boss race.
-   *
-   * Boss is spawned relative to
-   * the player's current Z position.
-   */
   public start(
     raceId: string,
     playerZ: number
@@ -267,7 +202,7 @@ export class BossRace {
 
     if (
       this.state.status ===
-        "active"
+      "active"
     ) {
 
       return {
@@ -323,6 +258,7 @@ export class BossRace {
     if (
       !spawnResult.success
     ) {
+
       return spawnResult;
     }
 
@@ -339,138 +275,121 @@ export class BossRace {
   }
 
   // ==========================================================
-// Update
-// ==========================================================
+  // Update
+  // ==========================================================
 
-/**
- * Updates the active Boss race.
- *
- * playerX / playerZ:
- * current player position.
- *
- * playerSpeed:
- * current player speed in km/h.
- */
-public update(
-  deltaTime: number,
-  playerX: number,
-  playerZ: number,
-  playerSpeed: number = 0
-): void {
-
-  if (
-    this.state.status !==
-      "active"
-  ) {
-    return;
-  }
-
-  if (
-    !Number.isFinite(
-      deltaTime
-    ) ||
-    deltaTime <= 0
-  ) {
-    return;
-  }
-
-  // --------------------------------------------------------
-  // Update Timer
-  // --------------------------------------------------------
-
-  this.state.elapsedTime +=
-    deltaTime;
-
-  // --------------------------------------------------------
-  // Update Distance
-  // --------------------------------------------------------
-
-  if (
-    Number.isFinite(
-      playerSpeed
-    ) &&
-    playerSpeed > 0
-  ) {
-
-    this.state.distance +=
-      (playerSpeed / 3.6) *
-      deltaTime;
-  }
-
-  // --------------------------------------------------------
-  // Update Boss AI
-  // --------------------------------------------------------
-
-  this.bossManager.update(
-    deltaTime,
-    playerX,
-    playerZ
-  );
-
-  // --------------------------------------------------------
-  // Duration Failure
-  // --------------------------------------------------------
-
-  if (
-    this.maxDuration > 0 &&
-    this.state.elapsedTime >=
-      this.maxDuration
-  ) {
-
-    this.fail();
-
-    return;
-  }
-
-  // --------------------------------------------------------
-  // M6.8.6 — Boss Race Virtual Finish
-  // --------------------------------------------------------
-  // Endless road continues indefinitely.
-  // Boss encounter has its own virtual finish.
-  //
-  // Boss must be defeated before the
-  // 1500m Boss race can be completed.
-  // --------------------------------------------------------
-
-  if (
-    this.requiredDistance > 0 &&
-    this.state.distance >=
-      this.requiredDistance
-  ) {
+  public update(
+    deltaTime: number,
+    playerX: number,
+    playerZ: number,
+    playerSpeed: number = 0
+  ): void {
 
     if (
-      this.state.bossDefeated
+      this.state.status !==
+      "active"
     ) {
-
-      this.complete();
-
-    } else {
-
-      this.bossWins();
+      return;
     }
 
-    return;
+    if (
+      !Number.isFinite(
+        deltaTime
+      ) ||
+      deltaTime <= 0
+    ) {
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Timer
+    // --------------------------------------------------------
+
+    this.state.elapsedTime +=
+      deltaTime;
+
+    // --------------------------------------------------------
+    // Player Distance
+    // --------------------------------------------------------
+
+    if (
+      Number.isFinite(
+        playerSpeed
+      ) &&
+      playerSpeed > 0
+    ) {
+
+      this.state.distance +=
+        (playerSpeed / 3.6) *
+        deltaTime;
+    }
+
+    // --------------------------------------------------------
+    // Boss AI
+    // --------------------------------------------------------
+
+    this.bossManager.update(
+      deltaTime,
+      playerX,
+      playerZ
+    );
+
+    // --------------------------------------------------------
+    // Maximum Duration
+    // --------------------------------------------------------
+
+    if (
+      this.maxDuration > 0 &&
+      this.state.elapsedTime >=
+      this.maxDuration
+    ) {
+
+      this.fail();
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // M6.8.6 — Virtual Boss Finish
+    // --------------------------------------------------------
+    //
+    // Endless road continues forever.
+    // Boss encounter itself has a finite distance.
+    //
+    // Boss must be defeated before the
+    // virtual finish can produce a player win.
+    // --------------------------------------------------------
+
+    if (
+      this.requiredDistance > 0 &&
+      this.state.distance >=
+      this.requiredDistance
+    ) {
+
+      if (
+        this.state.bossDefeated
+      ) {
+
+        this.complete();
+
+      } else {
+
+        this.bossWins();
+      }
+
+      return;
+    }
   }
-}
 
   // ==========================================================
   // Defeat Boss
   // ==========================================================
 
-  /**
-   * Marks the Boss as defeated.
-   *
-   * This does not directly modify
-   * RaceProgressionState.
-   *
-   * M6.8/M6.9 will connect progression
-   * and persistence.
-   */
   public defeatBoss(): boolean {
 
     if (
       this.state.status !==
-        "active"
+      "active"
     ) {
       return false;
     }
@@ -493,9 +412,6 @@ public update(
   // Complete
   // ==========================================================
 
-  /**
-   * Completes the Boss race.
-   */
   public complete(): boolean {
 
     if (
@@ -504,6 +420,7 @@ public update(
       this.state.status !==
         "boss_defeated"
     ) {
+
       return false;
     }
 
@@ -513,18 +430,8 @@ public update(
     this.state.status =
       "completed";
 
-    if (
-      this.state.bossDefeated
-    ) {
-
-      this.state.result =
-        "player_won";
-
-    } else {
-
-      this.state.result =
-        "player_won";
-    }
+    this.state.result =
+      "player_won";
 
     this.bossManager.despawn();
 
@@ -535,14 +442,11 @@ public update(
   // Fail
   // ==========================================================
 
-  /**
-   * Fails the Boss race.
-   */
   public fail(): boolean {
 
     if (
       this.state.status !==
-        "active"
+      "active"
     ) {
       return false;
     }
@@ -562,15 +466,11 @@ public update(
   // Boss Wins
   // ==========================================================
 
-  /**
-   * Marks the Boss as having won
-   * the encounter.
-   */
   public bossWins(): boolean {
 
     if (
       this.state.status !==
-        "active"
+      "active"
     ) {
       return false;
     }
@@ -604,9 +504,7 @@ public update(
 
   public isBossDefeated(): boolean {
 
-    return (
-      this.state.bossDefeated
-    );
+    return this.state.bossDefeated;
   }
 
   // ==========================================================
