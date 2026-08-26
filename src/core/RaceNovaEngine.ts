@@ -1825,6 +1825,140 @@ if (
     };
   }
 
+  // =========================================================
+// M6.9 — Complete Race
+// =========================================================
+
+private completeRace(
+  raceId: string,
+  won: boolean,
+  position: number = 1,
+  time: number = 0
+): void {
+
+  const progression =
+    this.playerProgress.raceProgression;
+
+  const race =
+    progression.races.find(
+      (entry) =>
+        entry.raceId === raceId
+    );
+
+  if (!race) {
+    return;
+  }
+
+  // -------------------------------------------------------
+  // Race completion
+  // -------------------------------------------------------
+
+  race.completionCount += 1;
+
+  progression.racesCompleted += 1;
+
+  // -------------------------------------------------------
+  // Race win
+  // -------------------------------------------------------
+
+  if (won) {
+
+    race.winCount += 1;
+
+    progression.racesWon += 1;
+  }
+
+  // -------------------------------------------------------
+  // Best position
+  // -------------------------------------------------------
+
+  if (
+    Number.isFinite(position) &&
+    position > 0 &&
+    (
+      race.bestPosition === 0 ||
+      position < race.bestPosition
+    )
+  ) {
+
+    race.bestPosition =
+      Math.floor(position);
+  }
+
+  // -------------------------------------------------------
+  // Best time
+  // -------------------------------------------------------
+
+  if (
+    Number.isFinite(time) &&
+    time > 0 &&
+    (
+      race.bestTime === 0 ||
+      time < race.bestTime
+    )
+  ) {
+
+    race.bestTime =
+      time;
+  }
+
+  // -------------------------------------------------------
+  // Mark completed
+  // -------------------------------------------------------
+
+  if (won) {
+    race.status =
+      "completed";
+  }
+
+  // -------------------------------------------------------
+  // Campaign level unlock
+  // -------------------------------------------------------
+
+  const nextRace =
+    progression.races.find(
+      (entry) =>
+        entry.status === "locked"
+    );
+
+  if (nextRace) {
+
+    nextRace.status =
+      "available";
+
+    progression.unlockedLevel =
+      Math.max(
+        progression.unlockedLevel,
+        1
+      );
+  }
+
+  // -------------------------------------------------------
+  // Legacy progress synchronization
+  // -------------------------------------------------------
+
+  this.playerProgress.unlockedLevel =
+    progression.unlockedLevel;
+
+  this.playerProgress.racesCompleted =
+    progression.racesCompleted;
+
+  this.playerProgress.racesWon =
+    progression.racesWon;
+
+  this.playerProgress.selectedRaceId =
+    progression.selectedRaceId;
+
+  this.playerProgress.bossesDefeated =
+    progression.bossesDefeated;
+
+  // -------------------------------------------------------
+  // Persist
+  // -------------------------------------------------------
+
+  this.savePlayerData();
+}
+
     // =========================================================
   // M6.8.5 — Record Boss Defeat
   // =========================================================
