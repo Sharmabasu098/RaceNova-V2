@@ -339,116 +339,118 @@ export class BossRace {
   }
 
   // ==========================================================
-  // Update
-  // ==========================================================
+// Update
+// ==========================================================
 
-  /**
-   * Updates the active Boss race.
-   *
-   * playerX / playerZ:
-   * current player position.
-   *
-   * playerSpeed:
-   * current player speed in km/h.
-   */
-  public update(
-    deltaTime: number,
-    playerX: number,
-    playerZ: number,
-    playerSpeed: number = 0
-  ): void {
-
-    if (
-      this.state.status !==
-        "active"
-    ) {
-      return;
-    }
-
-    if (
-      !Number.isFinite(
-        deltaTime
-      ) ||
-      deltaTime <= 0
-    ) {
-      return;
-    }
-
-    // --------------------------------------------------------
-    // Update Timer
-    // --------------------------------------------------------
-
-    this.state.elapsedTime +=
-      deltaTime;
-
-    // --------------------------------------------------------
-    // Update Distance
-    // --------------------------------------------------------
-
-    if (
-      Number.isFinite(
-        playerSpeed
-      ) &&
-      playerSpeed > 0
-    ) {
-
-      this.state.distance +=
-        (playerSpeed / 3.6) *
-        deltaTime;
-    }
-
-    // --------------------------------------------------------
-    // Update Boss AI
-    // --------------------------------------------------------
-
-    this.bossManager.update(
-      deltaTime,
-      playerX,
-      playerZ
-    );
-
-    // --------------------------------------------------------
-    // Duration Failure
-    // --------------------------------------------------------
-
-    if (
-      this.maxDuration > 0 &&
-      this.state.elapsedTime >=
-        this.maxDuration
-    ) {
-
-      this.fail();
-
-      return;
-    }
-
-    // --------------------------------------------------------
-// M6.8.6 — Boss Race Virtual Finish
-// --------------------------------------------------------
-// Endless road continues.
-// Boss encounter has its own 1500m finish.
-//
-// Boss must be defeated before the
-// virtual finish can be completed.
-
-if (
-  this.requiredDistance > 0 &&
-  this.state.distance >=
-    this.requiredDistance
-) {
+/**
+ * Updates the active Boss race.
+ *
+ * playerX / playerZ:
+ * current player position.
+ *
+ * playerSpeed:
+ * current player speed in km/h.
+ */
+public update(
+  deltaTime: number,
+  playerX: number,
+  playerZ: number,
+  playerSpeed: number = 0
+): void {
 
   if (
-    this.state.bossDefeated
+    this.state.status !==
+      "active"
   ) {
-
-    this.complete();
-
-  } else {
-
-    this.bossWins();
+    return;
   }
 
-  return;
+  if (
+    !Number.isFinite(
+      deltaTime
+    ) ||
+    deltaTime <= 0
+  ) {
+    return;
+  }
+
+  // --------------------------------------------------------
+  // Update Timer
+  // --------------------------------------------------------
+
+  this.state.elapsedTime +=
+    deltaTime;
+
+  // --------------------------------------------------------
+  // Update Distance
+  // --------------------------------------------------------
+
+  if (
+    Number.isFinite(
+      playerSpeed
+    ) &&
+    playerSpeed > 0
+  ) {
+
+    this.state.distance +=
+      (playerSpeed / 3.6) *
+      deltaTime;
+  }
+
+  // --------------------------------------------------------
+  // Update Boss AI
+  // --------------------------------------------------------
+
+  this.bossManager.update(
+    deltaTime,
+    playerX,
+    playerZ
+  );
+
+  // --------------------------------------------------------
+  // Duration Failure
+  // --------------------------------------------------------
+
+  if (
+    this.maxDuration > 0 &&
+    this.state.elapsedTime >=
+      this.maxDuration
+  ) {
+
+    this.fail();
+
+    return;
+  }
+
+  // --------------------------------------------------------
+  // M6.8.6 — Boss Race Virtual Finish
+  // --------------------------------------------------------
+  // Endless road continues indefinitely.
+  // Boss encounter has its own virtual finish.
+  //
+  // Boss must be defeated before the
+  // 1500m Boss race can be completed.
+  // --------------------------------------------------------
+
+  if (
+    this.requiredDistance > 0 &&
+    this.state.distance >=
+      this.requiredDistance
+  ) {
+
+    if (
+      this.state.bossDefeated
+    ) {
+
+      this.complete();
+
+    } else {
+
+      this.bossWins();
+    }
+
+    return;
+  }
 }
 
   // ==========================================================
