@@ -423,20 +423,33 @@ export class BossRace {
     }
 
     // --------------------------------------------------------
-    // Required Distance
-    // --------------------------------------------------------
+// M6.8.6 — Boss Race Virtual Finish
+// --------------------------------------------------------
+// Endless road continues.
+// Boss encounter has its own 1500m finish.
+//
+// Boss must be defeated before the
+// virtual finish can be completed.
 
-    if (
-      this.requiredDistance > 0 &&
-      this.state.distance >=
-        this.requiredDistance
-    ) {
+if (
+  this.requiredDistance > 0 &&
+  this.state.distance >=
+    this.requiredDistance
+) {
 
-      this.complete();
+  if (
+    this.state.bossDefeated
+  ) {
 
-      return;
-    }
+    this.complete();
+
+  } else {
+
+    this.bossWins();
   }
+
+  return;
+}
 
   // ==========================================================
   // Defeat Boss
