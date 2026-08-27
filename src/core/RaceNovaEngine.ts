@@ -1854,9 +1854,10 @@ if (
     };
   }
 
-  // =========================================================
-// M6.9 — Complete Race
-// =========================================================
+    // -------------------------------------------------------
+// Race completion
+// M6.8.7 — Race Completion → Progression
+// -------------------------------------------------------
 
 private completeRace(
   raceId: string,
@@ -1936,12 +1937,13 @@ private completeRace(
   // -------------------------------------------------------
 
   if (won) {
+
     race.status =
       "completed";
   }
 
   // -------------------------------------------------------
-  // Campaign level unlock
+  // Campaign progression
   // -------------------------------------------------------
 
   const nextRace =
@@ -1954,6 +1956,34 @@ private completeRace(
 
     nextRace.status =
       "available";
+  }
+
+  // -------------------------------------------------------
+  // M6.8.7 — Level 2 Progression
+  // -------------------------------------------------------
+  //
+  // Level 2 requirements:
+  //
+  // 3 completed races
+  // 2 won races
+  //
+  // These are also the current Boss
+  // unlock requirements.
+  // -------------------------------------------------------
+
+  const levelTwoUnlocked =
+    progression.racesCompleted >= 3 &&
+    progression.racesWon >= 2;
+
+  if (levelTwoUnlocked) {
+
+    progression.unlockedLevel =
+      Math.max(
+        progression.unlockedLevel,
+        2
+      );
+
+  } else {
 
     progression.unlockedLevel =
       Math.max(
@@ -1982,11 +2012,18 @@ private completeRace(
     progression.bossesDefeated;
 
   // -------------------------------------------------------
-  // Persist
+  // Persist progression
   // -------------------------------------------------------
 
   this.savePlayerData();
+
+  // -------------------------------------------------------
+  // Refresh HUD
+  // -------------------------------------------------------
+
+  this.raceHUD.update();
 }
+  
 
     // =========================================================
   // M6.8.5 — Record Boss Defeat
