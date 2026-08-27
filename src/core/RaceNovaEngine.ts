@@ -487,17 +487,42 @@ export class RaceNovaEngine {
     // =======================================================
 
     this.raceHUD =
-      new RaceHUD(
-        this.playerCar,
-        () => {
-          this.activateNitro();
-        },
-        this.economyManager,
-        () => {
-          this.openGarage();
-        }
-      );
+  new RaceHUD(
+    this.playerCar,
+    () => {
+      this.activateNitro();
+    },
+    this.economyManager,
+    () => {
+      this.openGarage();
+    },
+    () => {
 
+      return {
+        level:
+          this.playerProgress
+            .unlockedLevel,
+
+        racesCompleted:
+          this.playerProgress
+            .racesCompleted,
+
+        racesRequired:
+          3,
+
+        racesWon:
+          this.playerProgress
+            .racesWon,
+
+        winsRequired:
+          2,
+
+        bossUnlocked:
+          this.isBossUnlocked()
+      };
+    }
+  );
+    
     // =======================================================
     // Garage UI
     // =======================================================
