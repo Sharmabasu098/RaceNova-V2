@@ -10,6 +10,41 @@
  *
  * M6.8.6:
  * Boss Race Finish Logic
+ *
+ * M6.9:
+ * Boss Direction + Overtake Fix
+ * ============================================================
+ *
+ * IMPORTANT:
+ *
+ * RaceNova forward direction = -Z
+ *
+ * Player:
+ *   z -= speed
+ *
+ * Boss:
+ *   z -= speed
+ *
+ * Therefore both vehicles travel in the
+ * same forward direction.
+ *
+ * Boss Race flow:
+ *
+ *   Boss spawns ahead
+ *          ↓
+ *   Player chases Boss
+ *          ↓
+ *   Player overtakes Boss
+ *          ↓
+ *   Boss defeated
+ *          ↓
+ *   Boss despawns
+ *          ↓
+ *   Race continues
+ *          ↓
+ *   1500m reached
+ *          ↓
+ *   Boss Race completed
  * ============================================================
  */
 
@@ -45,8 +80,20 @@ export type BossRaceResult =
 
 export interface BossRaceConfig {
 
+  /**
+   * Boss spawn distance.
+   *
+   * Kept for configuration compatibility.
+   *
+   * Actual spawning is handled by BossManager.
+   */
   bossSpawnDistance?: number;
 
+  /**
+   * Maximum Boss race duration.
+   *
+   * 0 = unlimited.
+   */
   maxDuration?: number;
 
   /**
@@ -55,6 +102,19 @@ export interface BossRaceConfig {
    * 0 = unlimited.
    */
   requiredDistance?: number;
+
+  /**
+   * Distance by which Player must pass
+   * the Boss before the Boss is considered
+   * defeated.
+   *
+   * RaceNova uses -Z as forward direction.
+   *
+   * Player is ahead when:
+   *
+   *   playerZ < bossZ
+   */
+  bossOvertakeDistance?: number;
 }
 
 // ============================================================
@@ -63,19 +123,26 @@ export interface BossRaceConfig {
 
 export interface BossRaceState {
 
-  status: BossRaceStatus;
+  status:
+    BossRaceStatus;
 
-  result: BossRaceResult;
+  result:
+    BossRaceResult;
 
-  raceId: string;
+  raceId:
+    string;
 
-  elapsedTime: number;
+  elapsedTime:
+    number;
 
-  distance: number;
+  distance:
+    number;
 
-  bossDefeated: boolean;
+  bossDefeated:
+    boolean;
 
-  playerCompleted: boolean;
+  playerCompleted:
+    boolean;
 }
 
 // ============================================================
@@ -89,7 +156,17 @@ const DEFAULT_MAX_DURATION =
   0;
 
 const DEFAULT_REQUIRED_DISTANCE =
-  0;
+  1500;
+
+/**
+ * How far ahead Player must be from
+ * Boss before Boss is considered passed.
+ *
+ * This prevents accidental defeat while
+ * the cars are visually overlapping.
+ */
+const DEFAULT_BOSS_OVERTAKE_DISTANCE =
+  5;
 
 // ============================================================
 // Boss Race
@@ -108,6 +185,12 @@ export class BossRace {
   // Configuration
   // ==========================================================
 
+  /**
+   * Stored for compatibility/documentation.
+   *
+   * Actual spawn position is controlled
+   * by BossManager.
+   */
   private readonly bossSpawnDistance:
     number;
 
@@ -115,6 +198,9 @@ export class BossRace {
     number;
 
   private readonly requiredDistance:
+    number;
+
+  private readonly bossOvertakeDistance:
     number;
 
   // ==========================================================
@@ -142,7 +228,7 @@ export class BossRace {
         Number.isFinite(
           config.bossSpawnDistance
         )
-          ? config.bossSpawnDistance as number
+          ? config.bossSpawnDistance!
           : DEFAULT_BOSS_SPAWN_DISTANCE
       );
 
@@ -152,7 +238,7 @@ export class BossRace {
         Number.isFinite(
           config.maxDuration
         )
-          ? config.maxDuration as number
+          ? config.maxDuration!
           : DEFAULT_MAX_DURATION
       );
 
@@ -162,9 +248,25 @@ export class BossRace {
         Number.isFinite(
           config.requiredDistance
         )
-          ? config.requiredDistance as number
+          ? config.requiredDistance!
           : DEFAULT_REQUIRED_DISTANCE
       );
+
+    this.bossOvertakeDistance =
+      Math.max(
+        0.5,
+        Number.isFinite(
+          config.bossOvertakeDistance
+        )
+          ? config.bossOvertakeDistance!
+          : DEFAULT_BOSS_OVERTAKE_DISTANCE
+      );
+
+    /*
+     * Prevent unused private configuration
+     * warnings in strict TypeScript projects.
+     */
+    void this.bossSpawnDistance;
 
     this.state = {
 
@@ -200,6 +302,10 @@ export class BossRace {
     playerZ: number
   ): BossSpawnResult {
 
+    // --------------------------------------------------------
+    // Already active
+    // --------------------------------------------------------
+
     if (
       this.state.status ===
       "active"
@@ -222,6 +328,10 @@ export class BossRace {
           "already_active"
       };
     }
+
+    // --------------------------------------------------------
+    // Invalid player position
+    // --------------------------------------------------------
 
     if (
       !Number.isFinite(
@@ -247,7 +357,15 @@ export class BossRace {
       };
     }
 
+    // --------------------------------------------------------
+    // Reset race state
+    // --------------------------------------------------------
+
     this.resetState();
+
+    // --------------------------------------------------------
+    // Spawn Boss
+    // --------------------------------------------------------
 
     const spawnResult =
       this.bossManager.spawn(
@@ -261,6 +379,10 @@ export class BossRace {
 
       return spawnResult;
     }
+
+    // --------------------------------------------------------
+    // Activate race
+    // --------------------------------------------------------
 
     this.state.status =
       "active";
@@ -285,18 +407,44 @@ export class BossRace {
     playerSpeed: number = 0
   ): void {
 
+    /*
+     * IMPORTANT:
+     *
+     * Boss race remains active AFTER Boss defeat.
+     *
+     * That is required because the player still
+     * has to reach the 1500m virtual finish.
+     */
     if (
       this.state.status !==
-      "active"
+        "active" &&
+      this.state.status !==
+        "boss_defeated"
     ) {
       return;
     }
+
+    // --------------------------------------------------------
+    // Validate delta time
+    // --------------------------------------------------------
 
     if (
       !Number.isFinite(
         deltaTime
       ) ||
       deltaTime <= 0
+    ) {
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Validate player position
+    // --------------------------------------------------------
+
+    if (
+      !Number.isFinite(
+        playerZ
+      )
     ) {
       return;
     }
@@ -327,12 +475,95 @@ export class BossRace {
     // --------------------------------------------------------
     // Boss AI
     // --------------------------------------------------------
+    //
+    // Only update Boss while Boss is still active.
+    //
+    // Once Boss is defeated, BossManager has
+    // already despawned it.
+    // --------------------------------------------------------
 
-    this.bossManager.update(
-      deltaTime,
-      playerX,
-      playerZ
-    );
+    if (
+      this.state.status ===
+      "active"
+    ) {
+
+      this.bossManager.update(
+        deltaTime,
+        playerX,
+        playerZ
+      );
+    }
+
+    // --------------------------------------------------------
+    // Boss Overtake Detection
+    // --------------------------------------------------------
+    //
+    // RaceNova forward direction is -Z.
+    //
+    // Example:
+    //
+    // Boss:
+    //   z = -100
+    //
+    // Player:
+    //   z = -90
+    //
+    // Boss is still ahead.
+    //
+    // Later:
+    //
+    // Boss:
+    //   z = -150
+    //
+    // Player:
+    //   z = -160
+    //
+    // Player is now ahead.
+    //
+    // Therefore:
+    //
+    //   playerZ < bossZ
+    //
+    // means Player has passed Boss.
+    // --------------------------------------------------------
+
+    if (
+      this.state.status ===
+      "active" &&
+      this.bossManager.isActive()
+    ) {
+
+      const bossPosition =
+        this.bossManager
+          .getPosition();
+
+      if (
+        bossPosition
+      ) {
+
+        const playerAheadOfBoss =
+          playerZ <
+          (
+            bossPosition.z -
+            this.bossOvertakeDistance
+          );
+
+        if (
+          playerAheadOfBoss
+        ) {
+
+          this.defeatBoss();
+
+          /*
+           * Do NOT return here.
+           *
+           * The Boss is defeated, but the
+           * Boss Race must continue toward
+           * the 1500m virtual finish.
+           */
+        }
+      }
+    }
 
     // --------------------------------------------------------
     // Maximum Duration
@@ -350,14 +581,17 @@ export class BossRace {
     }
 
     // --------------------------------------------------------
-    // M6.8.6 — Virtual Boss Finish
+    // Virtual Boss Finish
     // --------------------------------------------------------
     //
-    // Endless road continues forever.
-    // Boss encounter itself has a finite distance.
+    // Boss race has a finite distance even
+    // though the road itself is endless.
     //
-    // Boss must be defeated before the
-    // virtual finish can produce a player win.
+    // Required distance:
+    //
+    //   1500m
+    //
+    // Player must defeat Boss first.
     // --------------------------------------------------------
 
     if (
@@ -387,12 +621,20 @@ export class BossRace {
 
   public defeatBoss(): boolean {
 
+    /*
+     * Boss can only be defeated while
+     * the encounter itself is active.
+     */
     if (
       this.state.status !==
       "active"
     ) {
       return false;
     }
+
+    // --------------------------------------------------------
+    // Mark Boss defeated
+    // --------------------------------------------------------
 
     this.state.bossDefeated =
       true;
@@ -403,17 +645,28 @@ export class BossRace {
     this.state.result =
       "player_won";
 
+    // --------------------------------------------------------
+    // Remove Boss from world logic
+    // --------------------------------------------------------
+
     this.bossManager.despawn();
 
     return true;
   }
 
   // ==========================================================
-  // Complete
+  // Complete Boss Race
   // ==========================================================
 
   public complete(): boolean {
 
+    /*
+     * Completion is allowed:
+     *
+     * active
+     * OR
+     * boss_defeated
+     */
     if (
       this.state.status !==
         "active" &&
@@ -424,6 +677,20 @@ export class BossRace {
       return false;
     }
 
+    // --------------------------------------------------------
+    // Boss must have been defeated
+    // --------------------------------------------------------
+
+    if (
+      !this.state.bossDefeated
+    ) {
+      return false;
+    }
+
+    // --------------------------------------------------------
+    // Mark Player completed
+    // --------------------------------------------------------
+
     this.state.playerCompleted =
       true;
 
@@ -432,6 +699,10 @@ export class BossRace {
 
     this.state.result =
       "player_won";
+
+    // --------------------------------------------------------
+    // Safety despawn
+    // --------------------------------------------------------
 
     this.bossManager.despawn();
 
@@ -446,11 +717,20 @@ export class BossRace {
 
     if (
       this.state.status !==
-      "active"
+        "active" &&
+      this.state.status !==
+        "boss_defeated"
     ) {
+
       return false;
     }
 
+    /*
+     * If Boss was already defeated,
+     * a generic failure should not erase
+     * the Boss victory state unless the
+     * race is actually configured to fail.
+     */
     this.state.status =
       "failed";
 
@@ -475,6 +755,10 @@ export class BossRace {
       return false;
     }
 
+    /*
+     * Boss reached the virtual finish
+     * before Player defeated it.
+     */
     this.state.status =
       "failed";
 
@@ -492,9 +776,18 @@ export class BossRace {
 
   public isActive(): boolean {
 
+    /*
+     * IMPORTANT:
+     *
+     * boss_defeated is still considered
+     * an active Boss Race encounter because
+     * Player must continue toward 1500m.
+     */
     return (
       this.state.status ===
-      "active"
+        "active" ||
+      this.state.status ===
+        "boss_defeated"
     );
   }
 
@@ -576,6 +869,24 @@ export class BossRace {
   public getDistance(): number {
 
     return this.state.distance;
+  }
+
+  // ==========================================================
+  // Get Required Distance
+  // ==========================================================
+
+  public getRequiredDistance(): number {
+
+    return this.requiredDistance;
+  }
+
+  // ==========================================================
+  // Get Boss Overtake Distance
+  // ==========================================================
+
+  public getBossOvertakeDistance(): number {
+
+    return this.bossOvertakeDistance;
   }
 
   // ==========================================================
@@ -675,6 +986,21 @@ export class BossRace {
 
     this.state.result =
       "none";
+
+    this.state.raceId =
+      "";
+
+    this.state.elapsedTime =
+      0;
+
+    this.state.distance =
+      0;
+
+    this.state.bossDefeated =
+      false;
+
+    this.state.playerCompleted =
+      false;
 
     this.bossManager.dispose();
   }
