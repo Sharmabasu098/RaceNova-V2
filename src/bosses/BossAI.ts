@@ -5,13 +5,14 @@
  * M6.7.1
  * ============================================================
  *
- * Responsibilities:
- * - Boss lane movement
- * - Target lane selection
- * - Lane switching
- * - Player awareness
- * - Basic boss pursuit behaviour
- * - Safe movement interpolation
+ * FIXED M6.9:
+ *
+ * - Boss uses RaceNova forward direction (-Z)
+ * - Boss no longer moves from front to back
+ * - Player/Boss share the same world direction
+ * - Safe lane movement
+ * - Player pursuit
+ * - Stable speed control
  *
  * IMPORTANT:
  * - No Three.js dependency
@@ -21,11 +22,16 @@
  * - No Economy dependency
  * - No race progression dependency
  *
- * M6.7:
- * Boss Race System
+ * RaceNova world direction:
  *
- * M6.7.1:
- * Boss Movement / Lane AI
+ *        -Z
+ *         ↑
+ *         │
+ *       BOSS
+ *         │
+ *       PLAYER
+ *
+ * Both Player and Boss move toward -Z.
  * ============================================================
  */
 
@@ -39,6 +45,10 @@ export interface BossAIConfig {
    * Number of available road lanes.
    *
    * RaceNova uses 3 lanes.
+   *
+   * 0 = left
+   * 1 = center
+   * 2 = right
    */
   laneCount?: number;
 
@@ -48,7 +58,7 @@ export interface BossAIConfig {
   laneWidth?: number;
 
   /**
-   * How quickly Boss changes lane.
+   * Lateral lane-change speed.
    */
   laneChangeSpeed?: number;
 
@@ -59,24 +69,24 @@ export interface BossAIConfig {
   laneChangeCooldown?: number;
 
   /**
-   * Distance at which Boss starts
-   * reacting to the player.
+   * Distance at which Boss notices
+   * the player.
    */
   playerAwarenessDistance?: number;
 
   /**
-   * Distance considered close enough
-   * for aggressive pursuit.
+   * Distance at which Boss starts
+   * aggressive lane pursuit.
    */
   pursuitDistance?: number;
 
   /**
-   * Boss forward speed.
+   * Maximum Boss speed in km/h.
    */
   maxSpeed?: number;
 
   /**
-   * Acceleration toward max speed.
+   * Boss acceleration in km/h/s.
    */
   acceleration?: number;
 }
@@ -93,7 +103,7 @@ export interface BossAIState {
   currentLane: number;
 
   /**
-   * Target lane.
+   * Desired lane.
    */
   targetLane: number;
 
@@ -103,18 +113,20 @@ export interface BossAIState {
   x: number;
 
   /**
-   * Forward Z position.
+   * Current world Z position.
+   *
+   * RaceNova forward direction = -Z.
    */
   z: number;
 
   /**
-   * Current forward speed.
+   * Current speed in km/h.
    */
   speed: number;
 
   /**
-   * Whether Boss is actively pursuing
-   * the player.
+   * Whether Boss currently sees
+   * and is reacting to the player.
    */
   pursuing: boolean;
 
@@ -125,7 +137,7 @@ export interface BossAIState {
 }
 
 // ============================================================
-// Default Configuration
+// Defaults
 // ============================================================
 
 const DEFAULT_LANE_COUNT =
@@ -207,58 +219,82 @@ export class BossAI {
       Math.max(
         1,
         Math.floor(
-          config.laneCount ??
-          DEFAULT_LANE_COUNT
+          Number.isFinite(
+            config.laneCount
+          )
+            ? config.laneCount!
+            : DEFAULT_LANE_COUNT
         )
       );
 
     this.laneWidth =
       Math.max(
         0.1,
-        config.laneWidth ??
-        DEFAULT_LANE_WIDTH
+        Number.isFinite(
+          config.laneWidth
+        )
+          ? config.laneWidth!
+          : DEFAULT_LANE_WIDTH
       );
 
     this.laneChangeSpeed =
       Math.max(
         0.1,
-        config.laneChangeSpeed ??
-        DEFAULT_LANE_CHANGE_SPEED
+        Number.isFinite(
+          config.laneChangeSpeed
+        )
+          ? config.laneChangeSpeed!
+          : DEFAULT_LANE_CHANGE_SPEED
       );
 
     this.laneChangeCooldownDuration =
       Math.max(
         0,
-        config.laneChangeCooldown ??
-        DEFAULT_LANE_CHANGE_COOLDOWN
+        Number.isFinite(
+          config.laneChangeCooldown
+        )
+          ? config.laneChangeCooldown!
+          : DEFAULT_LANE_CHANGE_COOLDOWN
       );
 
     this.playerAwarenessDistance =
       Math.max(
         0,
-        config.playerAwarenessDistance ??
-        DEFAULT_PLAYER_AWARENESS_DISTANCE
+        Number.isFinite(
+          config.playerAwarenessDistance
+        )
+          ? config.playerAwarenessDistance!
+          : DEFAULT_PLAYER_AWARENESS_DISTANCE
       );
 
     this.pursuitDistance =
       Math.max(
         0,
-        config.pursuitDistance ??
-        DEFAULT_PURSUIT_DISTANCE
+        Number.isFinite(
+          config.pursuitDistance
+        )
+          ? config.pursuitDistance!
+          : DEFAULT_PURSUIT_DISTANCE
       );
 
     this.maxSpeed =
       Math.max(
         0,
-        config.maxSpeed ??
-        DEFAULT_MAX_SPEED
+        Number.isFinite(
+          config.maxSpeed
+        )
+          ? config.maxSpeed!
+          : DEFAULT_MAX_SPEED
       );
 
     this.acceleration =
       Math.max(
         0,
-        config.acceleration ??
-        DEFAULT_ACCELERATION
+        Number.isFinite(
+          config.acceleration
+        )
+          ? config.acceleration!
+          : DEFAULT_ACCELERATION
       );
 
     const safeLane =
@@ -283,7 +319,7 @@ export class BossAI {
         Number.isFinite(
           initialZ
         )
-          ? initialZ
+          ? initialZ!
           : -80,
 
       speed:
@@ -301,12 +337,6 @@ export class BossAI {
   // Update
   // ==========================================================
 
-  /**
-   * Updates Boss AI.
-   *
-   * playerX / playerZ are optional so the AI
-   * can also run without a player reference.
-   */
   public update(
     deltaTime: number,
     playerX?: number,
@@ -323,7 +353,7 @@ export class BossAI {
     }
 
     // --------------------------------------------------------
-    // Cooldown
+    // Lane-change cooldown
     // --------------------------------------------------------
 
     this.state.laneChangeCooldown =
@@ -334,7 +364,7 @@ export class BossAI {
       );
 
     // --------------------------------------------------------
-    // Player Awareness
+    // Player awareness
     // --------------------------------------------------------
 
     if (
@@ -342,14 +372,14 @@ export class BossAI {
       Number.isFinite(playerZ)
     ) {
 
-      const distance =
+      const longitudinalDistance =
         Math.abs(
-          (playerZ as number) -
+          playerZ! -
           this.state.z
         );
 
       this.state.pursuing =
-        distance <=
+        longitudinalDistance <=
         this.playerAwarenessDistance;
 
       if (
@@ -357,14 +387,18 @@ export class BossAI {
       ) {
 
         this.updatePursuit(
-          playerX as number,
-          playerZ as number
+          playerX!,
+          playerZ!
         );
       }
+    } else {
+
+      this.state.pursuing =
+        false;
     }
 
     // --------------------------------------------------------
-    // Forward Speed
+    // Boss acceleration
     // --------------------------------------------------------
 
     this.updateSpeed(
@@ -372,7 +406,7 @@ export class BossAI {
     );
 
     // --------------------------------------------------------
-    // Lane Movement
+    // Boss lane movement
     // --------------------------------------------------------
 
     this.updateLaneMovement(
@@ -380,17 +414,34 @@ export class BossAI {
     );
 
     // --------------------------------------------------------
-    // Forward Movement
+    // Boss forward movement
+    // --------------------------------------------------------
+    //
+    // CRITICAL FIX:
+    //
+    // RaceNova PlayerCar moves:
+    //
+    //   position.z -= speed
+    //
+    // Therefore Boss must ALSO move:
+    //
+    //   z -= speed
+    //
+    // This keeps Boss and Player travelling
+    // in the same forward direction.
     // --------------------------------------------------------
 
-    this.state.z +=
-      this.state.speed *
-      deltaTime /
+    const worldSpeed =
+      this.state.speed /
       3.6;
+
+    this.state.z -=
+      worldSpeed *
+      deltaTime;
   }
 
   // ==========================================================
-  // Update Pursuit
+  // Pursuit
   // ==========================================================
 
   private updatePursuit(
@@ -404,20 +455,20 @@ export class BossAI {
         this.state.z
       );
 
+    const playerLane =
+      this.getNearestLane(
+        playerX
+      );
+
     // --------------------------------------------------------
-    // Player is close enough:
-    // aggressively target player's lane.
+    // Close range:
+    // aggressively follow player's lane.
     // --------------------------------------------------------
 
     if (
       distance <=
       this.pursuitDistance
     ) {
-
-      const playerLane =
-        this.getNearestLane(
-          playerX
-        );
 
       this.setTargetLane(
         playerLane
@@ -427,15 +478,9 @@ export class BossAI {
     }
 
     // --------------------------------------------------------
-    // Player is farther away:
-    // only react when lane difference
-    // exists.
+    // Medium range:
+    // react to player's lane if different.
     // --------------------------------------------------------
-
-    const playerLane =
-      this.getNearestLane(
-        playerX
-      );
 
     if (
       playerLane !==
@@ -449,7 +494,7 @@ export class BossAI {
   }
 
   // ==========================================================
-  // Update Speed
+  // Speed Update
   // ==========================================================
 
   private updateSpeed(
@@ -499,7 +544,7 @@ export class BossAI {
   }
 
   // ==========================================================
-  // Update Lane Movement
+  // Lane Movement
   // ==========================================================
 
   private updateLaneMovement(
@@ -569,13 +614,6 @@ export class BossAI {
     lane: number
   ): boolean {
 
-    if (
-      this.state.laneChangeCooldown >
-      0
-    ) {
-      return false;
-    }
-
     const safeLane =
       this.clampLane(
         lane
@@ -584,6 +622,13 @@ export class BossAI {
     if (
       safeLane ===
       this.state.targetLane
+    ) {
+      return false;
+    }
+
+    if (
+      this.state.laneChangeCooldown >
+      0
     ) {
       return false;
     }
@@ -637,6 +682,7 @@ export class BossAI {
     if (
       Number.isFinite(x)
     ) {
+
       this.state.x =
         x;
     }
@@ -644,6 +690,7 @@ export class BossAI {
     if (
       Number.isFinite(z)
     ) {
+
       this.state.z =
         z;
     }
@@ -655,6 +702,9 @@ export class BossAI {
 
     this.state.targetLane =
       this.state.currentLane;
+
+    this.state.laneChangeCooldown =
+      0;
   }
 
   // ==========================================================
@@ -666,7 +716,9 @@ export class BossAI {
   ): void {
 
     if (
-      !Number.isFinite(speed)
+      !Number.isFinite(
+        speed
+      )
     ) {
       return;
     }
@@ -698,6 +750,7 @@ export class BossAI {
   // ==========================================================
 
   public getX(): number {
+
     return this.state.x;
   }
 
@@ -706,6 +759,7 @@ export class BossAI {
   // ==========================================================
 
   public getZ(): number {
+
     return this.state.z;
   }
 
@@ -714,6 +768,7 @@ export class BossAI {
   // ==========================================================
 
   public getSpeed(): number {
+
     return this.state.speed;
   }
 
@@ -722,6 +777,7 @@ export class BossAI {
   // ==========================================================
 
   public getCurrentLane(): number {
+
     return this.state.currentLane;
   }
 
@@ -730,6 +786,7 @@ export class BossAI {
   // ==========================================================
 
   public getTargetLane(): number {
+
     return this.state.targetLane;
   }
 
@@ -738,6 +795,7 @@ export class BossAI {
   // ==========================================================
 
   public isPursuing(): boolean {
+
     return this.state.pursuing;
   }
 
@@ -827,7 +885,9 @@ export class BossAI {
   ): number {
 
     if (
-      !Number.isFinite(lane)
+      !Number.isFinite(
+        lane
+      )
     ) {
       return 0;
     }
@@ -836,7 +896,9 @@ export class BossAI {
       0,
       Math.min(
         this.laneCount - 1,
-        Math.floor(lane)
+        Math.floor(
+          lane
+        )
       )
     );
   }
@@ -892,6 +954,13 @@ export class BossAI {
 
     /*
      * BossAI owns no external resources.
+     *
+     * No Three.js resources.
+     * No DOM listeners.
+     * No timers.
+     * No storage.
+     *
+     * Nothing to dispose.
      */
   }
 }
