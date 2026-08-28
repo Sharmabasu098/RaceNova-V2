@@ -206,7 +206,10 @@ export class RaceNovaEngine {
     THREE.Group;
 
   /**
-   * Boss encounter start flag.
+   * M6.7.4 verification flag.
+   *
+   * Boss encounter starts only when the
+   * proper unlock requirements are satisfied.
    */
   private bossEncounterStarted:
     boolean = false;
@@ -494,13 +497,12 @@ export class RaceNovaEngine {
             ),
 
           onCoinCollected: () => {
-
             this.savePlayerData();
           }
         }
       );
 
-    // =======================================================
+          // =======================================================
     // Race HUD
     // =======================================================
 
@@ -612,8 +614,11 @@ export class RaceNovaEngine {
     this.upgradeScreen =
       new UpgradeScreen(
         this.garageManager,
+
         this.upgradeSystem,
+
         this.economyManager,
+
         {
           onChanged: () => {
 
@@ -659,6 +664,7 @@ export class RaceNovaEngine {
     this.carController =
       new CarController(
         this.playerCar,
+
         {
           laneWidth: 4,
 
@@ -682,292 +688,7 @@ export class RaceNovaEngine {
     this.swipeController =
       new SwipeController(
         this.carController,
-        {
-          swipeThreshold: 50,
 
-          target:
-            this.renderer.domElement
-        }
-      );
-
-        // =======================================================
-    // Selected Car
-    // =======================================================
-
-    const selectedCar =
-      this.garageManager.getSelectedCar();
-
-    const selectedCarStats =
-      this.upgradeSystem.getStats(
-        selectedCar.id
-      );
-
-    // =======================================================
-    // Player Car
-    // =======================================================
-
-    this.playerCar =
-      new PlayerCar({
-
-        x: 0,
-
-        y: 0,
-
-        z: 0,
-
-        scale: 1,
-
-        maxSpeed:
-          selectedCarStats.maxSpeed,
-
-        acceleration:
-          selectedCarStats.acceleration,
-
-        handling:
-          selectedCarStats.handling,
-
-        hardSpeedCap:
-          Math.max(
-            180,
-            selectedCarStats.maxSpeed
-          ),
-
-        nitroSpeed:
-          Math.min(
-            selectedCarStats.maxSpeed + 37,
-            Math.max(
-              180,
-              selectedCarStats.maxSpeed
-            )
-          ),
-
-        nitroDuration:
-          3
-      });
-
-    this.playerCar.addToScene(
-      this.scene
-    );
-
-    // =======================================================
-    // Coin Spawner
-    // =======================================================
-
-    this.coinSpawner =
-      new CoinSpawner(
-        this.scene,
-        this.economyManager,
-        {
-          laneWidth: 4,
-
-          laneCount: 3,
-
-          spawnDistance: 180,
-
-          despawnDistance: 60,
-
-          coinSpacing: 10,
-
-          coinHeight: 1,
-
-          maxCoins: 30,
-
-          getRoadCenterX: (
-            worldZ: number
-          ) =>
-            this.world.getRoadCenterX(
-              worldZ
-            ),
-
-          onCoinCollected: () => {
-
-            this.savePlayerData();
-          }
-        }
-      );
-
-    // =======================================================
-    // Race HUD
-    // =======================================================
-
-    this.raceHUD =
-      new RaceHUD(
-        this.playerCar,
-
-        () => {
-          this.activateNitro();
-        },
-
-        this.economyManager,
-
-        () => {
-          this.openGarage();
-        },
-
-        () => {
-
-          return {
-            level:
-              this.playerProgress
-                .unlockedLevel,
-
-            racesCompleted:
-              this.playerProgress
-                .racesCompleted,
-
-            racesRequired:
-              3,
-
-            racesWon:
-              this.playerProgress
-                .racesWon,
-
-            winsRequired:
-              2,
-
-            bossUnlocked:
-              this.isBossUnlocked()
-          };
-        }
-      );
-
-    // =======================================================
-    // Garage UI
-    // =======================================================
-
-    this.garageUI =
-      new Garage(
-        this.garageManager,
-
-        this.economyManager,
-
-        {
-          onChanged: () => {
-
-            const selectedCarId =
-              this.garageManager
-                .getSelectedCarId();
-
-            const upgradedStats =
-              this.upgradeSystem.getStats(
-                selectedCarId
-              );
-
-            this.playerCar.applyCarStats(
-              upgradedStats.maxSpeed,
-              upgradedStats.acceleration,
-              upgradedStats.handling
-            );
-
-            this.savePlayerData();
-
-            this.raceHUD.update();
-          },
-
-          upgradeSystem:
-            this.upgradeSystem,
-
-          onUpgrade: (
-            carId
-          ) => {
-
-            if (
-              this.garageManager
-                .getSelectedCarId() !==
-              carId
-            ) {
-              return;
-            }
-
-            this.openUpgrades();
-          },
-
-          onClose: () => {
-
-            this.closeGarage();
-          }
-        }
-      );
-
-    this.garageUI.hide();
-
-    // =======================================================
-    // Upgrade UI
-    // =======================================================
-
-    this.upgradeScreen =
-      new UpgradeScreen(
-        this.garageManager,
-        this.upgradeSystem,
-        this.economyManager,
-        {
-          onChanged: () => {
-
-            const selectedCar =
-              this.garageManager
-                .getSelectedCar();
-
-            if (
-              !selectedCar
-            ) {
-              return;
-            }
-
-            const stats =
-              this.upgradeSystem.getStats(
-                selectedCar.id
-              );
-
-            this.playerCar.applyCarStats(
-              stats.maxSpeed,
-              stats.acceleration,
-              stats.handling
-            );
-
-            this.savePlayerData();
-
-            this.raceHUD.update();
-          },
-
-          onClose: () => {
-
-            this.upgradeScreen.hide();
-          }
-        }
-      );
-
-    this.upgradeScreen.hide();
-
-    // =======================================================
-    // Car Controller
-    // =======================================================
-
-    this.carController =
-      new CarController(
-        this.playerCar,
-        {
-          laneWidth: 4,
-
-          laneCount: 3,
-
-          steeringSpeed: 10,
-
-          getRoadCenterX: (
-            worldZ: number
-          ) =>
-            this.world.getRoadCenterX(
-              worldZ
-            )
-        }
-      );
-
-    // =======================================================
-    // Swipe Controller
-    // =======================================================
-
-    this.swipeController =
-      new SwipeController(
-        this.carController,
         {
           swipeThreshold: 50,
 
@@ -983,6 +704,7 @@ export class RaceNovaEngine {
     this.trafficManager =
       new TrafficManager(
         this.scene,
+
         {
           laneWidth: 4,
 
@@ -1014,6 +736,7 @@ export class RaceNovaEngine {
     this.trafficCollisionSystem =
       new TrafficCollisionSystem(
         this.playerCar,
+
         {
           collisionWidth: 1.8,
 
@@ -1027,6 +750,7 @@ export class RaceNovaEngine {
 
     this.bossManager =
       new BossManager({
+
         spawnLane: 1,
 
         spawnDistance: 80,
@@ -1059,6 +783,7 @@ export class RaceNovaEngine {
     this.bossRace =
       new BossRace(
         this.bossManager,
+
         {
           bossSpawnDistance: 80,
 
@@ -1067,6 +792,7 @@ export class RaceNovaEngine {
           // Boss race virtual finish distance.
           // Endless road continues; only the
           // Boss encounter has a 1500m finish.
+
           requiredDistance: 1500
         }
       );
@@ -1108,8 +834,9 @@ export class RaceNovaEngine {
     // =======================================================
 
     this.raceHUD.update();
+  }
 
-      // =========================================================
+  // =========================================================
   // M6.7.4 — Create Boss 3D Mesh
   // =========================================================
 
@@ -1261,9 +988,13 @@ export class RaceNovaEngine {
     const wheelPositions: Array<
       [number, number, number]
     > = [
+
       [-1.55, 0.48, -1.7],
+
       [1.55, 0.48, -1.7],
+
       [-1.55, 0.48, 1.7],
+
       [1.55, 0.48, 1.7]
     ];
 
@@ -1369,12 +1100,11 @@ export class RaceNovaEngine {
     return boss;
   }
 
-  // =========================================================
+     // =========================================================
   // M6.7.4 — Update Boss 3D
   // =========================================================
 
-  private updateBoss3D():
-    void {
+  private updateBoss3D(): void {
 
     if (
       !this.bossManager.isActive()
@@ -1506,9 +1236,8 @@ export class RaceNovaEngine {
       /*
        * Boss is still locked.
        *
-       * IMPORTANT:
-       * Do not call BossRace.start().
-       * Do not spawn BossManager.
+       * Do not start BossRace.
+       * Do not activate BossManager.
        */
 
       return;
@@ -1576,255 +1305,7 @@ export class RaceNovaEngine {
     this.playerCar.activateNitro();
 
     this.raceHUD.update();
-  };
-
-  // =========================================================
-  // Keyboard Nitro
-  // =========================================================
-
-  private handleNitroKeyDown = (
-    event: KeyboardEvent
-  ): void => {
-
-    if (
-      event.key.toLowerCase() !==
-      "n"
-    ) {
-      return;
-    }
-
-    if (
-      event.repeat
-    ) {
-      return;
-    }
-
-    this.activateNitro();
-  };
-
-  // =========================================================
-  // Lighting
-  // =========================================================
-
-  private setupLighting(): void {
-
-    const ambientLight =
-      new THREE.AmbientLight(
-        0xffffff,
-        1.5
-      );
-
-    this.scene.add(
-      ambientLight
-    );
-
-    const sun =
-      new THREE.DirectionalLight(
-        0xffffff,
-        2
-      );
-
-    sun.position.set(
-      10,
-      20,
-      10
-    );
-
-    sun.castShadow =
-      true;
-
-    this.scene.add(
-      sun
-    );
   }
-
-  // =========================================================
-  // Start
-  // =========================================================
-
-  public start(): void {
-
-    this.clock.start();
-
-    this.animate();
-  }
-
-  // =========================================================
-  // Animation
-  // =========================================================
-
-  private animate = (): void => {
-
-    requestAnimationFrame(
-      this.animate
-    );
-
-    const deltaTime =
-      this.clock.getDelta();
-
-    this.update(
-      deltaTime
-    );
-
-    this.renderer.render(
-      this.scene,
-      this.camera
-    );
-  };
-
-      this.normalRaceCompleted =
-      true;
-
-    this.completeRace(
-      completedRaceId,
-      true,
-      1,
-      completedRaceTime
-    );
-
-    this.advanceToNextRace();
-
-    this.normalRaceCompleted =
-      false;
-  }
-
-  // =========================================================
-  // M6.8.8 — Advance Campaign Race
-  // =========================================================
-
-  private advanceToNextRace(): void {
-
-    const progression =
-      this.playerProgress.raceProgression;
-
-    const nextRace =
-      progression.races.find(
-        (entry) => entry.status === "available"
-      );
-
-    if (!nextRace) {
-      return;
-    }
-
-    progression.selectedRaceId =
-      nextRace.raceId;
-
-    this.playerProgress.selectedRaceId =
-      nextRace.raceId;
-  }
-
-  // =========================================================
-  // M6.8.3 — Start Boss Encounter
-  // =========================================================
-
-  private startBossEncounter(
-    playerZ: number
-  ): void {
-
-    // -------------------------------------------------------
-    // Already started
-    // -------------------------------------------------------
-
-    if (
-      this.bossEncounterStarted
-    ) {
-      return;
-    }
-
-    // -------------------------------------------------------
-    // Invalid player position
-    // -------------------------------------------------------
-
-    if (
-      !Number.isFinite(
-        playerZ
-      )
-    ) {
-      return;
-    }
-
-    // -------------------------------------------------------
-    // Boss Unlock Check
-    // -------------------------------------------------------
-
-    if (
-      !this.isBossUnlocked()
-    ) {
-
-      /*
-       * Boss is still locked.
-       *
-       * IMPORTANT:
-       * Do not call BossRace.start().
-       * Do not spawn BossManager.
-       */
-
-      return;
-    }
-
-    // -------------------------------------------------------
-    // Start Boss Race
-    // -------------------------------------------------------
-
-    const result =
-      this.bossRace.start(
-        this.bossUnlockConfig.bossId,
-        playerZ
-      );
-
-    // -------------------------------------------------------
-    // Confirm Start
-    // -------------------------------------------------------
-
-    if (
-      result.success
-    ) {
-
-      this.bossEncounterStarted =
-        true;
-
-      this.updateBoss3D();
-    }
-  }
-
-  // =========================================================
-  // Garage Button Handler
-  // =========================================================
-
-  private handleGarageButtonClick = (
-    event: MouseEvent
-  ): void => {
-
-    event.preventDefault();
-
-    event.stopPropagation();
-
-    this.openGarage();
-  };
-
-  // =========================================================
-  // Nitro Activation
-  // =========================================================
-
-  private activateNitro(): void {
-
-    if (
-      this.trafficCollisionSystem
-        .hasCrashed()
-    ) {
-      return;
-    }
-
-    if (
-      this.playerCar.isNitroActive()
-    ) {
-      return;
-    }
-
-    this.playerCar.activateNitro();
-
-    this.raceHUD.update();
-  };
 
   // =========================================================
   // Keyboard Nitro
@@ -2011,7 +1492,7 @@ export class RaceNovaEngine {
     }
 
     // =======================================================
-    // M6.7.4 — Start Boss
+    // Boss Start Check
     // =======================================================
 
     if (
@@ -2024,7 +1505,7 @@ export class RaceNovaEngine {
     }
 
     // =======================================================
-    // M6.7.4 — Boss Race Update
+    // Boss Race Update
     // =======================================================
 
     if (
@@ -2045,7 +1526,7 @@ export class RaceNovaEngine {
     }
 
     // =======================================================
-    // M6.8.5 — Boss Defeat Persistence
+    // Boss Defeat Persistence
     // =======================================================
 
     if (
@@ -2056,7 +1537,7 @@ export class RaceNovaEngine {
     }
 
     // =======================================================
-    // M6.7.4 — Boss 3D Update
+    // Boss 3D Update
     // =======================================================
 
     this.updateBoss3D();
@@ -2079,7 +1560,7 @@ export class RaceNovaEngine {
         deltaTime;
     }
 
-    // =======================================================
+        // =======================================================
     // M6.8.8 — Normal Race Runtime
     // =======================================================
 
@@ -2092,9 +1573,15 @@ export class RaceNovaEngine {
       this.startNormalRace();
     }
 
+    // =======================================================
+    // Normal Race Update
+    // =======================================================
+
     if (
       this.normalRaceStarted &&
-      !this.trafficCollisionSystem.hasCrashed()
+      !this.normalRaceCompleted &&
+      !this.trafficCollisionSystem
+        .hasCrashed()
     ) {
 
       this.updateNormalRace(
@@ -2104,9 +1591,9 @@ export class RaceNovaEngine {
 
     // =======================================================
     // HUD
-    // ======================================================
+    // =======================================================
 
-           this.raceHUD.update();
+    this.raceHUD.update();
 
     // =======================================================
     // Camera
@@ -2140,6 +1627,199 @@ export class RaceNovaEngine {
       playerZ - 20
     );
   };
+
+  // =========================================================
+  // M6.8.8 — Start Normal Race
+  // =========================================================
+
+  private startNormalRace(): void {
+
+    const progression =
+      this.playerProgress
+        .raceProgression;
+
+    const selectedRace =
+      progression.races.find(
+        (race) =>
+          race.raceId ===
+          progression.selectedRaceId
+      );
+
+    if (
+      !selectedRace
+    ) {
+      return;
+    }
+
+    if (
+      selectedRace.status ===
+      "locked"
+    ) {
+      return;
+    }
+
+    this.normalRaceId =
+      selectedRace.raceId;
+
+    this.normalRaceStarted =
+      true;
+
+    this.normalRaceCompleted =
+      false;
+
+    this.normalRaceDistance =
+      0;
+
+    this.normalRaceTime =
+      0;
+  }
+
+  // =========================================================
+  // M6.8.8 — Update Normal Race
+  // =========================================================
+
+  private updateNormalRace(
+    deltaTime: number
+  ): void {
+
+    if (
+      !this.normalRaceStarted ||
+      this.normalRaceCompleted
+    ) {
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        deltaTime
+      ) ||
+      deltaTime <= 0
+    ) {
+      return;
+    }
+
+    const speed =
+      this.playerCar.getSpeed();
+
+    if (
+      Number.isFinite(speed) &&
+      speed > 0
+    ) {
+
+      this.normalRaceDistance +=
+        (speed / 3.6) *
+        deltaTime;
+    }
+
+    this.normalRaceTime +=
+      deltaTime;
+
+    // =======================================================
+    // Virtual Race Finish
+    // =======================================================
+    //
+    // The world/road remains endless.
+    // Only the current race has a
+    // virtual 1500m finish line.
+    // =======================================================
+
+    if (
+      this.normalRaceDistance >=
+      this.normalRaceFinishDistance
+    ) {
+
+      this.finishNormalRace();
+
+      return;
+    }
+  }
+
+  // =========================================================
+  // M6.8.8 — Finish Normal Race
+  // =========================================================
+
+  private finishNormalRace(): void {
+
+    if (
+      !this.normalRaceStarted ||
+      this.normalRaceCompleted
+    ) {
+      return;
+    }
+
+    const completedRaceId =
+      this.normalRaceId;
+
+    const completedRaceTime =
+      this.normalRaceTime;
+
+    this.normalRaceCompleted =
+      true;
+
+    this.completeRace(
+      completedRaceId,
+      true,
+      1,
+      completedRaceTime
+    );
+
+    this.advanceToNextRace();
+
+    this.normalRaceStarted =
+      false;
+  }
+
+  // =========================================================
+  // M6.8.8 — Advance Campaign Race
+  // =========================================================
+
+  private advanceToNextRace(): void {
+
+    const progression =
+      this.playerProgress
+        .raceProgression;
+
+    const currentIndex =
+      progression.races.findIndex(
+        (race) =>
+          race.raceId ===
+          this.normalRaceId
+      );
+
+    if (
+      currentIndex < 0
+    ) {
+      return;
+    }
+
+    const nextRace =
+      progression.races[
+        currentIndex + 1
+      ];
+
+    if (
+      !nextRace
+    ) {
+      return;
+    }
+
+    if (
+      nextRace.status ===
+      "locked"
+    ) {
+
+      nextRace.status =
+        "available";
+    }
+
+    progression.selectedRaceId =
+      nextRace.raceId;
+
+    this.playerProgress.selectedRaceId =
+      nextRace.raceId;
+
+    this.savePlayerData();
+  }
 
   // =========================================================
   // Resize
@@ -2267,7 +1947,6 @@ export class RaceNovaEngine {
 
   // =========================================================
   // Boss Manager Access
-  // M6.7.4
   // =========================================================
 
   public getBossManager():
@@ -2278,7 +1957,6 @@ export class RaceNovaEngine {
 
   // =========================================================
   // Boss Race Access
-  // M6.7.4
   // =========================================================
 
   public getBossRace():
@@ -2289,7 +1967,6 @@ export class RaceNovaEngine {
 
   // =========================================================
   // Boss State
-  // M6.7.4
   // =========================================================
 
   public isBossActive(): boolean {
@@ -2299,7 +1976,6 @@ export class RaceNovaEngine {
 
   // =========================================================
   // Boss Position
-  // M6.7.4
   // =========================================================
 
   public getBossPosition(): {
@@ -2311,7 +1987,7 @@ export class RaceNovaEngine {
       .getPosition();
   }
 
-  // =========================================================
+    // =========================================================
   // Player Progress
   // =========================================================
 
@@ -2432,10 +2108,10 @@ export class RaceNovaEngine {
     };
   }
 
-  // -------------------------------------------------------
-  // Race completion
+  // =========================================================
+  // Race Completion
   // M6.8.7 — Race Completion → Progression
-  // -------------------------------------------------------
+  // =========================================================
 
   private completeRace(
     raceId: string,
@@ -2445,7 +2121,8 @@ export class RaceNovaEngine {
   ): void {
 
     const progression =
-      this.playerProgress.raceProgression;
+      this.playerProgress
+        .raceProgression;
 
     const race =
       progression.races.find(
@@ -2453,7 +2130,9 @@ export class RaceNovaEngine {
           entry.raceId === raceId
       );
 
-    if (!race) {
+    if (
+      !race
+    ) {
       return;
     }
 
@@ -2469,7 +2148,9 @@ export class RaceNovaEngine {
     // Race win
     // -------------------------------------------------------
 
-    if (won) {
+    if (
+      won
+    ) {
 
       race.winCount += 1;
 
@@ -2514,7 +2195,9 @@ export class RaceNovaEngine {
     // Mark completed
     // -------------------------------------------------------
 
-    if (won) {
+    if (
+      won
+    ) {
 
       race.status =
         "completed";
@@ -2530,7 +2213,9 @@ export class RaceNovaEngine {
           entry.status === "locked"
       );
 
-    if (nextRace) {
+    if (
+      nextRace
+    ) {
 
       nextRace.status =
         "available";
@@ -2544,7 +2229,9 @@ export class RaceNovaEngine {
       progression.racesCompleted >= 3 &&
       progression.racesWon >= 2;
 
-    if (levelTwoUnlocked) {
+    if (
+      levelTwoUnlocked
+    ) {
 
       progression.unlockedLevel =
         Math.max(
@@ -2602,12 +2289,15 @@ export class RaceNovaEngine {
     const raceId =
       this.bossRace.getRaceId();
 
-    if (!raceId) {
+    if (
+      !raceId
+    ) {
       return;
     }
 
     const progression =
-      this.playerProgress.raceProgression;
+      this.playerProgress
+        .raceProgression;
 
     const race =
       progression.races.find(
@@ -2667,6 +2357,7 @@ export class RaceNovaEngine {
     boolean {
 
     return this.saveSystem.save({
+
       ...this.playerProgress,
 
       raceProgression: {
@@ -2801,7 +2492,7 @@ export class RaceNovaEngine {
       createDefaultPlayerProgress(
         RACE_DEFINITIONS
       );
-}
+  }
 
     // =========================================================
   // Dispose
@@ -2958,4 +2649,3 @@ export class RaceNovaEngine {
     }
   }
 }
-    
