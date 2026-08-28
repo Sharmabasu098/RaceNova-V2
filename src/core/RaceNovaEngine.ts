@@ -1,3 +1,416 @@
+import * as THREE from "three";
+
+import { World } from "../world/World";
+
+import { PlayerCar } from "../player/PlayerCar";
+import { CarController } from "../player/CarController";
+import { SwipeController } from "../player/SwipeController";
+
+import { TrafficManager } from "../traffic/TrafficManager";
+import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
+
+import { RaceHUD } from "../ui/RaceHUD";
+import { Garage } from "../ui/Garage";
+import { UpgradeScreen } from "../ui/UpgradeScreen";
+
+import { EconomyManager } from "../economy/EconomyManager";
+import { CoinSpawner } from "../economy/CoinSpawner";
+
+import { GarageManager } from "../garage/GarageManager";
+import { UpgradeSystem } from "../garage/UpgradeSystem";
+
+import { SaveSystem } from "../save/SaveSystem";
+
+import {
+  type PlayerSaveData,
+  type PlayerProgress,
+  PLAYER_SAVE_VERSION,
+  createDefaultPlayerSaveData,
+  createDefaultPlayerProgress,
+  normalizePlayerProgress,
+  isValidPlayerSaveData
+} from "../save/PlayerSaveData";
+
+import {
+  RACE_DEFINITIONS
+} from "../race/RaceDefinitions";
+
+// ============================================================
+// M6.7 — Boss System
+// ============================================================
+
+import {
+  BossManager
+} from "../bosses/BossManager";
+
+import {
+  BossRace
+} from "../bosses/BossRace";
+
+import {
+  BossUnlockRules,
+  type BossUnlockProgress,
+  type BossUnlockConfig
+} from "../bosses/BossUnlockRules";
+
+export class RaceNovaEngine {
+
+  // =========================================================
+  // Core
+  // =========================================================
+
+  private readonly renderer:
+    THREE.WebGLRenderer;
+
+  private readonly scene:
+    THREE.Scene;
+
+  private readonly camera:
+    THREE.PerspectiveCamera;
+
+  private readonly clock:
+    THREE.Clock;
+
+  // =========================================================
+  // World
+  // =========================================================
+
+  private readonly world:
+    World;
+
+  // =========================================================
+  // Player
+  // =========================================================
+
+  private readonly playerCar:
+    PlayerCar;
+
+  private readonly carController:
+    CarController;
+
+  private readonly swipeController:
+    SwipeController;
+
+  // =========================================================
+  // Traffic
+  // =========================================================
+
+  private readonly trafficManager:
+    TrafficManager;
+
+  private readonly trafficCollisionSystem:
+    TrafficCollisionSystem;
+
+  // =========================================================
+  // Economy
+  // =========================================================
+
+  private readonly economyManager:
+    EconomyManager;
+
+  private readonly coinSpawner:
+    CoinSpawner;
+
+  // =========================================================
+  // Garage
+  // =========================================================
+
+  private readonly garageManager:
+    GarageManager;
+
+  // =========================================================
+  // Upgrade System
+  // =========================================================
+
+  private readonly upgradeSystem:
+    UpgradeSystem;
+
+  // =========================================================
+  // Save System
+  // =========================================================
+
+  private readonly saveSystem:
+    SaveSystem;
+
+  // =========================================================
+  // Player Progress
+  // M6.9
+  // =========================================================
+
+  private playerProgress:
+    PlayerProgress =
+      createDefaultPlayerProgress(
+        RACE_DEFINITIONS
+      );
+
+  // =========================================================
+  // HUD
+  // =========================================================
+
+  private readonly raceHUD:
+    RaceHUD;
+
+  // =========================================================
+  // Garage UI
+  // =========================================================
+
+  private readonly garageUI:
+    Garage;
+
+  // =========================================================
+  // Upgrade UI
+  // =========================================================
+
+  private readonly upgradeScreen:
+    UpgradeScreen;
+
+  // =========================================================
+  // M6.7 — Boss Manager
+  // =========================================================
+
+  private readonly bossManager:
+    BossManager;
+
+  // =========================================================
+  // M6.7 — Boss Race
+  // =========================================================
+
+  private readonly bossRace:
+    BossRace;
+
+    // =========================================================
+  // M6.8.3 — Boss Unlock Rules
+  // =========================================================
+
+  private readonly bossUnlockConfig:
+    BossUnlockConfig = {
+
+      bossId:
+        "boss_race_01",
+
+      requiredLevel:
+        2,
+
+      requiredRacesCompleted:
+        3,
+
+      requiredRacesWon:
+        2
+    };
+
+  // =========================================================
+  // M6.7.4 — Boss 3D
+  // =========================================================
+
+  private readonly bossMesh:
+    THREE.Group;
+
+  /**
+   * M6.7.4 verification flag.
+   *
+   * Boss is started automatically so the 3D
+   * integration can be tested immediately.
+   *
+   * M6.8 will replace this with proper
+   * Boss Unlock logic.
+   */
+  private bossEncounterStarted:
+    boolean = false;
+
+  // =========================================================
+  // M6.8.8 — Normal Race Runtime
+  // =========================================================
+
+  private normalRaceStarted: boolean = false;
+
+  private normalRaceCompleted: boolean = false;
+
+  private normalRaceId: string = "";
+
+  private normalRaceDistance: number = 0;
+
+  private normalRaceTime: number = 0;
+
+  // Endless road remains endless.
+  // Race itself has a virtual finish distance.
+  private readonly normalRaceFinishDistance: number = 1500;
+
+  // =========================================================
+  // Constructor
+  // =========================================================
+
+  constructor(
+    container: HTMLElement
+  ) {
+
+    // =======================================================
+    // Scene
+    // =======================================================
+
+    this.scene =
+      new THREE.Scene();
+
+    this.scene.background =
+      new THREE.Color(
+        0x87ceeb
+      );
+
+    // =======================================================
+    // Camera
+    // =======================================================
+
+    this.camera =
+      new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth /
+          window.innerHeight,
+        0.1,
+        1000
+      );
+
+    this.camera.position.set(
+      0,
+      5,
+      10
+    );
+
+    this.camera.lookAt(
+      0,
+      0.5,
+      -20
+    );
+
+    // =======================================================
+    // Renderer
+    // =======================================================
+
+    this.renderer =
+      new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference:
+          "high-performance"
+      });
+
+    this.renderer.setPixelRatio(
+      Math.min(
+        window.devicePixelRatio,
+        2
+      )
+    );
+
+    this.renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+    this.renderer.shadowMap.enabled =
+      true;
+
+    container.appendChild(
+      this.renderer.domElement
+    );
+
+    // =======================================================
+    // Clock
+    // =======================================================
+
+    this.clock =
+      new THREE.Clock();
+
+    // =======================================================
+    // Lighting
+    // =======================================================
+
+    this.setupLighting();
+
+    // =======================================================
+    // World
+    // =======================================================
+
+    this.world =
+      new World(
+        this.scene,
+        {
+          roadWidth: 12,
+
+          roadSegmentLength: 50,
+
+          roadSegmentCount: 24,
+
+          laneCount: 3,
+
+          curveStrength: 8,
+
+          curveFrequency: 0.008
+        }
+      );
+
+    // =======================================================
+    // Economy Manager
+    // =======================================================
+
+    this.economyManager =
+      new EconomyManager({
+        initialCoins: 0
+      });
+
+    // =======================================================
+    // Garage Manager
+    // =======================================================
+
+    this.garageManager =
+      new GarageManager(
+        this.economyManager
+      );
+
+    // =======================================================
+    // Upgrade System
+    // =======================================================
+
+    this.upgradeSystem =
+      new UpgradeSystem(
+        this.economyManager
+      );
+
+    // =======================================================
+    // Save System
+    // =======================================================
+
+    this.saveSystem =
+      new SaveSystem(
+        this.economyManager,
+        this.garageManager,
+        this.upgradeSystem
+      );
+
+    // =======================================================
+    // Restore Save
+    // =======================================================
+
+    if (
+      this.saveSystem.load()
+    ) {
+
+      const savedData =
+        this.saveSystem.readSave();
+
+      if (
+        savedData
+      ) {
+
+        this.setPlayerProgress(
+            savedData.progress
+        );
+      }
+    }
+
+    // =======================================================
+    // Selected Car
+    // =======================================================
+
+    const selectedCar =
+      this.garageManager.getSelectedCar();
+
     const selectedCarStats =
       this.upgradeSystem.getStats(
         selectedCar.id
@@ -319,7 +732,7 @@
       );
 
     // =======================================================
-    // M6.7 — Boss Manager
+    // M6.7 鈥� Boss Manager
     // =======================================================
 
     this.bossManager =
@@ -349,8 +762,8 @@
       });
 
     // =======================================================
-// M6.7 — Boss Race
-// M6.8.6 — Boss Race Finish Distance
+// M6.7 鈥� Boss Race
+// M6.8.6 鈥� Boss Race Finish Distance
 // =======================================================
 
 this.bossRace =
@@ -369,7 +782,7 @@ this.bossRace =
   );
 
     // =======================================================
-    // M6.7.4 — Boss 3D Mesh
+    // M6.7.4 鈥� Boss 3D Mesh
     // =======================================================
 
     this.bossMesh =
@@ -388,7 +801,7 @@ this.bossRace =
 
     window.addEventListener(
       "keydown",
-      this.handleNitroKeyDown
+        this.handleNitroKeyDown
     );
 
     // =======================================================
@@ -789,8 +1202,7 @@ this.bossRace =
       !Number.isFinite(
         playerZ
       )
-    ) {
-      return;
+    ) {return;
     }
 
     // -------------------------------------------------------
@@ -1061,7 +1473,7 @@ this.bossRace =
     }
 
     // =======================================================
-    // M6.7.4 — Start Boss
+    // M6.7.4 鈥� Start Boss
     // =======================================================
 
     if (
@@ -1074,7 +1486,7 @@ this.bossRace =
     }
 
     // =======================================================
-    // M6.7.4 — Boss Race Update
+    // M6.7.4 鈥� Boss Race Update
     // =======================================================
 
     if (
@@ -1095,7 +1507,7 @@ this.bossRace =
     }
 
     // =======================================================
-// M6.8.5 — Boss Defeat Persistence
+// M6.8.5 鈥� Boss Defeat Persistence
 // =======================================================
 
 if (
@@ -1106,7 +1518,7 @@ if (
 }
 
     // =======================================================
-    // M6.7.4 — Boss 3D Update
+    // M6.7.4 鈥� Boss 3D Update
     // =======================================================
 
     this.updateBoss3D();
@@ -1128,24 +1540,6 @@ if (
         (speed / 3.6) *
         deltaTime;
     }
-
-    // =========================================================
-// M6.8.8 — Normal Race Runtime
-// =========================================================
-
-private normalRaceStarted: boolean = false;
-
-private normalRaceCompleted: boolean = false;
-
-private normalRaceId: string = "";
-
-private normalRaceDistance: number = 0;
-
-private normalRaceTime: number = 0;
-
-// Endless road remains endless.
-// Race itself has a virtual finish distance.
-private readonly normalRaceFinishDistance: number = 1500;
 
     // =======================================================
     // HUD
@@ -1208,21 +1602,7 @@ private readonly normalRaceFinishDistance: number = 1500;
       width / height;
 
     this.camera.updateProjectionMatrix();
-
-    this.renderer.setSize(
-      width,
-      height
-    );
-
-    this.renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        2
-      )
-    );
-  };
-
-  // =========================================================
+      =====================================================
   // Economy Access
   // =========================================================
 
@@ -1479,7 +1859,7 @@ private readonly normalRaceFinishDistance: number = 1500;
 
     // -------------------------------------------------------
 // Race completion
-// M6.8.7 — Race Completion → Progression
+// M6.8.7 鈥� Race Completion 鈫� Progression
 // -------------------------------------------------------
 
 private completeRace(
@@ -1582,7 +1962,7 @@ private completeRace(
   }
 
   // -------------------------------------------------------
-  // M6.8.7 — Level 2 Progression
+  // M6.8.7 鈥� Level 2 Progression
   // -------------------------------------------------------
   //
   // Level 2 requirements:
@@ -1611,7 +1991,7 @@ private completeRace(
     progression.unlockedLevel =
       Math.max(
         progression.unlockedLevel,
-        1
+          1
       );
   }
 
@@ -2013,3 +2393,7 @@ private completeRace(
     }
   }
 }
+      
+        
+
+            
