@@ -178,7 +178,7 @@ export class RaceNovaEngine {
   private readonly bossRace:
     BossRace;
 
-    // =========================================================
+  // =========================================================
   // M6.8.3 — Boss Unlock Rules
   // =========================================================
 
@@ -206,13 +206,7 @@ export class RaceNovaEngine {
     THREE.Group;
 
   /**
-   * M6.7.4 verification flag.
-   *
-   * Boss is started automatically so the 3D
-   * integration can be tested immediately.
-   *
-   * M6.8 will replace this with proper
-   * Boss Unlock logic.
+   * Boss encounter start flag.
    */
   private bossEncounterStarted:
     boolean = false;
@@ -221,19 +215,25 @@ export class RaceNovaEngine {
   // M6.8.8 — Normal Race Runtime
   // =========================================================
 
-  private normalRaceStarted: boolean = false;
+  private normalRaceStarted:
+    boolean = false;
 
-  private normalRaceCompleted: boolean = false;
+  private normalRaceCompleted:
+    boolean = false;
 
-  private normalRaceId: string = "";
+  private normalRaceId:
+    string = "";
 
-  private normalRaceDistance: number = 0;
+  private normalRaceDistance:
+    number = 0;
 
-  private normalRaceTime: number = 0;
+  private normalRaceTime:
+    number = 0;
 
   // Endless road remains endless.
   // Race itself has a virtual finish distance.
-  private readonly normalRaceFinishDistance: number = 1500;
+  private readonly normalRaceFinishDistance:
+    number = 1500;
 
   // =========================================================
   // Constructor
@@ -399,7 +399,7 @@ export class RaceNovaEngine {
       ) {
 
         this.setPlayerProgress(
-            savedData.progress
+          savedData.progress
         );
       }
     }
@@ -505,42 +505,46 @@ export class RaceNovaEngine {
     // =======================================================
 
     this.raceHUD =
-  new RaceHUD(
-    this.playerCar,
-    () => {
-      this.activateNitro();
-    },
-    this.economyManager,
-    () => {
-      this.openGarage();
-    },
-    () => {
+      new RaceHUD(
+        this.playerCar,
 
-      return {
-        level:
-          this.playerProgress
-            .unlockedLevel,
+        () => {
+          this.activateNitro();
+        },
 
-        racesCompleted:
-          this.playerProgress
-            .racesCompleted,
+        this.economyManager,
 
-        racesRequired:
-          3,
+        () => {
+          this.openGarage();
+        },
 
-        racesWon:
-          this.playerProgress
-            .racesWon,
+        () => {
 
-        winsRequired:
-          2,
+          return {
+            level:
+              this.playerProgress
+                .unlockedLevel,
 
-        bossUnlocked:
-          this.isBossUnlocked()
-      };
-    }
-  );
-    
+            racesCompleted:
+              this.playerProgress
+                .racesCompleted,
+
+            racesRequired:
+              3,
+
+            racesWon:
+              this.playerProgress
+                .racesWon,
+
+            winsRequired:
+              2,
+
+            bossUnlocked:
+              this.isBossUnlocked()
+          };
+        }
+      );
+
     // =======================================================
     // Garage UI
     // =======================================================
@@ -671,7 +675,293 @@ export class RaceNovaEngine {
         }
       );
 
-         // =======================================================
+    // =======================================================
+    // Swipe Controller
+    // =======================================================
+
+    this.swipeController =
+      new SwipeController(
+        this.carController,
+        {
+          swipeThreshold: 50,
+
+          target:
+            this.renderer.domElement
+        }
+      );
+
+        // =======================================================
+    // Selected Car
+    // =======================================================
+
+    const selectedCar =
+      this.garageManager.getSelectedCar();
+
+    const selectedCarStats =
+      this.upgradeSystem.getStats(
+        selectedCar.id
+      );
+
+    // =======================================================
+    // Player Car
+    // =======================================================
+
+    this.playerCar =
+      new PlayerCar({
+
+        x: 0,
+
+        y: 0,
+
+        z: 0,
+
+        scale: 1,
+
+        maxSpeed:
+          selectedCarStats.maxSpeed,
+
+        acceleration:
+          selectedCarStats.acceleration,
+
+        handling:
+          selectedCarStats.handling,
+
+        hardSpeedCap:
+          Math.max(
+            180,
+            selectedCarStats.maxSpeed
+          ),
+
+        nitroSpeed:
+          Math.min(
+            selectedCarStats.maxSpeed + 37,
+            Math.max(
+              180,
+              selectedCarStats.maxSpeed
+            )
+          ),
+
+        nitroDuration:
+          3
+      });
+
+    this.playerCar.addToScene(
+      this.scene
+    );
+
+    // =======================================================
+    // Coin Spawner
+    // =======================================================
+
+    this.coinSpawner =
+      new CoinSpawner(
+        this.scene,
+        this.economyManager,
+        {
+          laneWidth: 4,
+
+          laneCount: 3,
+
+          spawnDistance: 180,
+
+          despawnDistance: 60,
+
+          coinSpacing: 10,
+
+          coinHeight: 1,
+
+          maxCoins: 30,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            ),
+
+          onCoinCollected: () => {
+
+            this.savePlayerData();
+          }
+        }
+      );
+
+    // =======================================================
+    // Race HUD
+    // =======================================================
+
+    this.raceHUD =
+      new RaceHUD(
+        this.playerCar,
+
+        () => {
+          this.activateNitro();
+        },
+
+        this.economyManager,
+
+        () => {
+          this.openGarage();
+        },
+
+        () => {
+
+          return {
+            level:
+              this.playerProgress
+                .unlockedLevel,
+
+            racesCompleted:
+              this.playerProgress
+                .racesCompleted,
+
+            racesRequired:
+              3,
+
+            racesWon:
+              this.playerProgress
+                .racesWon,
+
+            winsRequired:
+              2,
+
+            bossUnlocked:
+              this.isBossUnlocked()
+          };
+        }
+      );
+
+    // =======================================================
+    // Garage UI
+    // =======================================================
+
+    this.garageUI =
+      new Garage(
+        this.garageManager,
+
+        this.economyManager,
+
+        {
+          onChanged: () => {
+
+            const selectedCarId =
+              this.garageManager
+                .getSelectedCarId();
+
+            const upgradedStats =
+              this.upgradeSystem.getStats(
+                selectedCarId
+              );
+
+            this.playerCar.applyCarStats(
+              upgradedStats.maxSpeed,
+              upgradedStats.acceleration,
+              upgradedStats.handling
+            );
+
+            this.savePlayerData();
+
+            this.raceHUD.update();
+          },
+
+          upgradeSystem:
+            this.upgradeSystem,
+
+          onUpgrade: (
+            carId
+          ) => {
+
+            if (
+              this.garageManager
+                .getSelectedCarId() !==
+              carId
+            ) {
+              return;
+            }
+
+            this.openUpgrades();
+          },
+
+          onClose: () => {
+
+            this.closeGarage();
+          }
+        }
+      );
+
+    this.garageUI.hide();
+
+    // =======================================================
+    // Upgrade UI
+    // =======================================================
+
+    this.upgradeScreen =
+      new UpgradeScreen(
+        this.garageManager,
+        this.upgradeSystem,
+        this.economyManager,
+        {
+          onChanged: () => {
+
+            const selectedCar =
+              this.garageManager
+                .getSelectedCar();
+
+            if (
+              !selectedCar
+            ) {
+              return;
+            }
+
+            const stats =
+              this.upgradeSystem.getStats(
+                selectedCar.id
+              );
+
+            this.playerCar.applyCarStats(
+              stats.maxSpeed,
+              stats.acceleration,
+              stats.handling
+            );
+
+            this.savePlayerData();
+
+            this.raceHUD.update();
+          },
+
+          onClose: () => {
+
+            this.upgradeScreen.hide();
+          }
+        }
+      );
+
+    this.upgradeScreen.hide();
+
+    // =======================================================
+    // Car Controller
+    // =======================================================
+
+    this.carController =
+      new CarController(
+        this.playerCar,
+        {
+          laneWidth: 4,
+
+          laneCount: 3,
+
+          steeringSpeed: 10,
+
+          getRoadCenterX: (
+            worldZ: number
+          ) =>
+            this.world.getRoadCenterX(
+              worldZ
+            )
+        }
+      );
+
+    // =======================================================
     // Swipe Controller
     // =======================================================
 
@@ -732,7 +1022,7 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
-    // M6.7 鈥� Boss Manager
+    // M6.7 — Boss Manager
     // =======================================================
 
     this.bossManager =
@@ -762,27 +1052,27 @@ export class RaceNovaEngine {
       });
 
     // =======================================================
-// M6.7 鈥� Boss Race
-// M6.8.6 鈥� Boss Race Finish Distance
-// =======================================================
+    // M6.7 — Boss Race
+    // M6.8.6 — Boss Race Finish Distance
+    // =======================================================
 
-this.bossRace =
-  new BossRace(
-    this.bossManager,
-    {
-      bossSpawnDistance: 80,
+    this.bossRace =
+      new BossRace(
+        this.bossManager,
+        {
+          bossSpawnDistance: 80,
 
-      maxDuration: 0,
+          maxDuration: 0,
 
-      // Boss race virtual finish distance.
-      // Endless road continues; only the
-      // Boss encounter has a 1500m finish.
-      requiredDistance: 1500
-    }
-  );
+          // Boss race virtual finish distance.
+          // Endless road continues; only the
+          // Boss encounter has a 1500m finish.
+          requiredDistance: 1500
+        }
+      );
 
     // =======================================================
-    // M6.7.4 鈥� Boss 3D Mesh
+    // M6.7.4 — Boss 3D Mesh
     // =======================================================
 
     this.bossMesh =
@@ -801,7 +1091,7 @@ this.bossRace =
 
     window.addEventListener(
       "keydown",
-        this.handleNitroKeyDown
+      this.handleNitroKeyDown
     );
 
     // =======================================================
@@ -818,9 +1108,8 @@ this.bossRace =
     // =======================================================
 
     this.raceHUD.update();
-  }
 
-  // =========================================================
+      // =========================================================
   // M6.7.4 — Create Boss 3D Mesh
   // =========================================================
 
@@ -1137,7 +1426,7 @@ this.bossRace =
       Math.PI;
   }
 
-      // =========================================================
+  // =========================================================
   // M6.8.3 — Check Boss Unlock
   // =========================================================
 
@@ -1176,7 +1465,7 @@ this.bossRace =
     );
   }
 
-    // =========================================================
+  // =========================================================
   // M6.8.3 — Start Boss Encounter
   // =========================================================
 
@@ -1202,7 +1491,8 @@ this.bossRace =
       !Number.isFinite(
         playerZ
       )
-    ) {return;
+    ) {
+      return;
     }
 
     // -------------------------------------------------------
@@ -1359,7 +1649,255 @@ this.bossRace =
     this.animate();
   }
 
-    // =========================================================
+  // =========================================================
+  // Animation
+  // =========================================================
+
+  private animate = (): void => {
+
+    requestAnimationFrame(
+      this.animate
+    );
+
+    const deltaTime =
+      this.clock.getDelta();
+
+    this.update(
+      deltaTime
+    );
+
+    this.renderer.render(
+      this.scene,
+      this.camera
+    );
+  };
+
+      this.normalRaceCompleted =
+      true;
+
+    this.completeRace(
+      completedRaceId,
+      true,
+      1,
+      completedRaceTime
+    );
+
+    this.advanceToNextRace();
+
+    this.normalRaceCompleted =
+      false;
+  }
+
+  // =========================================================
+  // M6.8.8 — Advance Campaign Race
+  // =========================================================
+
+  private advanceToNextRace(): void {
+
+    const progression =
+      this.playerProgress.raceProgression;
+
+    const nextRace =
+      progression.races.find(
+        (entry) => entry.status === "available"
+      );
+
+    if (!nextRace) {
+      return;
+    }
+
+    progression.selectedRaceId =
+      nextRace.raceId;
+
+    this.playerProgress.selectedRaceId =
+      nextRace.raceId;
+  }
+
+  // =========================================================
+  // M6.8.3 — Start Boss Encounter
+  // =========================================================
+
+  private startBossEncounter(
+    playerZ: number
+  ): void {
+
+    // -------------------------------------------------------
+    // Already started
+    // -------------------------------------------------------
+
+    if (
+      this.bossEncounterStarted
+    ) {
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Invalid player position
+    // -------------------------------------------------------
+
+    if (
+      !Number.isFinite(
+        playerZ
+      )
+    ) {
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Boss Unlock Check
+    // -------------------------------------------------------
+
+    if (
+      !this.isBossUnlocked()
+    ) {
+
+      /*
+       * Boss is still locked.
+       *
+       * IMPORTANT:
+       * Do not call BossRace.start().
+       * Do not spawn BossManager.
+       */
+
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Start Boss Race
+    // -------------------------------------------------------
+
+    const result =
+      this.bossRace.start(
+        this.bossUnlockConfig.bossId,
+        playerZ
+      );
+
+    // -------------------------------------------------------
+    // Confirm Start
+    // -------------------------------------------------------
+
+    if (
+      result.success
+    ) {
+
+      this.bossEncounterStarted =
+        true;
+
+      this.updateBoss3D();
+    }
+  }
+
+  // =========================================================
+  // Garage Button Handler
+  // =========================================================
+
+  private handleGarageButtonClick = (
+    event: MouseEvent
+  ): void => {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    this.openGarage();
+  };
+
+  // =========================================================
+  // Nitro Activation
+  // =========================================================
+
+  private activateNitro(): void {
+
+    if (
+      this.trafficCollisionSystem
+        .hasCrashed()
+    ) {
+      return;
+    }
+
+    if (
+      this.playerCar.isNitroActive()
+    ) {
+      return;
+    }
+
+    this.playerCar.activateNitro();
+
+    this.raceHUD.update();
+  };
+
+  // =========================================================
+  // Keyboard Nitro
+  // =========================================================
+
+  private handleNitroKeyDown = (
+    event: KeyboardEvent
+  ): void => {
+
+    if (
+      event.key.toLowerCase() !==
+      "n"
+    ) {
+      return;
+    }
+
+    if (
+      event.repeat
+    ) {
+      return;
+    }
+
+    this.activateNitro();
+  };
+
+  // =========================================================
+  // Lighting
+  // =========================================================
+
+  private setupLighting(): void {
+
+    const ambientLight =
+      new THREE.AmbientLight(
+        0xffffff,
+        1.5
+      );
+
+    this.scene.add(
+      ambientLight
+    );
+
+    const sun =
+      new THREE.DirectionalLight(
+        0xffffff,
+        2
+      );
+
+    sun.position.set(
+      10,
+      20,
+      10
+    );
+
+    sun.castShadow =
+      true;
+
+    this.scene.add(
+      sun
+    );
+  }
+
+  // =========================================================
+  // Start
+  // =========================================================
+
+  public start(): void {
+
+    this.clock.start();
+
+    this.animate();
+  }
+
+  // =========================================================
   // Animation
   // =========================================================
 
@@ -1473,7 +2011,7 @@ this.bossRace =
     }
 
     // =======================================================
-    // M6.7.4 鈥� Start Boss
+    // M6.7.4 — Start Boss
     // =======================================================
 
     if (
@@ -1486,7 +2024,7 @@ this.bossRace =
     }
 
     // =======================================================
-    // M6.7.4 鈥� Boss Race Update
+    // M6.7.4 — Boss Race Update
     // =======================================================
 
     if (
@@ -1507,18 +2045,18 @@ this.bossRace =
     }
 
     // =======================================================
-// M6.8.5 鈥� Boss Defeat Persistence
-// =======================================================
+    // M6.8.5 — Boss Defeat Persistence
+    // =======================================================
 
-if (
-  this.bossRace.isBossDefeated()
-) {
+    if (
+      this.bossRace.isBossDefeated()
+    ) {
 
-  this.recordBossDefeat();
-}
+      this.recordBossDefeat();
+    }
 
     // =======================================================
-    // M6.7.4 鈥� Boss 3D Update
+    // M6.7.4 — Boss 3D Update
     // =======================================================
 
     this.updateBoss3D();
@@ -1542,10 +2080,33 @@ if (
     }
 
     // =======================================================
-    // HUD
+    // M6.8.8 — Normal Race Runtime
     // =======================================================
 
-    this.raceHUD.update();
+    if (
+      !this.bossRace.isActive() &&
+      !this.normalRaceStarted &&
+      !this.normalRaceCompleted
+    ) {
+
+      this.startNormalRace();
+    }
+
+    if (
+      this.normalRaceStarted &&
+      !this.trafficCollisionSystem.hasCrashed()
+    ) {
+
+      this.updateNormalRace(
+        deltaTime
+      );
+    }
+
+    // =======================================================
+    // HUD
+    // ======================================================
+
+           this.raceHUD.update();
 
     // =======================================================
     // Camera
@@ -1602,7 +2163,21 @@ if (
       width / height;
 
     this.camera.updateProjectionMatrix();
-      =====================================================
+
+    this.renderer.setSize(
+      width,
+      height
+    );
+
+    this.renderer.setPixelRatio(
+      Math.min(
+        window.devicePixelRatio,
+        2
+      )
+    );
+  };
+
+  // =========================================================
   // Economy Access
   // =========================================================
 
@@ -1857,178 +2432,168 @@ if (
     };
   }
 
-    // -------------------------------------------------------
-// Race completion
-// M6.8.7 鈥� Race Completion 鈫� Progression
-// -------------------------------------------------------
-
-private completeRace(
-  raceId: string,
-  won: boolean,
-  position: number = 1,
-  time: number = 0
-): void {
-
-  const progression =
-    this.playerProgress.raceProgression;
-
-  const race =
-    progression.races.find(
-      (entry) =>
-        entry.raceId === raceId
-    );
-
-  if (!race) {
-    return;
-  }
-
   // -------------------------------------------------------
   // Race completion
+  // M6.8.7 — Race Completion → Progression
   // -------------------------------------------------------
 
-  race.completionCount += 1;
+  private completeRace(
+    raceId: string,
+    won: boolean,
+    position: number = 1,
+    time: number = 0
+  ): void {
 
-  progression.racesCompleted += 1;
+    const progression =
+      this.playerProgress.raceProgression;
 
-  // -------------------------------------------------------
-  // Race win
-  // -------------------------------------------------------
-
-  if (won) {
-
-    race.winCount += 1;
-
-    progression.racesWon += 1;
-  }
-
-  // -------------------------------------------------------
-  // Best position
-  // -------------------------------------------------------
-
-  if (
-    Number.isFinite(position) &&
-    position > 0 &&
-    (
-      race.bestPosition === 0 ||
-      position < race.bestPosition
-    )
-  ) {
-
-    race.bestPosition =
-      Math.floor(position);
-  }
-
-  // -------------------------------------------------------
-  // Best time
-  // -------------------------------------------------------
-
-  if (
-    Number.isFinite(time) &&
-    time > 0 &&
-    (
-      race.bestTime === 0 ||
-      time < race.bestTime
-    )
-  ) {
-
-    race.bestTime =
-      time;
-  }
-
-  // -------------------------------------------------------
-  // Mark completed
-  // -------------------------------------------------------
-
-  if (won) {
-
-    race.status =
-      "completed";
-  }
-
-  // -------------------------------------------------------
-  // Campaign progression
-  // -------------------------------------------------------
-
-  const nextRace =
-    progression.races.find(
-      (entry) =>
-        entry.status === "locked"
-    );
-
-  if (nextRace) {
-
-    nextRace.status =
-      "available";
-  }
-
-  // -------------------------------------------------------
-  // M6.8.7 鈥� Level 2 Progression
-  // -------------------------------------------------------
-  //
-  // Level 2 requirements:
-  //
-  // 3 completed races
-  // 2 won races
-  //
-  // These are also the current Boss
-  // unlock requirements.
-  // -------------------------------------------------------
-
-  const levelTwoUnlocked =
-    progression.racesCompleted >= 3 &&
-    progression.racesWon >= 2;
-
-  if (levelTwoUnlocked) {
-
-    progression.unlockedLevel =
-      Math.max(
-        progression.unlockedLevel,
-        2
+    const race =
+      progression.races.find(
+        (entry) =>
+          entry.raceId === raceId
       );
 
-  } else {
+    if (!race) {
+      return;
+    }
 
-    progression.unlockedLevel =
-      Math.max(
-        progression.unlockedLevel,
+    // -------------------------------------------------------
+    // Race completion
+    // -------------------------------------------------------
+
+    race.completionCount += 1;
+
+    progression.racesCompleted += 1;
+
+    // -------------------------------------------------------
+    // Race win
+    // -------------------------------------------------------
+
+    if (won) {
+
+      race.winCount += 1;
+
+      progression.racesWon += 1;
+    }
+
+    // -------------------------------------------------------
+    // Best position
+    // -------------------------------------------------------
+
+    if (
+      Number.isFinite(position) &&
+      position > 0 &&
+      (
+        race.bestPosition === 0 ||
+        position < race.bestPosition
+      )
+    ) {
+
+      race.bestPosition =
+        Math.floor(position);
+    }
+
+    // -------------------------------------------------------
+    // Best time
+    // -------------------------------------------------------
+
+    if (
+      Number.isFinite(time) &&
+      time > 0 &&
+      (
+        race.bestTime === 0 ||
+        time < race.bestTime
+      )
+    ) {
+
+      race.bestTime =
+        time;
+    }
+
+    // -------------------------------------------------------
+    // Mark completed
+    // -------------------------------------------------------
+
+    if (won) {
+
+      race.status =
+        "completed";
+    }
+
+    // -------------------------------------------------------
+    // Campaign progression
+    // -------------------------------------------------------
+
+    const nextRace =
+      progression.races.find(
+        (entry) =>
+          entry.status === "locked"
+      );
+
+    if (nextRace) {
+
+      nextRace.status =
+        "available";
+    }
+
+    // -------------------------------------------------------
+    // M6.8.7 — Level 2 Progression
+    // -------------------------------------------------------
+
+    const levelTwoUnlocked =
+      progression.racesCompleted >= 3 &&
+      progression.racesWon >= 2;
+
+    if (levelTwoUnlocked) {
+
+      progression.unlockedLevel =
+        Math.max(
+          progression.unlockedLevel,
+          2
+        );
+
+    } else {
+
+      progression.unlockedLevel =
+        Math.max(
+          progression.unlockedLevel,
           1
-      );
+        );
+    }
+
+    // -------------------------------------------------------
+    // Legacy progress synchronization
+    // -------------------------------------------------------
+
+    this.playerProgress.unlockedLevel =
+      progression.unlockedLevel;
+
+    this.playerProgress.racesCompleted =
+      progression.racesCompleted;
+
+    this.playerProgress.racesWon =
+      progression.racesWon;
+
+    this.playerProgress.selectedRaceId =
+      progression.selectedRaceId;
+
+    this.playerProgress.bossesDefeated =
+      progression.bossesDefeated;
+
+    // -------------------------------------------------------
+    // Persist progression
+    // -------------------------------------------------------
+
+    this.savePlayerData();
+
+    // -------------------------------------------------------
+    // Refresh HUD
+    // -------------------------------------------------------
+
+    this.raceHUD.update();
   }
 
-  // -------------------------------------------------------
-  // Legacy progress synchronization
-  // -------------------------------------------------------
-
-  this.playerProgress.unlockedLevel =
-    progression.unlockedLevel;
-
-  this.playerProgress.racesCompleted =
-    progression.racesCompleted;
-
-  this.playerProgress.racesWon =
-    progression.racesWon;
-
-  this.playerProgress.selectedRaceId =
-    progression.selectedRaceId;
-
-  this.playerProgress.bossesDefeated =
-    progression.bossesDefeated;
-
-  // -------------------------------------------------------
-  // Persist progression
-  // -------------------------------------------------------
-
-  this.savePlayerData();
-
-  // -------------------------------------------------------
-  // Refresh HUD
-  // -------------------------------------------------------
-
-  this.raceHUD.update();
-}
-  
-
-    // =========================================================
+  // =========================================================
   // M6.8.5 — Record Boss Defeat
   // =========================================================
 
@@ -2192,7 +2757,7 @@ private completeRace(
     return true;
   }
 
-    // =========================================================
+  // =========================================================
   // Load Persistent Player Data
   // =========================================================
 
@@ -2236,9 +2801,9 @@ private completeRace(
       createDefaultPlayerProgress(
         RACE_DEFINITIONS
       );
-  }
+}
 
-  // =========================================================
+    // =========================================================
   // Dispose
   // =========================================================
 
@@ -2393,7 +2958,4 @@ private completeRace(
     }
   }
 }
-      
-        
-
-            
+    
