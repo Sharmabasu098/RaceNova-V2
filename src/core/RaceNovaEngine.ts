@@ -1525,6 +1525,116 @@ if (
     }
 
     // =======================================================
+// M6.8.8 — Normal Race Progression
+// =======================================================
+//
+// Endless road continues indefinitely.
+// Only the current race has a virtual finish.
+// =======================================================
+
+if (
+  !this.normalRaceCompleted
+) {
+
+  // -----------------------------------------------------
+  // Start first available normal race
+  // -----------------------------------------------------
+
+  if (
+    !this.normalRaceStarted
+  ) {
+
+    const availableRace =
+      this.playerProgress
+        .raceProgression
+        .races
+        .find(
+          (race) =>
+            race.status === "available"
+        );
+
+    if (availableRace) {
+
+      this.normalRaceId =
+        availableRace.raceId;
+
+      this.normalRaceDistance =
+        0;
+
+      this.normalRaceTime =
+        0;
+
+      this.normalRaceStarted =
+        true;
+    }
+  }
+
+  // -----------------------------------------------------
+  // Track current race
+  // -----------------------------------------------------
+
+  if (
+    this.normalRaceStarted &&
+    !this.normalRaceCompleted
+  ) {
+
+    this.normalRaceTime +=
+      deltaTime;
+
+    if (
+      Number.isFinite(speed) &&
+      speed > 0
+    ) {
+
+      this.normalRaceDistance +=
+        (speed / 3.6) *
+        deltaTime;
+    }
+
+    // ---------------------------------------------------
+    // Virtual race finish
+    // ---------------------------------------------------
+
+    if (
+      this.normalRaceDistance >=
+      this.normalRaceFinishDistance
+    ) {
+
+      this.completeRace(
+        this.normalRaceId,
+        true,
+        1,
+        this.normalRaceTime
+      );
+
+      this.normalRaceCompleted =
+        true;
+
+      this.normalRaceStarted =
+        false;
+    }
+  }
+}
+
+    // =========================================================
+// M6.8.8 — Normal Race Runtime
+// =========================================================
+
+private normalRaceStarted: boolean = false;
+
+private normalRaceCompleted: boolean = false;
+
+private normalRaceId: string = "";
+
+private normalRaceDistance: number = 0;
+
+private normalRaceTime: number = 0;
+
+// Endless road remains endless.
+// Race itself has a virtual finish distance.
+private readonly normalRaceFinishDistance: number = 1500;
+
+    // =======================================================
     // HUD
     // =======================================================
 
