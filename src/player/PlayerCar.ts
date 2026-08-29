@@ -237,16 +237,11 @@ export class PlayerCar {
     // =======================================================
 
     this.modelPath =
-      config.modelPath ??
-      `${import.meta.env.BASE_URL}assets/cars/playercar.glb`;
-
-    this.modelScale =
-      Math.max(
-        0.001,
-        Number.isFinite(config.modelScale)
-          ? config.modelScale!
-          : 1
-      );
+  config.modelPath ??
+  new URL(
+    "../../assets/cars/playercar.glb",
+    import.meta.url
+  ).href;
 
     /*
      * RaceNova world forward direction:
