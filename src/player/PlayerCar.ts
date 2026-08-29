@@ -1,10 +1,19 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export interface PlayerCarConfig {
   x?: number;
   y?: number;
   z?: number;
   scale?: number;
+
+  // =========================================================
+  // GLB Configuration
+  // =========================================================
+
+  modelPath?: string;
+  modelScale?: number;
+  modelRotationY?: number;
 
   // =========================================================
   // Car Gameplay Stats
@@ -31,30 +40,38 @@ export interface PlayerCarStats {
 }
 
 export class PlayerCar {
+
+  // =========================================================
+  // Main Group
+  // =========================================================
+
   public readonly group: THREE.Group;
 
-  private readonly body: THREE.Mesh;
-  private readonly wheels: THREE.Mesh[] = [];
+  /**
+   * Contains the loaded GLB model.
+   *
+   * Gameplay code should continue using
+   * PlayerCar.group.
+   */
+  private readonly modelGroup:
+    THREE.Group;
+
+  // =========================================================
+  // GLB Loader
+  // =========================================================
+
+  private readonly gltfLoader:
+    GLTFLoader;
+
+  private modelLoaded =
+    false;
+
+  private modelLoadFailed =
+    false;
 
   // =========================================================
   // Gameplay Stats
   // =========================================================
-
-  /*
-   * IMPORTANT:
-   *
-   * These are intentionally NOT readonly.
-   *
-   * M5.3 requires runtime car switching.
-   *
-   * Garage
-   *   ↓
-   * CarData
-   *   ↓
-   * UpgradeSystem
-   *   ↓
-   * PlayerCar.applyCarStats()
-   */
 
   private maxSpeed: number;
   private acceleration: number;
@@ -62,7 +79,8 @@ export class PlayerCar {
 
   private hardSpeedCap: number;
 
-  private speed = 0;
+  private speed =
+    0;
 
   // =========================================================
   // Nitro System
@@ -71,8 +89,11 @@ export class PlayerCar {
   private nitroSpeed: number;
   private nitroDuration: number;
 
-  private nitroActive = false;
-  private nitroTimer = 0;
+  private nitroActive =
+    false;
+
+  private nitroTimer =
+    0;
 
   // =========================================================
   // Nitro Visual Effect
@@ -88,21 +109,56 @@ export class PlayerCar {
     THREE.PointLight | null = null;
 
   // =========================================================
+  // Configuration
+  // =========================================================
+
+  private readonly modelPath:
+    string;
+
+  private readonly modelScale:
+    number;
+
+  private readonly modelRotationY:
+    number;
+
+  // =========================================================
   // Constructor
   // =========================================================
 
   constructor(
     config: PlayerCarConfig = {}
   ) {
+
+    // =======================================================
+    // Main Group
+    // =======================================================
+
     this.group =
       new THREE.Group();
 
-    const scale =
-      Number.isFinite(config.scale)
-        ? config.scale!
-        : 1;
+    this.group.name =
+      "PlayerCar";
+
+    // =======================================================
+    // Model Group
+    // =======================================================
+
+    this.modelGroup =
+      new THREE.Group();
+
+    this.modelGroup.name =
+      "PlayerCarModel";
+
+    this.group.add(
+      this.modelGroup
+    );
+
+    // =======================================================
+    // Position
+    // =======================================================
 
     this.group.position.set(
+
       Number.isFinite(config.x)
         ? config.x!
         : 0,
@@ -116,13 +172,9 @@ export class PlayerCar {
         : 0
     );
 
-    this.group.scale.setScalar(
-      scale
-    );
-
-    // =====================================================
-    // Initial Gameplay Stats
-    // =====================================================
+    // =======================================================
+    // Gameplay Stats
+    // =======================================================
 
     this.maxSpeed =
       Math.max(
@@ -156,17 +208,19 @@ export class PlayerCar {
           : 180
       );
 
-    // =====================================================
-    // Nitro Configuration
-    // =====================================================
+    // =======================================================
+    // Nitro
+    // =======================================================
 
     this.nitroSpeed =
       THREE.MathUtils.clamp(
+
         Number.isFinite(config.nitroSpeed)
           ? config.nitroSpeed!
           : this.maxSpeed + 37,
 
         this.maxSpeed,
+
         this.hardSpeedCap
       );
 
@@ -178,180 +232,56 @@ export class PlayerCar {
           : 3
       );
 
-    // =====================================================
-    // Car Body
-    // =====================================================
+    // =======================================================
+    // GLB Configuration
+    // =======================================================
 
-    const bodyGeometry =
-      new THREE.BoxGeometry(
-        2.2,
-        0.55,
-        4.2
+    this.modelPath =
+      config.modelPath ??
+      `${import.meta.env.BASE_URL}assets/cars/playercar.glb`;
+
+    this.modelScale =
+      Math.max(
+        0.001,
+        Number.isFinite(config.modelScale)
+          ? config.modelScale!
+          : 1
       );
 
-    const bodyMaterial =
-      new THREE.MeshStandardMaterial({
-        color: 0xb51f2a,
-        roughness: 0.65,
-        metalness: 0.15
-      });
+    /*
+     * RaceNova world forward direction:
+     *
+     *        -Z
+     *         ↑
+     *       PLAYER
+     *
+     * Many downloaded GLB cars face +Z.
+     *
+     * Default rotation fixes that.
+     */
+    this.modelRotationY =
+      Number.isFinite(
+        config.modelRotationY
+      )
+        ? config.modelRotationY!
+        : Math.PI;
 
-    this.body =
-      new THREE.Mesh(
-        bodyGeometry,
-        bodyMaterial
-      );
+    // =======================================================
+    // GLB Loader
+    // =======================================================
 
-    this.body.position.y =
-      0.35;
+    this.gltfLoader =
+      new GLTFLoader();
 
-    this.body.castShadow =
-      true;
+    // =======================================================
+    // Load Player Car
+    // =======================================================
 
-    this.body.receiveShadow =
-      true;
+    this.loadPlayerCar();
 
-    this.group.add(
-      this.body
-    );
-
-    // =====================================================
-    // Cabin
-    // =====================================================
-
-    const cabinGeometry =
-      new THREE.BoxGeometry(
-        1.55,
-        0.55,
-        1.75
-      );
-
-    const cabinMaterial =
-      new THREE.MeshStandardMaterial({
-        color: 0x20252b,
-        roughness: 0.35,
-        metalness: 0.1
-      });
-
-    const cabin =
-      new THREE.Mesh(
-        cabinGeometry,
-        cabinMaterial
-      );
-
-    cabin.position.set(
-      0,
-      0.82,
-      -0.15
-    );
-
-    cabin.castShadow =
-      true;
-
-    this.group.add(
-      cabin
-    );
-
-    // =====================================================
-    // Wheels
-    // =====================================================
-
-    const wheelGeometry =
-      new THREE.CylinderGeometry(
-        0.42,
-        0.42,
-        0.28,
-        16
-      );
-
-    const wheelMaterial =
-      new THREE.MeshStandardMaterial({
-        color: 0x151515,
-        roughness: 0.85
-      });
-
-    const wheelPositions:
-      Array<
-        [number, number, number]
-      > = [
-        [-1.12, 0.25, 1.35],
-        [1.12, 0.25, 1.35],
-        [-1.12, 0.25, -1.35],
-        [1.12, 0.25, -1.35]
-      ];
-
-    for (
-      const [x, y, z]
-      of wheelPositions
-    ) {
-      const wheel =
-        new THREE.Mesh(
-          wheelGeometry,
-          wheelMaterial
-        );
-
-      wheel.rotation.z =
-        Math.PI / 2;
-
-      wheel.position.set(
-        x,
-        y,
-        z
-      );
-
-      wheel.castShadow =
-        true;
-
-      this.wheels.push(
-        wheel
-      );
-
-      this.group.add(
-        wheel
-      );
-    }
-
-    // =====================================================
-    // Headlights
-    // =====================================================
-
-    const headlightGeometry =
-      new THREE.BoxGeometry(
-        0.42,
-        0.16,
-        0.08
-      );
-
-    const headlightMaterial =
-      new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: 0x555555,
-        roughness: 0.25
-      });
-
-    for (
-      const x of [-0.62, 0.62]
-    ) {
-      const light =
-        new THREE.Mesh(
-          headlightGeometry,
-          headlightMaterial
-        );
-
-      light.position.set(
-        x,
-        0.52,
-        -2.08
-      );
-
-      this.group.add(
-        light
-      );
-    }
-
-    // =====================================================
-    // Nitro Visual Effect
-    // =====================================================
+    // =======================================================
+    // Nitro
+    // =======================================================
 
     this.createNitroEffect();
 
@@ -361,31 +291,223 @@ export class PlayerCar {
   }
 
   // =========================================================
-  // Runtime Car Stats
-  // M5.3
+  // Load Player GLB
   // =========================================================
 
-  /**
-   * Applies the effective stats of the
-   * currently selected car at runtime.
-   *
-   * Source:
-   *
-   * CarData
-   *    ↓
-   * UpgradeSystem.getStats()
-   *    ↓
-   * PlayerCar.applyCarStats()
-   *
-   * This does NOT save anything.
-   * SaveSystem remains responsible
-   * for persistence.
-   */
+  private loadPlayerCar(): void {
+
+    this.gltfLoader.load(
+
+      this.modelPath,
+
+      (gltf) => {
+
+        const model =
+          gltf.scene;
+
+        model.name =
+          "PlayerCarGLB";
+
+        // ---------------------------------------------------
+        // Basic transform
+        // ---------------------------------------------------
+
+        model.rotation.y =
+          this.modelRotationY;
+
+        model.scale.setScalar(
+          this.modelScale
+        );
+
+        // ---------------------------------------------------
+        // Shadows
+        // ---------------------------------------------------
+
+        model.traverse(
+          (object) => {
+
+            if (
+              object instanceof THREE.Mesh
+            ) {
+
+              object.castShadow =
+                true;
+
+              object.receiveShadow =
+                true;
+
+              /*
+               * GLB materials remain untouched.
+               *
+               * We do NOT replace them with
+               * simple BoxGeometry materials.
+               */
+            }
+          }
+        );
+
+        // ---------------------------------------------------
+        // Normalize model size
+        // ---------------------------------------------------
+
+        this.normalizeModel(
+          model
+        );
+
+        // ---------------------------------------------------
+        // Add model
+        // ---------------------------------------------------
+
+        this.modelGroup.add(
+          model
+        );
+
+        this.modelLoaded =
+          true;
+
+        this.modelLoadFailed =
+          false;
+      },
+
+      undefined,
+
+      (error) => {
+
+        this.modelLoaded =
+          false;
+
+        this.modelLoadFailed =
+          true;
+
+        console.error(
+          "[RaceNova] Failed to load playercar.glb:",
+          error
+        );
+      }
+    );
+  }
+
+  // =========================================================
+  // Normalize GLB Model
+  // =========================================================
+
+  private normalizeModel(
+    model: THREE.Object3D
+  ): void {
+
+    const box =
+      new THREE.Box3().setFromObject(
+        model
+      );
+
+    if (
+      box.isEmpty()
+    ) {
+      return;
+    }
+
+    const size =
+      new THREE.Vector3();
+
+    box.getSize(
+      size
+    );
+
+    const maxDimension =
+      Math.max(
+        size.x,
+        size.y,
+        size.z
+      );
+
+    if (
+      !Number.isFinite(
+        maxDimension
+      ) ||
+      maxDimension <= 0
+    ) {
+      return;
+    }
+
+    /*
+     * RaceNova cars are roughly
+     * 4 world units long.
+     *
+     * This prevents a downloaded
+     * GLB from appearing huge/tiny.
+     */
+    const targetLength =
+      4.2;
+
+    const normalizationScale =
+      targetLength /
+      maxDimension;
+
+    model.scale.multiplyScalar(
+      normalizationScale
+    );
+
+    // -------------------------------------------------------
+    // Recalculate bounding box
+    // -------------------------------------------------------
+
+    const normalizedBox =
+      new THREE.Box3().setFromObject(
+        model
+      );
+
+    const center =
+      new THREE.Vector3();
+
+    normalizedBox.getCenter(
+      center
+    );
+
+    // -------------------------------------------------------
+    // Center X/Z
+    // -------------------------------------------------------
+
+    model.position.x -=
+      center.x;
+
+    model.position.z -=
+      center.z;
+
+    // -------------------------------------------------------
+    // Put wheels/body on road level
+    // -------------------------------------------------------
+
+    const normalizedMinY =
+      normalizedBox.min.y;
+
+    model.position.y -=
+      normalizedMinY;
+  }
+
+  // =========================================================
+  // GLB Status
+  // =========================================================
+
+  public isModelLoaded(): boolean {
+
+    return this.modelLoaded;
+  }
+
+  public hasModelLoadFailed(): boolean {
+
+    return this.modelLoadFailed;
+  }
+
+  // =========================================================
+  // Runtime Car Stats
+  // =========================================================
+
   public applyCarStats(
     maxSpeed: number,
     acceleration: number,
     handling: number
   ): void {
+
     if (
       !Number.isFinite(maxSpeed) ||
       !Number.isFinite(acceleration) ||
@@ -394,9 +516,9 @@ export class PlayerCar {
       return;
     }
 
-    // -----------------------------------------------------
-    // Apply gameplay stats
-    // -----------------------------------------------------
+    // -------------------------------------------------------
+    // Gameplay stats
+    // -------------------------------------------------------
 
     this.maxSpeed =
       Math.max(
@@ -416,49 +538,46 @@ export class PlayerCar {
         handling
       );
 
-    // -----------------------------------------------------
-    // Recalculate hard cap
-    // -----------------------------------------------------
+    // -------------------------------------------------------
+    // Hard cap
+    // -------------------------------------------------------
 
-    /*
-     * Keep the established RaceNova
-     * minimum hard cap of 180.
-     */
     this.hardSpeedCap =
       Math.max(
         180,
         this.maxSpeed
       );
 
-    // -----------------------------------------------------
-    // Recalculate Nitro
-    // -----------------------------------------------------
+    // -------------------------------------------------------
+    // Nitro
+    // -------------------------------------------------------
 
-    /*
-     * Nitro remains +37 above the
-     * selected car's normal max speed,
-     * but never exceeds hardSpeedCap.
-     */
     this.nitroSpeed =
       THREE.MathUtils.clamp(
+
         this.maxSpeed + 37,
+
         this.maxSpeed,
+
         this.hardSpeedCap
       );
 
-    // -----------------------------------------------------
-    // Keep current speed valid
-    // -----------------------------------------------------
+    // -------------------------------------------------------
+    // Keep speed valid
+    // -------------------------------------------------------
 
     if (
       this.nitroActive
     ) {
+
       this.speed =
         Math.min(
           this.speed,
           this.nitroSpeed
         );
+
     } else {
+
       this.speed =
         Math.min(
           this.speed,
@@ -480,7 +599,9 @@ export class PlayerCar {
 
   public getStats():
     PlayerCarStats {
+
     return {
+
       maxSpeed:
         this.maxSpeed,
 
@@ -497,6 +618,7 @@ export class PlayerCar {
   // =========================================================
 
   private createNitroEffect(): void {
+
     this.nitroEffectGroup.name =
       "NitroEffect";
 
@@ -509,20 +631,36 @@ export class PlayerCar {
 
     const flameMaterial =
       new THREE.MeshStandardMaterial({
-        color: 0xff8a00,
-        emissive: 0xff3d00,
-        emissiveIntensity: 2.5,
-        transparent: true,
-        opacity: 0.9,
-        roughness: 0.25,
-        metalness: 0
+
+        color:
+          0xff8a00,
+
+        emissive:
+          0xff3d00,
+
+        emissiveIntensity:
+          2.5,
+
+        transparent:
+          true,
+
+        opacity:
+          0.9,
+
+        roughness:
+          0.25,
+
+        metalness:
+          0
       });
 
     const exhaustPositions:
       Array<
         [number, number, number]
       > = [
+
         [-0.65, 0.34, 2.15],
+
         [0.65, 0.34, 2.15]
       ];
 
@@ -530,6 +668,7 @@ export class PlayerCar {
       const [x, y, z]
       of exhaustPositions
     ) {
+
       const flame =
         new THREE.Mesh(
           flameGeometry.clone(),
@@ -566,9 +705,9 @@ export class PlayerCar {
       );
     }
 
-    // =====================================================
+    // =======================================================
     // Nitro Light
-    // =====================================================
+    // =======================================================
 
     this.nitroLight =
       new THREE.PointLight(
@@ -599,12 +738,14 @@ export class PlayerCar {
   private setNitroEffectVisible(
     visible: boolean
   ): void {
+
     this.nitroEffectGroup.visible =
       visible;
 
     if (
       this.nitroLight
     ) {
+
       this.nitroLight.intensity =
         visible
           ? 2.2
@@ -619,9 +760,11 @@ export class PlayerCar {
   private updateNitroEffect(
     deltaTime: number
   ): void {
+
     if (
       !this.nitroActive
     ) {
+
       this.setNitroEffectVisible(
         false
       );
@@ -633,17 +776,21 @@ export class PlayerCar {
       true
     );
 
+    const now =
+      performance.now();
+
     const pulse =
       0.85 +
       Math.sin(
-        performance.now() * 0.025
+        now * 0.025
       ) *
-        0.18;
+      0.18;
 
     for (
       const flame
       of this.nitroFlames
     ) {
+
       flame.scale.x =
         pulse;
 
@@ -656,7 +803,7 @@ export class PlayerCar {
 
       flame.rotation.z =
         Math.sin(
-          performance.now() * 0.015
+          now * 0.015
         ) *
         0.08;
     }
@@ -664,12 +811,13 @@ export class PlayerCar {
     if (
       this.nitroLight
     ) {
+
       this.nitroLight.intensity =
         1.8 +
         Math.sin(
-          performance.now() * 0.03
+          now * 0.03
         ) *
-          0.7;
+        0.7;
     }
 
     void deltaTime;
@@ -682,6 +830,7 @@ export class PlayerCar {
   public update(
     deltaTime: number
   ): void {
+
     if (
       deltaTime <= 0 ||
       !Number.isFinite(deltaTime)
@@ -689,19 +838,21 @@ export class PlayerCar {
       return;
     }
 
-    // =====================================================
+    // =======================================================
     // Nitro Timer
-    // =====================================================
+    // =======================================================
 
     if (
       this.nitroActive
     ) {
+
       this.nitroTimer -=
         deltaTime;
 
       if (
         this.nitroTimer <= 0
       ) {
+
         this.nitroActive =
           false;
 
@@ -716,27 +867,30 @@ export class PlayerCar {
       }
     }
 
-    // =====================================================
+    // =======================================================
     // Normal Acceleration
-    // =====================================================
+    // =======================================================
 
     this.speed +=
       this.acceleration *
       deltaTime;
 
-    // =====================================================
+    // =======================================================
     // Speed Limit
-    // =====================================================
+    // =======================================================
 
     if (
       this.nitroActive
     ) {
+
       this.speed =
         Math.min(
           this.speed,
           this.nitroSpeed
         );
+
     } else {
+
       this.speed =
         Math.min(
           this.speed,
@@ -744,9 +898,9 @@ export class PlayerCar {
         );
     }
 
-    // =====================================================
+    // =======================================================
     // Absolute Hard Cap
-    // =====================================================
+    // =======================================================
 
     this.speed =
       THREE.MathUtils.clamp(
@@ -755,41 +909,24 @@ export class PlayerCar {
         this.hardSpeedCap
       );
 
-    // =====================================================
-    // Convert km/h → world units / second
-    // =====================================================
+    // =======================================================
+    // km/h → world units/sec
+    // =======================================================
 
     const worldSpeed =
       this.speed / 3.6;
 
-    // =====================================================
+    // =======================================================
     // Forward Movement
-    // =====================================================
+    // =======================================================
 
     this.group.position.z -=
       worldSpeed *
       deltaTime;
 
-    // =====================================================
-    // Wheel Rotation
-    // =====================================================
-
-    const wheelRotation =
-      worldSpeed *
-      deltaTime /
-      0.42;
-
-    for (
-      const wheel
-      of this.wheels
-    ) {
-      wheel.rotation.x -=
-        wheelRotation;
-    }
-
-    // =====================================================
+    // =======================================================
     // Nitro Visual
-    // =====================================================
+    // =======================================================
 
     this.updateNitroEffect(
       deltaTime
@@ -801,6 +938,7 @@ export class PlayerCar {
   // =========================================================
 
   public activateNitro(): void {
+
     if (
       this.nitroActive
     ) {
@@ -836,22 +974,30 @@ export class PlayerCar {
     );
   }
 
-  public isNitroActive(): boolean {
+  public isNitroActive():
+    boolean {
+
     return this.nitroActive;
   }
 
-  public getNitroTimeRemaining(): number {
+  public getNitroTimeRemaining():
+    number {
+
     return Math.max(
       0,
       this.nitroTimer
     );
   }
 
-  public getNitroSpeed(): number {
+  public getNitroSpeed():
+    number {
+
     return this.nitroSpeed;
   }
 
-  public getNitroDuration(): number {
+  public getNitroDuration():
+    number {
+
     return this.nitroDuration;
   }
 
@@ -859,23 +1005,31 @@ export class PlayerCar {
   // Speed API
   // =========================================================
 
-  public getSpeed(): number {
+  public getSpeed():
+    number {
+
     return this.speed;
   }
 
-  public getMaxSpeed(): number {
+  public getMaxSpeed():
+    number {
+
     return this.maxSpeed;
   }
 
-  public getHardSpeedCap(): number {
+  public getHardSpeedCap():
+    number {
+
     return this.hardSpeedCap;
   }
 
   // =========================================================
-  // Handling API
+  // Handling
   // =========================================================
 
-  public getHandling(): number {
+  public getHandling():
+    number {
+
     return this.handling;
   }
 
@@ -886,6 +1040,7 @@ export class PlayerCar {
   public setSpeed(
     speed: number
   ): void {
+
     if (
       !Number.isFinite(speed)
     ) {
@@ -902,6 +1057,7 @@ export class PlayerCar {
     if (
       this.speed <= 0
     ) {
+
       this.nitroActive =
         false;
 
@@ -915,6 +1071,7 @@ export class PlayerCar {
   }
 
   public stop(): void {
+
     this.speed =
       0;
 
@@ -933,13 +1090,22 @@ export class PlayerCar {
   // Position
   // =========================================================
 
-  public getPosition(): THREE.Vector3 {
+  public getPosition():
+    THREE.Vector3 {
+
     return this.group.position;
   }
 
   public setX(
     x: number
   ): void {
+
+    if (
+      !Number.isFinite(x)
+    ) {
+      return;
+    }
+
     this.group.position.x =
       x;
   }
@@ -947,6 +1113,13 @@ export class PlayerCar {
   public setZ(
     z: number
   ): void {
+
+    if (
+      !Number.isFinite(z)
+    ) {
+      return;
+    }
+
     this.group.position.z =
       z;
   }
@@ -958,11 +1131,20 @@ export class PlayerCar {
   public setRotationY(
     rotationY: number
   ): void {
+
+    if (
+      !Number.isFinite(rotationY)
+    ) {
+      return;
+    }
+
     this.group.rotation.y =
       rotationY;
   }
 
-  public getRotationY(): number {
+  public getRotationY():
+    number {
+
     return this.group.rotation.y;
   }
 
@@ -973,6 +1155,7 @@ export class PlayerCar {
   public addToScene(
     scene: THREE.Scene
   ): void {
+
     scene.add(
       this.group
     );
@@ -983,8 +1166,10 @@ export class PlayerCar {
   // =========================================================
 
   public dispose(): void {
+
     this.group.traverse(
       (object) => {
+
         if (
           !(object instanceof THREE.Mesh)
         ) {
@@ -998,15 +1183,19 @@ export class PlayerCar {
             object.material
           )
         ) {
+
           object.material.forEach(
             (material) => {
               material.dispose();
             }
           );
+
         } else {
+
           object.material.dispose();
         }
       }
     );
   }
 }
+  
