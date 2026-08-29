@@ -160,7 +160,7 @@ export class TrafficCar {
 
     this.modelPath =
       config.modelPath ??
-      `${import.meta.env.BASE_URL}assets/cars/trafficsuv.glb`;
+"/RaceNova-V2/assets/cars/trafficsuv.glb";
 
     this.modelScale =
       Math.max(
