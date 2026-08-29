@@ -116,8 +116,8 @@ export class PlayerCar {
     string;
 
   private readonly modelScale:
-    number;
-
+  number = 1;
+  
   private readonly modelRotationY:
     number;
 
