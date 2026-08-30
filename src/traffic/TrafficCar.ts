@@ -15,8 +15,23 @@ export interface TrafficCarConfig {
   scale?: number;
 
   // =========================================================
+  // Legacy / Traffic Variant Compatibility
+  // =========================================================
+
+  /**
+   * Optional traffic color supplied by
+   * TrafficManager.
+   *
+   * GLB materials are intentionally preserved.
+   * This value exists for compatibility with
+   * the existing TrafficManager API.
+   */
+  color?: number;
+
+  // =========================================================
   // GLB Configuration
   // =========================================================
+
 
   modelPath?: string;
   modelScale?: number;
