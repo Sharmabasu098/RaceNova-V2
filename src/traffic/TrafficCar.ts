@@ -175,10 +175,7 @@ export class TrafficCar {
 
     this.modelPath =
   config.modelPath ??
-  new URL(
-    "../../assets/cars/trafficsuv.glb",
-    import.meta.url
-  ).href;
+  `${import.meta.env.BASE_URL}assets/cars/trafficsuv.glb`;
     
     this.modelScale =
       Math.max(
