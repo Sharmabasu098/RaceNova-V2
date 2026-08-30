@@ -238,10 +238,7 @@ export class PlayerCar {
 
     this.modelPath =
   config.modelPath ??
-  new URL(
-    "../../assets/cars/playercar.glb",
-    import.meta.url
-  ).href;
+  "/RaceNova-V2/assets/cars/playercar.glb";
 
     /*
      * RaceNova world forward direction:
