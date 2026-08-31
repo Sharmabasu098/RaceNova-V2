@@ -811,6 +811,8 @@ export class RaceNovaEngine {
       this.bossMesh
     );
 
+    void this.loadBossModel();
+
     // =======================================================
     // Keyboard Nitro
     // =======================================================
@@ -1115,6 +1117,250 @@ export class RaceNovaEngine {
 
       return;
     }
+    // =========================================================
+  // M6.7.4 — Create Boss 3D Mesh
+  // =========================================================
+
+  private createBossMesh(): THREE.Group {
+
+    const boss =
+      new THREE.Group();
+
+    boss.name =
+      "BossCar";
+
+    return boss;
+  }
+
+  // =========================================================
+  // M6.7.4 — Load Boss GLB
+  // =========================================================
+
+  private async loadBossModel(): Promise<void> {
+
+    const loader =
+      new GLTFLoader();
+
+    /*
+     * Boss model:
+     *
+     * public/assets/cars/bosscar.glb
+     *
+     * GitHub Pages:
+     *
+     * /RaceNova-V2/assets/cars/bosscar.glb
+     */
+
+    const modelUrl =
+      "/RaceNova-V2/assets/cars/bosscar.glb";
+
+    try {
+
+      const gltf =
+        await loader.loadAsync(
+          modelUrl
+        );
+
+      const model =
+        gltf.scene;
+
+      model.name =
+        "BossCarGLB";
+
+      // -------------------------------------------------------
+      // Shadows
+      // -------------------------------------------------------
+
+      model.traverse(
+        (object) => {
+
+          if (
+            object instanceof THREE.Mesh
+          ) {
+
+            object.castShadow =
+              true;
+
+            object.receiveShadow =
+              true;
+
+            if (
+              Array.isArray(
+                object.material
+              )
+            ) {
+
+              object.material.forEach(
+                (material) => {
+
+                  material.needsUpdate =
+                    true;
+                }
+              );
+
+            } else {
+
+              object.material.needsUpdate =
+                true;
+            }
+          }
+        }
+      );
+
+      // -------------------------------------------------------
+      // Find original model size
+      // -------------------------------------------------------
+
+      const box =
+        new THREE.Box3().setFromObject(
+          model
+        );
+
+      if (
+        box.isEmpty()
+      ) {
+
+        console.error(
+          "[RaceNova] Boss GLB bounding box is empty."
+        );
+
+        return;
+      }
+
+      const size =
+        new THREE.Vector3();
+
+      box.getSize(
+        size
+      );
+
+      const maxDimension =
+        Math.max(
+          size.x,
+          size.y,
+          size.z
+        );
+
+      if (
+        !Number.isFinite(
+          maxDimension
+        ) ||
+        maxDimension <= 0
+      ) {
+
+        console.error(
+          "[RaceNova] Invalid Boss GLB size."
+        );
+
+        return;
+      }
+
+      // -------------------------------------------------------
+      // Normalize Boss size
+      // -------------------------------------------------------
+
+      const targetSize =
+        5.2;
+
+      const normalizationScale =
+        targetSize /
+        maxDimension;
+
+      model.scale.setScalar(
+        normalizationScale
+      );
+
+      // -------------------------------------------------------
+      // Recalculate bounds
+      // -------------------------------------------------------
+
+      const normalizedBox =
+        new THREE.Box3().setFromObject(
+          model
+        );
+
+      const center =
+        new THREE.Vector3();
+
+      normalizedBox.getCenter(
+        center
+      );
+
+      // -------------------------------------------------------
+      // Center X / Z
+      // -------------------------------------------------------
+
+      model.position.x -=
+        center.x;
+
+      model.position.z -=
+        center.z;
+
+      // -------------------------------------------------------
+      // Put Boss on road
+      // -------------------------------------------------------
+
+      model.position.y -=
+        normalizedBox.min.y;
+
+      // -------------------------------------------------------
+      // Face RaceNova forward direction
+      // -------------------------------------------------------
+
+      model.rotation.y =
+        Math.PI;
+
+      // -------------------------------------------------------
+      // Add GLB to Boss container
+      // -------------------------------------------------------
+
+      this.bossMesh.add(
+        model
+      );
+
+      console.log(
+        "[RaceNova] Boss GLB loaded:",
+        modelUrl
+      );
+
+      this.bossMesh.visible =
+        this.bossManager.isActive();
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "[RaceNova] Failed to load Boss GLB:",
+        modelUrl,
+        error
+      );
+    }
+  }
+
+  // =========================================================
+  // M6.7.4 — Update Boss 3D
+  // =========================================================
+
+  private updateBoss3D(): void {
+
+    // -------------------------------------------------------
+    // Boss inactive
+    // -------------------------------------------------------
+
+    if (
+      !this.bossManager.isActive()
+    ) {
+
+      this.bossMesh.visible =
+        false;
+
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Get Boss position
+    // -------------------------------------------------------
 
     const bossPosition =
       this.bossManager.getPosition();
@@ -1129,10 +1375,18 @@ export class RaceNovaEngine {
       return;
     }
 
+    // -------------------------------------------------------
+    // Road center
+    // -------------------------------------------------------
+
     const roadCenterX =
       this.world.getRoadCenterX(
         bossPosition.z
       );
+
+    // -------------------------------------------------------
+    // Position
+    // -------------------------------------------------------
 
     this.bossMesh.position.x =
       roadCenterX +
@@ -1144,16 +1398,19 @@ export class RaceNovaEngine {
     this.bossMesh.position.z =
       bossPosition.z;
 
-    this.bossMesh.visible =
-      true;
-
     // -------------------------------------------------------
-    // Boss faces forward on the road.
-    // RaceNova forward direction is -Z.
+    // Container rotation
     // -------------------------------------------------------
 
     this.bossMesh.rotation.y =
-      Math.PI;
+      0;
+
+    // -------------------------------------------------------
+    // Show Boss
+    // -------------------------------------------------------
+
+    this.bossMesh.visible =
+      true;
   }
 
   // =========================================================
