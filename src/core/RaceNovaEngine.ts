@@ -1551,6 +1551,202 @@ private async loadBossModel(): Promise<void> {
       modelUrl
     );
 
+   // =========================================================
+// M6.7.4 — Create Boss 3D Mesh
+// =========================================================
+
+private createBossMesh(): THREE.Group {
+
+  const boss =
+    new THREE.Group();
+
+  boss.name =
+    "BossCar";
+
+  return boss;
+}
+
+// =========================================================
+// M6.7.4 — Load Boss GLB
+// =========================================================
+
+private async loadBossModel(): Promise<void> {
+
+  const loader =
+    new GLTFLoader();
+
+  const modelUrl =
+    "/RaceNova-V2/assets/cars/bosscar.glb";
+
+  try {
+
+    const gltf =
+      await loader.loadAsync(
+        modelUrl
+      );
+
+    const model =
+      gltf.scene;
+
+    model.name =
+      "BossCarGLB";
+
+    // -------------------------------------------------------
+    // Shadows
+    // -------------------------------------------------------
+
+    model.traverse(
+      (object) => {
+
+        if (
+          object instanceof THREE.Mesh
+        ) {
+
+          object.castShadow =
+            true;
+
+          object.receiveShadow =
+            true;
+
+          if (
+            Array.isArray(
+              object.material
+            )
+          ) {
+
+            object.material.forEach(
+              (material) => {
+
+                material.needsUpdate =
+                  true;
+              }
+            );
+
+          } else {
+
+            object.material.needsUpdate =
+              true;
+          }
+        }
+      }
+    );
+
+    // -------------------------------------------------------
+    // Calculate original size
+    // -------------------------------------------------------
+
+    const box =
+      new THREE.Box3().setFromObject(
+        model
+      );
+
+    if (
+      box.isEmpty()
+    ) {
+
+      console.error(
+        "[RaceNova] Boss GLB bounding box is empty."
+      );
+
+      return;
+    }
+
+    const size =
+      new THREE.Vector3();
+
+    box.getSize(
+      size
+    );
+
+    const maxDimension =
+      Math.max(
+        size.x,
+        size.y,
+        size.z
+      );
+
+    if (
+      !Number.isFinite(
+        maxDimension
+      ) ||
+      maxDimension <= 0
+    ) {
+
+      console.error(
+        "[RaceNova] Invalid Boss GLB size."
+      );
+
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Normalize Boss size
+    // -------------------------------------------------------
+
+    const targetSize =
+      5.2;
+
+    const normalizationScale =
+      targetSize /
+      maxDimension;
+
+    model.scale.setScalar(
+      normalizationScale
+    );
+
+    // -------------------------------------------------------
+    // Recalculate bounds
+    // -------------------------------------------------------
+
+    const normalizedBox =
+      new THREE.Box3().setFromObject(
+        model
+      );
+
+    const center =
+      new THREE.Vector3();
+
+    normalizedBox.getCenter(
+      center
+    );
+
+    // -------------------------------------------------------
+    // Center X / Z
+    // -------------------------------------------------------
+
+    model.position.x -=
+      center.x;
+
+    model.position.z -=
+      center.z;
+
+    // -------------------------------------------------------
+    // Put Boss on road
+    // -------------------------------------------------------
+
+    model.position.y -=
+      normalizedBox.min.y;
+
+    // -------------------------------------------------------
+    // Face RaceNova forward direction
+    // -------------------------------------------------------
+
+    model.rotation.y =
+      Math.PI;
+
+    // -------------------------------------------------------
+    // Add GLB
+    // -------------------------------------------------------
+
+    this.bossMesh.add(
+      model
+    );
+
+    console.log(
+      "[RaceNova] Boss GLB loaded:",
+      modelUrl
+    );
+
     this.bossMesh.visible =
       this.bossManager.isActive();
 
@@ -1639,7 +1835,7 @@ private updateBoss3D(): void {
 
   this.bossMesh.visible =
     true;
-    }
+  }
 
 
   // =========================================================
