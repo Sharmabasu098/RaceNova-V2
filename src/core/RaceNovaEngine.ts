@@ -866,11 +866,7 @@ export class RaceNovaEngine {
     // Static URL so Vite bundles the model correctly for
     // development, GitHub Pages, and production builds.
     const modelUrl =
-      new URL(
-        "../../assets/cars/bosscar.glb",
-        import.meta.url
-      ).href;
-
+  "/RaceNova-V2/assets/cars/bosscar.glb";
     try {
 
       const gltf =
