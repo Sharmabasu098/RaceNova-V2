@@ -498,7 +498,7 @@ this.audioManager.initialize();
     // Coin Spawner
     // =======================================================
 
-    this.coinSpawner =
+        this.coinSpawner =
       new CoinSpawner(
         this.scene,
         this.economyManager,
@@ -516,6 +516,7 @@ this.audioManager.initialize();
           coinHeight: 1,
 
           maxCoins: 30,
+
           getRoadCenterX: (
             worldZ: number
           ) =>
@@ -531,12 +532,13 @@ this.audioManager.initialize();
 
               this.savePlayerData();
             }
-            
+          }
+        );
 
-          // =======================================================
+    // =======================================================
     // Race HUD
     // =======================================================
-
+          
     this.raceHUD =
       new RaceHUD(
         this.playerCar,
