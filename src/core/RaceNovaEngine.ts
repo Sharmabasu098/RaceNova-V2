@@ -25,6 +25,9 @@ import { UpgradeSystem } from "../garage/UpgradeSystem";
 
 import { SaveSystem } from "../save/SaveSystem";
 
+import { AudioManager } from "../audio/AudioManager";
+
+
 import {
   type PlayerSaveData,
   type PlayerProgress,
@@ -74,6 +77,13 @@ export class RaceNovaEngine {
 
   private readonly clock:
     THREE.Clock;
+
+  // =========================================================
+// M7.1 — Audio
+// =========================================================
+
+private readonly audioManager:
+  AudioManager;
 
   // =========================================================
   // World
@@ -323,6 +333,15 @@ export class RaceNovaEngine {
 
     this.clock =
       new THREE.Clock();
+
+    // =======================================================
+// M7.1 — Audio
+// =======================================================
+
+this.audioManager =
+  new AudioManager();
+
+this.audioManager.initialize();
 
     // =======================================================
     // Lighting
