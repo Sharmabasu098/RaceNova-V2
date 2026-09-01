@@ -85,6 +85,11 @@ export class RaceNovaEngine {
 private readonly audioManager:
   AudioManager;
 
+  private crashSoundPlayed =
+  false;
+
+  
+
   // =========================================================
   // World
   // =========================================================
@@ -511,7 +516,6 @@ this.audioManager.initialize();
           coinHeight: 1,
 
           maxCoins: 30,
-
           getRoadCenterX: (
             worldZ: number
           ) =>
@@ -519,11 +523,15 @@ this.audioManager.initialize();
               worldZ
             ),
 
-          onCoinCollected: () => {
-            this.savePlayerData();
-          }
-        }
-      );
+            onCoinCollected: () => {
+
+              this.audioManager.playSFX(
+                "coin"
+              );
+
+              this.savePlayerData();
+            }
+            
 
           // =======================================================
     // Race HUD
@@ -1206,7 +1214,11 @@ this.audioManager.initialize();
 
     this.playerCar.activateNitro();
 
-    this.raceHUD.update();
+this.audioManager.playSFX(
+  "nitro"
+);
+
+this.raceHUD.update();
   }
 
   // =========================================================
@@ -1377,6 +1389,16 @@ this.audioManager.initialize();
       this.trafficManager
         .getTrafficCars()
     );
+
+    if (
+  this.trafficCollisionSystem
+    .hasCrashed()
+) {
+
+  this.audioManager.playSFX(
+    "crash"
+  );
+    }
 
     // =======================================================
     // Coins
