@@ -81,26 +81,17 @@ export class RaceNovaEngine {
   // =========================================================
 // M7.1 — Audio
 // =========================================================
-
 private readonly audioManager:
   AudioManager;
 
-  private crashSoundPlayed =
+private crashSoundPlayed =
   false;
 
-  private bossDefeatSoundPlayed =
-  false;
+private handleAudioUnlock = (): void => {
 
-private bossCompleteSoundPlayed =
-  false;
+  void this.audioManager.unlock();
 
-private bossFailSoundPlayed =
-  false;
-
-private normalRaceCompleteSoundPlayed =
-  false;
-
-  
+};
 
   // =========================================================
   // World
