@@ -2,11 +2,12 @@
  * ============================================================
  * RaceNova V2
  * Music Manager
- * M7.1
+ * M7.1 — Arcade Racing Music
  * ============================================================
  *
  * Responsibilities:
  * - Lightweight background race music
+ * - Energetic arcade racing loop
  * - Start / stop music
  * - Volume control
  * - Enable / disable music
@@ -25,7 +26,19 @@ export class MusicManager {
 
   private masterGain: GainNode | null = null;
 
-  private oscillator: OscillatorNode | null = null;
+  private musicGain: GainNode | null = null;
+
+  private bassOscillator: OscillatorNode | null = null;
+
+  private leadOscillator: OscillatorNode | null = null;
+
+  private bassGain: GainNode | null = null;
+
+  private leadGain: GainNode | null = null;
+
+  private lfoOscillator: OscillatorNode | null = null;
+
+  private lfoGain: GainNode | null = null;
 
   private enabled = true;
 
@@ -59,8 +72,7 @@ export class MusicManager {
     this.masterGain =
       this.audioContext.createGain();
 
-    this.masterGain.gain.value =
-      0;
+    this.masterGain.gain.value = 0;
 
     this.masterGain.connect(
       this.audioContext.destination
@@ -84,7 +96,7 @@ export class MusicManager {
   }
 
   /**
-   * Start lightweight background music.
+   * Start energetic arcade racing music.
    */
   public start(): void {
     if (!this.enabled || this.playing) {
@@ -111,20 +123,128 @@ export class MusicManager {
     const now =
       this.audioContext.currentTime;
 
-    this.oscillator =
+    /*
+     * --------------------------------------------------------
+     * Music routing
+     * --------------------------------------------------------
+     */
+
+    this.musicGain =
+      this.audioContext.createGain();
+
+    this.musicGain.gain.value = 0.85;
+
+    this.musicGain.connect(
+      this.masterGain
+    );
+
+    /*
+     * --------------------------------------------------------
+     * Bass
+     * --------------------------------------------------------
+     */
+
+    this.bassGain =
+      this.audioContext.createGain();
+
+    this.bassGain.gain.value = 0.30;
+
+    this.bassGain.connect(
+      this.musicGain
+    );
+
+    this.bassOscillator =
       this.audioContext.createOscillator();
 
-    this.oscillator.type =
-      "triangle";
+    this.bassOscillator.type =
+      "sawtooth";
 
-    this.oscillator.frequency.setValueAtTime(
-      110,
+    this.bassOscillator.frequency.setValueAtTime(
+      55,
       now
     );
 
-    this.oscillator.connect(
-      this.masterGain
+    this.bassOscillator.connect(
+      this.bassGain
     );
+
+    /*
+     * --------------------------------------------------------
+     * Lead synth
+     * --------------------------------------------------------
+     */
+
+    this.leadGain =
+      this.audioContext.createGain();
+
+    this.leadGain.gain.value = 0.12;
+
+    this.leadGain.connect(
+      this.musicGain
+    );
+
+    this.leadOscillator =
+      this.audioContext.createOscillator();
+
+    this.leadOscillator.type =
+      "square";
+
+    this.leadOscillator.frequency.setValueAtTime(
+      220,
+      now
+    );
+
+    this.leadOscillator.connect(
+      this.leadGain
+    );
+
+    /*
+     * --------------------------------------------------------
+     * Slow modulation
+     * --------------------------------------------------------
+     */
+
+    this.lfoGain =
+      this.audioContext.createGain();
+
+    this.lfoGain.gain.value = 7;
+
+    this.lfoOscillator =
+      this.audioContext.createOscillator();
+
+    this.lfoOscillator.type =
+      "sine";
+
+    this.lfoOscillator.frequency.setValueAtTime(
+      2,
+      now
+    );
+
+    this.lfoOscillator.connect(
+      this.lfoGain
+    );
+
+    this.lfoGain.connect(
+      this.leadOscillator.frequency
+    );
+
+    /*
+     * --------------------------------------------------------
+     * Start
+     * --------------------------------------------------------
+     */
+
+    this.bassOscillator.start(now);
+
+    this.leadOscillator.start(now);
+
+    this.lfoOscillator.start(now);
+
+    /*
+     * --------------------------------------------------------
+     * Fade in
+     * --------------------------------------------------------
+     */
 
     this.masterGain.gain.cancelScheduledValues(
       now
@@ -137,12 +257,96 @@ export class MusicManager {
 
     this.masterGain.gain.exponentialRampToValueAtTime(
       this.volume,
-      now + 1.5
+      now + 1.2
     );
 
-    this.oscillator.start(now);
-
     this.playing = true;
+
+    /*
+     * --------------------------------------------------------
+     * Racing pulse
+     *
+     * The bass frequency changes every 0.5 seconds,
+     * creating a simple repeating arcade-racing rhythm.
+     * --------------------------------------------------------
+     */
+
+    this.scheduleRacePattern(now);
+  }
+
+  /**
+   * Schedule the repeating racing pattern.
+   */
+  private scheduleRacePattern(
+    startTime: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.bassOscillator ||
+      !this.leadOscillator
+    ) {
+      return;
+    }
+
+    const bassNotes = [
+      55,
+      55,
+      65.41,
+      73.42,
+      55,
+      65.41,
+      73.42,
+      82.41
+    ];
+
+    const leadNotes = [
+      220,
+      261.63,
+      293.66,
+      329.63,
+      293.66,
+      261.63,
+      220,
+      196
+    ];
+
+    const stepDuration = 0.5;
+
+    for (
+      let i = 0;
+      i < bassNotes.length;
+      i++
+    ) {
+      const time =
+        startTime +
+        i * stepDuration;
+
+      this.bassOscillator.frequency
+        .setValueAtTime(
+          bassNotes[i],
+          time
+        );
+
+      this.leadOscillator.frequency
+        .setValueAtTime(
+          leadNotes[i],
+          time
+        );
+    }
+
+    /*
+     * Re-schedule the pattern while music is active.
+     */
+    window.setTimeout(() => {
+      if (
+        this.playing &&
+        this.audioContext
+      ) {
+        this.scheduleRacePattern(
+          this.audioContext.currentTime
+        );
+      }
+    }, 3500);
   }
 
   /**
@@ -151,8 +355,7 @@ export class MusicManager {
   public stop(): void {
     if (
       !this.audioContext ||
-      !this.masterGain ||
-      !this.oscillator
+      !this.masterGain
     ) {
       this.playing = false;
       return;
@@ -178,19 +381,51 @@ export class MusicManager {
       now + 0.4
     );
 
-    const oscillator =
-      this.oscillator;
+    const bass =
+      this.bassOscillator;
 
-    this.oscillator = null;
+    const lead =
+      this.leadOscillator;
+
+    const lfo =
+      this.lfoOscillator;
+
+    this.bassOscillator = null;
+    this.leadOscillator = null;
+    this.lfoOscillator = null;
 
     window.setTimeout(() => {
       try {
-        oscillator.stop();
+        bass?.stop();
       } catch {
-        // Oscillator may already be stopped.
+        // Already stopped.
       }
 
-      oscillator.disconnect();
+      try {
+        lead?.stop();
+      } catch {
+        // Already stopped.
+      }
+
+      try {
+        lfo?.stop();
+      } catch {
+        // Already stopped.
+      }
+
+      bass?.disconnect();
+      lead?.disconnect();
+      lfo?.disconnect();
+
+      this.bassGain?.disconnect();
+      this.leadGain?.disconnect();
+      this.lfoGain?.disconnect();
+      this.musicGain?.disconnect();
+
+      this.bassGain = null;
+      this.leadGain = null;
+      this.lfoGain = null;
+      this.musicGain = null;
     }, 450);
 
     this.playing = false;
@@ -199,7 +434,9 @@ export class MusicManager {
   /**
    * Enable or disable music.
    */
-  public setEnabled(enabled: boolean): void {
+  public setEnabled(
+    enabled: boolean
+  ): void {
     this.enabled = enabled;
 
     if (!enabled) {
@@ -219,7 +456,9 @@ export class MusicManager {
    *
    * Accepted range: 0.0 - 1.0
    */
-  public setVolume(volume: number): void {
+  public setVolume(
+    volume: number
+  ): void {
     this.volume =
       Math.max(
         0,
@@ -261,7 +500,18 @@ export class MusicManager {
 
     this.audioContext = null;
     this.masterGain = null;
-    this.oscillator = null;
+
+    this.musicGain = null;
+
+    this.bassOscillator = null;
+    this.leadOscillator = null;
+
+    this.bassGain = null;
+    this.leadGain = null;
+
+    this.lfoOscillator = null;
+    this.lfoGain = null;
+
     this.playing = false;
   }
 }
