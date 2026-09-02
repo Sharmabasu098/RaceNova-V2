@@ -2,12 +2,14 @@
  * ============================================================
  * RaceNova V2
  * Music Manager
- * M7.1 — Arcade Racing Music
+ * M7.1 — Arcade Racing Music V2
  * ============================================================
  *
  * Responsibilities:
- * - Lightweight background race music
- * - Energetic arcade racing loop
+ * - Lightweight arcade racing background music
+ * - 4/4 electronic racing rhythm
+ * - Bass + synth melody + percussion
+ * - Seamless repeating pattern
  * - Start / stop music
  * - Volume control
  * - Enable / disable music
@@ -15,9 +17,10 @@
  *
  * IMPORTANT:
  * - No Three.js dependency
- * - No DOM dependency beyond Web Audio API
  * - No external audio asset required
+ * - Uses Web Audio API only
  * - Safe when AudioContext is unavailable
+ * - SFX system remains independent
  * ============================================================
  */
 
@@ -28,23 +31,22 @@ export class MusicManager {
 
   private musicGain: GainNode | null = null;
 
-  private bassOscillator: OscillatorNode | null = null;
-
-  private leadOscillator: OscillatorNode | null = null;
-
-  private bassGain: GainNode | null = null;
-
-  private leadGain: GainNode | null = null;
-
-  private lfoOscillator: OscillatorNode | null = null;
-
-  private lfoGain: GainNode | null = null;
-
   private enabled = true;
 
   private playing = false;
 
   private volume = 0.08;
+
+  private patternTimer: number | null = null;
+
+  /**
+   * Music pattern duration.
+   *
+   * 120 BPM:
+   * - quarter note = 0.5 sec
+   * - 8 quarter notes = 4 sec loop
+   */
+  private readonly patternDuration = 4;
 
   /**
    * Initialize the music system.
@@ -96,7 +98,7 @@ export class MusicManager {
   }
 
   /**
-   * Start energetic arcade racing music.
+   * Start arcade racing music.
    */
   public start(): void {
     if (!this.enabled || this.playing) {
@@ -120,131 +122,19 @@ export class MusicManager {
       return;
     }
 
-    const now =
-      this.audioContext.currentTime;
-
-    /*
-     * --------------------------------------------------------
-     * Music routing
-     * --------------------------------------------------------
-     */
+    this.playing = true;
 
     this.musicGain =
       this.audioContext.createGain();
 
-    this.musicGain.gain.value = 0.85;
+    this.musicGain.gain.value = 0.9;
 
     this.musicGain.connect(
       this.masterGain
     );
 
-    /*
-     * --------------------------------------------------------
-     * Bass
-     * --------------------------------------------------------
-     */
-
-    this.bassGain =
-      this.audioContext.createGain();
-
-    this.bassGain.gain.value = 0.30;
-
-    this.bassGain.connect(
-      this.musicGain
-    );
-
-    this.bassOscillator =
-      this.audioContext.createOscillator();
-
-    this.bassOscillator.type =
-      "sawtooth";
-
-    this.bassOscillator.frequency.setValueAtTime(
-      55,
-      now
-    );
-
-    this.bassOscillator.connect(
-      this.bassGain
-    );
-
-    /*
-     * --------------------------------------------------------
-     * Lead synth
-     * --------------------------------------------------------
-     */
-
-    this.leadGain =
-      this.audioContext.createGain();
-
-    this.leadGain.gain.value = 0.12;
-
-    this.leadGain.connect(
-      this.musicGain
-    );
-
-    this.leadOscillator =
-      this.audioContext.createOscillator();
-
-    this.leadOscillator.type =
-      "square";
-
-    this.leadOscillator.frequency.setValueAtTime(
-      220,
-      now
-    );
-
-    this.leadOscillator.connect(
-      this.leadGain
-    );
-
-    /*
-     * --------------------------------------------------------
-     * Slow modulation
-     * --------------------------------------------------------
-     */
-
-    this.lfoGain =
-      this.audioContext.createGain();
-
-    this.lfoGain.gain.value = 7;
-
-    this.lfoOscillator =
-      this.audioContext.createOscillator();
-
-    this.lfoOscillator.type =
-      "sine";
-
-    this.lfoOscillator.frequency.setValueAtTime(
-      2,
-      now
-    );
-
-    this.lfoOscillator.connect(
-      this.lfoGain
-    );
-
-    this.lfoGain.connect(
-      this.leadOscillator.frequency
-    );
-
-    /*
-     * --------------------------------------------------------
-     * Start
-     * --------------------------------------------------------
-     */
-
-    this.bassOscillator.start(now);
-
-    this.leadOscillator.start(now);
-
-    this.lfoOscillator.start(now);
-
-    /*
-     * --------------------------------------------------------
-     * Fade in
-     * --------------------------------------------------------
-     */
+    const now =
+      this.audioContext.currentTime;
 
     this.masterGain.gain.cancelScheduledValues(
       now
@@ -257,102 +147,433 @@ export class MusicManager {
 
     this.masterGain.gain.exponentialRampToValueAtTime(
       this.volume,
-      now + 1.2
+      now + 0.8
     );
 
-    this.playing = true;
+    this.schedulePattern(now);
 
-    /*
-     * --------------------------------------------------------
-     * Racing pulse
-     *
-     * The bass frequency changes every 0.5 seconds,
-     * creating a simple repeating arcade-racing rhythm.
-     * --------------------------------------------------------
-     */
-
-    this.scheduleRacePattern(now);
+    this.patternTimer =
+      window.setInterval(() => {
+        if (
+          this.playing &&
+          this.audioContext
+        ) {
+          this.schedulePattern(
+            this.audioContext.currentTime + 0.05
+          );
+        }
+      }, this.patternDuration * 1000);
   }
 
   /**
-   * Schedule the repeating racing pattern.
+   * Schedule one complete racing music pattern.
    */
-  private scheduleRacePattern(
+  private schedulePattern(
     startTime: number
   ): void {
     if (
       !this.audioContext ||
-      !this.bassOscillator ||
-      !this.leadOscillator
+      !this.musicGain ||
+      !this.playing
     ) {
       return;
     }
 
+    const step =
+      0.25;
+
+    /*
+     * --------------------------------------------------------
+     * Bass pattern
+     * --------------------------------------------------------
+     */
+
     const bassNotes = [
-      55,
-      55,
+      55.00,
+      55.00,
+      65.41,
+      55.00,
+      73.42,
+      65.41,
+      55.00,
+      65.41,
+      55.00,
+      55.00,
       65.41,
       73.42,
-      55,
-      65.41,
+      82.41,
       73.42,
-      82.41
+      65.41,
+      55.00
     ];
-
-    const leadNotes = [
-      220,
-      261.63,
-      293.66,
-      329.63,
-      293.66,
-      261.63,
-      220,
-      196
-    ];
-
-    const stepDuration = 0.5;
 
     for (
       let i = 0;
       i < bassNotes.length;
       i++
     ) {
-      const time =
-        startTime +
-        i * stepDuration;
+      if (
+        i % 2 !== 0
+      ) {
+        continue;
+      }
 
-      this.bassOscillator.frequency
-        .setValueAtTime(
-          bassNotes[i],
-          time
-        );
-
-      this.leadOscillator.frequency
-        .setValueAtTime(
-          leadNotes[i],
-          time
-        );
+      this.createBassNote(
+        bassNotes[i],
+        startTime + i * step,
+        step * 1.7
+      );
     }
 
     /*
-     * Re-schedule the pattern while music is active.
+     * --------------------------------------------------------
+     * Synth melody
+     * --------------------------------------------------------
      */
-    window.setTimeout(() => {
-      if (
-        this.playing &&
-        this.audioContext
-      ) {
-        this.scheduleRacePattern(
-          this.audioContext.currentTime
-        );
-      }
-    }, 3500);
+
+    const melody = [
+      220.00,
+      261.63,
+      293.66,
+      261.63,
+      329.63,
+      293.66,
+      261.63,
+      220.00,
+      246.94,
+      293.66,
+      329.63,
+      293.66,
+      369.99,
+      329.63,
+      293.66,
+      246.94
+    ];
+
+    for (
+      let i = 0;
+      i < melody.length;
+      i++
+    ) {
+      this.createLeadNote(
+        melody[i],
+        startTime + i * step,
+        step * 0.75
+      );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * Kick
+     * --------------------------------------------------------
+     */
+
+    for (
+      let i = 0;
+      i < 8;
+      i++
+    ) {
+      this.createKick(
+        startTime + i * 0.5
+      );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * Snare
+     * --------------------------------------------------------
+     */
+
+    for (
+      let i = 1;
+      i < 8;
+      i += 2
+    ) {
+      this.createSnare(
+        startTime + i * 0.5
+      );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * Hi-hat
+     * --------------------------------------------------------
+     */
+
+    for (
+      let i = 0;
+      i < 16;
+      i++
+    ) {
+      this.createHiHat(
+        startTime + i * step
+      );
+    }
+  }
+
+  /**
+   * Create bass note.
+   */
+  private createBassNote(
+    frequency: number,
+    startTime: number,
+    duration: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.musicGain
+    ) {
+      return;
+    }
+
+    const oscillator =
+      this.audioContext.createOscillator();
+
+    const gain =
+      this.audioContext.createGain();
+
+    oscillator.type =
+      "sawtooth";
+
+    oscillator.frequency.setValueAtTime(
+      frequency,
+      startTime
+    );
+
+    gain.gain.setValueAtTime(
+      0.0001,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.20,
+      startTime + 0.02
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+
+    oscillator.start(startTime);
+    oscillator.stop(
+      startTime + duration + 0.05
+    );
+  }
+
+  /**
+   * Create lead synth note.
+   */
+  private createLeadNote(
+    frequency: number,
+    startTime: number,
+    duration: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.musicGain
+    ) {
+      return;
+    }
+
+    const oscillator =
+      this.audioContext.createOscillator();
+
+    const gain =
+      this.audioContext.createGain();
+
+    oscillator.type =
+      "triangle";
+
+    oscillator.frequency.setValueAtTime(
+      frequency,
+      startTime
+    );
+
+    gain.gain.setValueAtTime(
+      0.0001,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.055,
+      startTime + 0.025
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+
+    oscillator.start(startTime);
+    oscillator.stop(
+      startTime + duration + 0.05
+    );
+  }
+
+  /**
+   * Create kick drum.
+   */
+  private createKick(
+    startTime: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.musicGain
+    ) {
+      return;
+    }
+
+    const oscillator =
+      this.audioContext.createOscillator();
+
+    const gain =
+      this.audioContext.createGain();
+
+    oscillator.type =
+      "sine";
+
+    oscillator.frequency.setValueAtTime(
+      120,
+      startTime
+    );
+
+    oscillator.frequency.exponentialRampToValueAtTime(
+      48,
+      startTime + 0.12
+    );
+
+    gain.gain.setValueAtTime(
+      0.22,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + 0.16
+    );
+
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+
+    oscillator.start(startTime);
+    oscillator.stop(
+      startTime + 0.18
+    );
+  }
+
+  /**
+   * Create snare.
+   *
+   * Uses a short noise-like oscillator texture.
+   */
+  private createSnare(
+    startTime: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.musicGain
+    ) {
+      return;
+    }
+
+    const oscillator =
+      this.audioContext.createOscillator();
+
+    const gain =
+      this.audioContext.createGain();
+
+    oscillator.type =
+      "square";
+
+    oscillator.frequency.setValueAtTime(
+      180,
+      startTime
+    );
+
+    gain.gain.setValueAtTime(
+      0.045,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + 0.09
+    );
+
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+
+    oscillator.start(startTime);
+    oscillator.stop(
+      startTime + 0.1
+    );
+  }
+
+  /**
+   * Create lightweight hi-hat.
+   */
+  private createHiHat(
+    startTime: number
+  ): void {
+    if (
+      !this.audioContext ||
+      !this.musicGain
+    ) {
+      return;
+    }
+
+    const oscillator =
+      this.audioContext.createOscillator();
+
+    const gain =
+      this.audioContext.createGain();
+
+    oscillator.type =
+      "square";
+
+    oscillator.frequency.setValueAtTime(
+      3200,
+      startTime
+    );
+
+    gain.gain.setValueAtTime(
+      0.012,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + 0.035
+    );
+
+    oscillator.connect(gain);
+    gain.connect(this.musicGain);
+
+    oscillator.start(startTime);
+    oscillator.stop(
+      startTime + 0.04
+    );
   }
 
   /**
    * Stop background music.
    */
   public stop(): void {
+    if (this.patternTimer !== null) {
+      window.clearInterval(
+        this.patternTimer
+      );
+
+      this.patternTimer = null;
+    }
+
     if (
       !this.audioContext ||
       !this.masterGain
@@ -381,51 +602,17 @@ export class MusicManager {
       now + 0.4
     );
 
-    const bass =
-      this.bassOscillator;
+    const musicGain =
+      this.musicGain;
 
-    const lead =
-      this.leadOscillator;
-
-    const lfo =
-      this.lfoOscillator;
-
-    this.bassOscillator = null;
-    this.leadOscillator = null;
-    this.lfoOscillator = null;
+    this.musicGain = null;
 
     window.setTimeout(() => {
       try {
-        bass?.stop();
+        musicGain?.disconnect();
       } catch {
-        // Already stopped.
+        // Music gain may already be disconnected.
       }
-
-      try {
-        lead?.stop();
-      } catch {
-        // Already stopped.
-      }
-
-      try {
-        lfo?.stop();
-      } catch {
-        // Already stopped.
-      }
-
-      bass?.disconnect();
-      lead?.disconnect();
-      lfo?.disconnect();
-
-      this.bassGain?.disconnect();
-      this.leadGain?.disconnect();
-      this.lfoGain?.disconnect();
-      this.musicGain?.disconnect();
-
-      this.bassGain = null;
-      this.leadGain = null;
-      this.lfoGain = null;
-      this.musicGain = null;
     }, 450);
 
     this.playing = false;
@@ -500,17 +687,9 @@ export class MusicManager {
 
     this.audioContext = null;
     this.masterGain = null;
-
     this.musicGain = null;
 
-    this.bassOscillator = null;
-    this.leadOscillator = null;
-
-    this.bassGain = null;
-    this.leadGain = null;
-
-    this.lfoOscillator = null;
-    this.lfoGain = null;
+    this.patternTimer = null;
 
     this.playing = false;
   }
