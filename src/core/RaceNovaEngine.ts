@@ -101,8 +101,14 @@ private normalRaceCompleteSoundPlayed =
 
 private handleAudioUnlock = (): void => {
 
-  void this.audioManager.unlock();
-
+  void this.audioManager
+    .unlock()
+    .then(() => {
+      this.audioManager.startMusic();
+    })
+    .catch(() => {
+      // Audio unlock may be blocked by browser policy.
+    });
 };
   
   // =========================================================
