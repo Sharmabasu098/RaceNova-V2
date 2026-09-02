@@ -99,6 +99,12 @@ private bossFailSoundPlayed =
 private normalRaceCompleteSoundPlayed =
   false;
 
+private handleAudioUnlock = (): void => {
+
+  void this.audioManager.unlock();
+
+};
+  
   // =========================================================
   // World
   // =========================================================
