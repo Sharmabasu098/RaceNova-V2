@@ -63,7 +63,8 @@ export class SFXManager {
       return;
     }
 
-    this.audioContext = new AudioContextClass();
+    this.audioContext =
+      new AudioContextClass();
 
     this.masterGain =
       this.audioContext.createGain();
@@ -111,7 +112,9 @@ export class SFXManager {
    *
    * Accepted range: 0.0 - 1.0
    */
-  public setVolume(volume: number): void {
+  public setVolume(
+    volume: number
+  ): void {
     this.volume =
       Math.max(
         0,
@@ -133,6 +136,9 @@ export class SFXManager {
 
   /**
    * Play a gameplay SFX.
+   *
+   * If the browser has suspended the AudioContext,
+   * resume it first and then play the requested sound.
    */
   public play(type: SFXType): void {
     if (!this.enabled) {
@@ -150,37 +156,58 @@ export class SFXManager {
       return;
     }
 
+    const playSound = (): void => {
+      if (
+        !this.audioContext ||
+        !this.masterGain ||
+        !this.enabled
+      ) {
+        return;
+      }
+
+      switch (type) {
+        case "coin":
+          this.playCoin();
+          break;
+
+        case "nitro":
+          this.playNitro();
+          break;
+
+        case "crash":
+          this.playCrash();
+          break;
+
+        case "bossDefeat":
+          this.playBossDefeat();
+          break;
+
+        case "raceComplete":
+          this.playRaceComplete();
+          break;
+
+        case "raceFailed":
+          this.playRaceFailed();
+          break;
+      }
+    };
+
     if (
       this.audioContext.state === "suspended"
     ) {
+      void this.audioContext
+        .resume()
+        .then(() => {
+          playSound();
+        })
+        .catch(() => {
+          // Audio unlock may be blocked by browser policy.
+        });
+
       return;
     }
 
-    switch (type) {
-      case "coin":
-        this.playCoin();
-        break;
-
-      case "nitro":
-        this.playNitro();
-        break;
-
-      case "crash":
-        this.playCrash();
-        break;
-
-      case "bossDefeat":
-        this.playBossDefeat();
-        break;
-
-      case "raceComplete":
-        this.playRaceComplete();
-        break;
-
-      case "raceFailed":
-        this.playRaceFailed();
-        break;
-    }
+    playSound();
   }
 
   /**
@@ -218,7 +245,8 @@ export class SFXManager {
     const gain =
       this.audioContext.createGain();
 
-    oscillator.type = "sawtooth";
+    oscillator.type =
+      "sawtooth";
 
     oscillator.frequency.setValueAtTime(
       90,
@@ -246,9 +274,13 @@ export class SFXManager {
     );
 
     oscillator.connect(gain);
-    gain.connect(this.masterGain!);
+
+    gain.connect(
+      this.masterGain!
+    );
 
     oscillator.start();
+
     oscillator.stop(
       this.audioContext.currentTime + 0.4
     );
@@ -268,7 +300,8 @@ export class SFXManager {
     const gain =
       this.audioContext.createGain();
 
-    oscillator.type = "square";
+    oscillator.type =
+      "square";
 
     oscillator.frequency.setValueAtTime(
       120,
@@ -296,9 +329,13 @@ export class SFXManager {
     );
 
     oscillator.connect(gain);
-    gain.connect(this.masterGain!);
+
+    gain.connect(
+      this.masterGain!
+    );
 
     oscillator.start();
+
     oscillator.stop(
       this.audioContext.currentTime + 0.28
     );
@@ -409,7 +446,8 @@ export class SFXManager {
     const now =
       this.audioContext.currentTime;
 
-    oscillator.type = type;
+    oscillator.type =
+      type;
 
     oscillator.frequency.setValueAtTime(
       frequency,
@@ -432,7 +470,10 @@ export class SFXManager {
     );
 
     oscillator.connect(gain);
-    gain.connect(this.masterGain);
+
+    gain.connect(
+      this.masterGain
+    );
 
     oscillator.start(now);
 
@@ -450,6 +491,7 @@ export class SFXManager {
     }
 
     this.audioContext = null;
+
     this.masterGain = null;
   }
 }
