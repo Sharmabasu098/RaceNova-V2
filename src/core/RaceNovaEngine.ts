@@ -2526,6 +2526,16 @@ this.completeRace(
       this.handleNitroKeyDown
     );
 
+    window.removeEventListener(
+  "pointerdown",
+  this.handleAudioUnlock
+);
+
+  // =======================================================
+  // M7.1 — Audio
+  // =======================================================
+    this.audioManager.dispose();
+
     // =======================================================
     // Boss System
     // =======================================================
