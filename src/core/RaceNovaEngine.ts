@@ -88,6 +88,18 @@ private readonly audioManager:
   private crashSoundPlayed =
   false;
 
+  private bossDefeatSoundPlayed =
+  false;
+
+private bossCompleteSoundPlayed =
+  false;
+
+private bossFailSoundPlayed =
+  false;
+
+private normalRaceCompleteSoundPlayed =
+  false;
+
   
 
   // =========================================================
@@ -1394,8 +1406,12 @@ this.raceHUD.update();
 
     if (
   this.trafficCollisionSystem
-    .hasCrashed()
+    .hasCrashed() &&
+  !this.crashSoundPlayed
 ) {
+
+  this.crashSoundPlayed =
+    true;
 
   this.audioManager.playSFX(
     "crash"
@@ -1450,6 +1466,49 @@ this.raceHUD.update();
         this.playerCar.getSpeed()
       );
     }
+
+    // =======================================================
+// M7.1 — Boss Race Audio
+// =======================================================
+
+if (
+  this.bossRace.isBossDefeated() &&
+  !this.bossDefeatSoundPlayed
+) {
+
+  this.bossDefeatSoundPlayed =
+    true;
+
+  this.audioManager.playSFX(
+    "bossDefeat"
+  );
+}
+
+if (
+  this.bossRace.isCompleted() &&
+  !this.bossCompleteSoundPlayed
+) {
+
+  this.bossCompleteSoundPlayed =
+    true;
+
+  this.audioManager.playSFX(
+    "raceComplete"
+  );
+}
+
+if (
+  this.bossRace.isFailed() &&
+  !this.bossFailSoundPlayed
+) {
+
+  this.bossFailSoundPlayed =
+    true;
+
+  this.audioManager.playSFX(
+    "raceFailed"
+  );
+}
 
     // =======================================================
     // Boss Defeat Persistence
@@ -1680,14 +1739,26 @@ this.raceHUD.update();
       this.normalRaceTime;
 
     this.normalRaceCompleted =
-      true;
+  true;
 
-    this.completeRace(
-      completedRaceId,
-      true,
-      1,
-      completedRaceTime
-    );
+if (
+  !this.normalRaceCompleteSoundPlayed
+) {
+
+  this.normalRaceCompleteSoundPlayed =
+    true;
+
+  this.audioManager.playSFX(
+    "raceComplete"
+  );
+}
+
+this.completeRace(
+  completedRaceId,
+  true,
+  1,
+  completedRaceTime
+);
 
     this.advanceToNextRace();
 
