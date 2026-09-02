@@ -87,11 +87,17 @@ private readonly audioManager:
 private crashSoundPlayed =
   false;
 
-private handleAudioUnlock = (): void => {
+private bossDefeatSoundPlayed =
+  false;
 
-  void this.audioManager.unlock();
+private bossCompleteSoundPlayed =
+  false;
 
-};
+private bossFailSoundPlayed =
+  false;
+
+private normalRaceCompleteSoundPlayed =
+  false;
 
   // =========================================================
   // World
