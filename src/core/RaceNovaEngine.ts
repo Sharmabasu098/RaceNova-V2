@@ -865,6 +865,18 @@ this.audioManager.initialize();
     void this.loadBossModel();
 
     // =======================================================
+    // M7.1 — Mobile Audio Unlock
+    // =======================================================
+
+    window.addEventListener(
+      "pointerdown",
+      this.handleAudioUnlock,
+      {
+        once: true
+      }
+    );
+
+    // =======================================================
     // Keyboard Nitro
     // =======================================================
 
