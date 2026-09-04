@@ -2,17 +2,20 @@
  * ============================================================
  * RaceNova V2
  * Environment Manager
- * M7.4 - Procedural Endless Roadside Environment
+ * M7.5 - Dense Endless Roadside Environment
  * ============================================================
  *
  * Responsibilities:
- * - Procedural roadside vegetation
+ * - Procedural roadside environment
  * - Endless roadside recycling
- * - Low-poly trees
+ * - Large low-poly trees
  * - Brown tree trunks
  * - Green foliage
+ * - Dense grass
+ * - Bushes
+ * - Colourful flowers
  * - Low-poly rocks
- * - Dense roadside grass details
+ * - Natural randomized distribution
  * - Mobile-friendly fixed object pool
  * - Curved-road compatible placement
  *
@@ -75,26 +78,55 @@ export class EnvironmentManager {
   private readonly grassBladeGeometry:
     THREE.ConeGeometry;
 
-  private readonly grassMaterial:
-    THREE.MeshStandardMaterial;
-
   private readonly trunkGeometry:
     THREE.CylinderGeometry;
-
-  private readonly trunkMaterial:
-    THREE.MeshStandardMaterial;
 
   private readonly leafGeometry:
     THREE.IcosahedronGeometry;
 
-  private readonly leafMaterial:
-    THREE.MeshStandardMaterial;
-
   private readonly rockGeometry:
     THREE.DodecahedronGeometry;
 
+  private readonly bushGeometry:
+    THREE.IcosahedronGeometry;
+
+  private readonly flowerStemGeometry:
+    THREE.CylinderGeometry;
+
+  // =========================================================
+  // Shared Materials
+  // =========================================================
+
+  private readonly grassMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly trunkMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly leafMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly leafLightMaterial:
+    THREE.MeshStandardMaterial;
+
   private readonly rockMaterial:
     THREE.MeshStandardMaterial;
+
+  private readonly bushMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly flowerYellowMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly flowerPinkMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly flowerWhiteMaterial:
+    THREE.MeshStandardMaterial;
+
+  // =========================================================
+  // Constructor
+  // =========================================================
 
   constructor(
     scene: THREE.Scene,
@@ -111,7 +143,8 @@ export class EnvironmentManager {
       config.roadWidth ?? 12;
 
     /*
-     * Safe distance outside the road.
+     * Always keep environment outside
+     * the playable road.
      */
     this.sideOffset =
       Math.max(
@@ -120,25 +153,22 @@ export class EnvironmentManager {
       );
 
     /*
-     * Fixed pool.
+     * Fixed object pool.
      *
-     * 40 props = 20 roadside slots
-     * distributed across both sides.
+     * More slots give us a fuller
+     * roadside without creating objects
+     * continuously during gameplay.
      */
     this.propCount =
       Math.max(
-        24,
+        32,
         Math.floor(
-          config.propCount ?? 40
+          config.propCount ?? 48
         )
       );
 
     /*
-     * Never allow large gaps.
-     *
-     * The current Engine may pass 18,
-     * but grass details overlap between
-     * neighboring slots.
+     * Dense longitudinal distribution.
      */
     this.spacing =
       Math.min(
@@ -176,13 +206,13 @@ export class EnvironmentManager {
     );
 
     // =======================================================
-    // Shared Materials
+    // Materials
     // =======================================================
 
     this.grassMaterial =
       new THREE.MeshStandardMaterial({
         color: 0x3f9b3f,
-        roughness: 0.9,
+        roughness: 0.95,
         metalness: 0.0
       });
 
@@ -200,6 +230,13 @@ export class EnvironmentManager {
         metalness: 0.0
       });
 
+    this.leafLightMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x3ca34d,
+        roughness: 0.9,
+        metalness: 0.0
+      });
+
     this.rockMaterial =
       new THREE.MeshStandardMaterial({
         color: 0x777777,
@@ -207,13 +244,38 @@ export class EnvironmentManager {
         metalness: 0.0
       });
 
+    this.bushMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x2f7f35,
+        roughness: 0.95,
+        metalness: 0.0
+      });
+
+    this.flowerYellowMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xf2c94c,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
+    this.flowerPinkMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xe96b8b,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
+    this.flowerWhiteMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
     // =======================================================
-    // Shared Geometry
+    // Geometry
     // =======================================================
 
-    /*
-     * Small grass blade.
-     */
     this.grassBladeGeometry =
       new THREE.ConeGeometry(
         0.12,
@@ -221,9 +283,6 @@ export class EnvironmentManager {
         4
       );
 
-    /*
-     * Tree trunk.
-     */
     this.trunkGeometry =
       new THREE.CylinderGeometry(
         0.18,
@@ -232,22 +291,30 @@ export class EnvironmentManager {
         6
       );
 
-    /*
-     * Low-poly foliage.
-     */
     this.leafGeometry =
       new THREE.IcosahedronGeometry(
         1.15,
         1
       );
 
-    /*
-     * Low-poly rock.
-     */
     this.rockGeometry =
       new THREE.DodecahedronGeometry(
         0.75,
         0
+      );
+
+    this.bushGeometry =
+      new THREE.IcosahedronGeometry(
+        0.75,
+        1
+      );
+
+    this.flowerStemGeometry =
+      new THREE.CylinderGeometry(
+        0.035,
+        0.045,
+        0.5,
+        5
       );
   }
 
@@ -267,10 +334,9 @@ export class EnvironmentManager {
 
     try {
       /*
-       * No external asset is required.
+       * Completely procedural.
        *
-       * Environment is generated directly
-       * from lightweight Three.js geometry.
+       * No external GLB is loaded.
        */
       this.createPropPool();
 
@@ -342,10 +408,10 @@ export class EnvironmentManager {
       `ProceduralRoadsideProp_${index}`;
 
     /*
-     * Every slot receives grass details.
+     * Every slot gets grass.
      *
-     * This is what prevents the roadside
-     * from looking empty between trees.
+     * This fills empty areas between
+     * larger roadside objects.
      */
     this.addGrassCluster(
       group,
@@ -353,36 +419,157 @@ export class EnvironmentManager {
     );
 
     /*
-     * Trees appear regularly but not
-     * on every slot.
+     * Natural mixed distribution.
+     *
+     * Different slots contain different
+     * combinations instead of repeating
+     * the same object.
      */
-    if (
-      index % 4 === 0 ||
-      index % 7 === 0
-    ) {
-      this.addTree(
-        group,
-        seed
-      );
-    }
 
-    /*
-     * Rocks appear on some slots.
-     */
-    if (
-      index % 3 === 0
-    ) {
-      this.addRock(
-        group,
-        seed
-      );
+    const pattern =
+      index % 12;
+
+    switch (pattern) {
+      case 0:
+        this.addTree(
+          group,
+          seed
+        );
+
+        this.addRock(
+          group,
+          seed + 10
+        );
+
+        break;
+
+      case 1:
+        this.addBush(
+          group,
+          seed
+        );
+
+        this.addFlowerCluster(
+          group,
+          seed + 20
+        );
+
+        break;
+
+      case 2:
+        this.addTree(
+          group,
+          seed
+        );
+
+        break;
+
+      case 3:
+        this.addRock(
+          group,
+          seed
+        );
+
+        this.addFlowerCluster(
+          group,
+          seed + 30
+        );
+
+        break;
+
+      case 4:
+        this.addBush(
+          group,
+          seed
+        );
+
+        break;
+
+      case 5:
+        this.addTree(
+          group,
+          seed
+        );
+
+        this.addFlowerCluster(
+          group,
+          seed + 40
+        );
+
+        break;
+
+      case 6:
+        this.addRock(
+          group,
+          seed
+        );
+
+        break;
+
+      case 7:
+        this.addBush(
+          group,
+          seed
+        );
+
+        this.addRock(
+          group,
+          seed + 50
+        );
+
+        break;
+
+      case 8:
+        this.addTree(
+          group,
+          seed
+        );
+
+        break;
+
+      case 9:
+        this.addFlowerCluster(
+          group,
+          seed
+        );
+
+        this.addBush(
+          group,
+          seed + 60
+        );
+
+        break;
+
+      case 10:
+        this.addRock(
+          group,
+          seed
+        );
+
+        break;
+
+      case 11:
+        this.addTree(
+          group,
+          seed
+        );
+
+        this.addFlowerCluster(
+          group,
+          seed + 70
+        );
+
+        break;
+
+      default:
+        break;
     }
 
     return group;
   }
 
   // =========================================================
-  // Grass Cluster
+  // Grass
   // =========================================================
 
   private addGrassCluster(
@@ -390,14 +577,14 @@ export class EnvironmentManager {
     seed: number
   ): void {
     /*
-     * Several small blades are spread
-     * across the whole roadside slot.
+     * Dense grass.
      *
-     * Their depth range overlaps the
-     * neighboring slot so there is no
-     * obvious cut line.
+     * Multiple blades overlap across
+     * the longitudinal slot so the
+     * roadside does not look like
+     * isolated cut pieces.
      */
-    const bladeCount = 8;
+    const bladeCount = 14;
 
     for (
       let i = 0;
@@ -410,47 +597,41 @@ export class EnvironmentManager {
           this.grassMaterial
         );
 
-      const randomX =
+      const x =
         (
           this.seededRandom(
             seed +
-            i *
-            11
+            i * 11
           ) -
           0.5
         ) *
         7.5;
 
-      const randomZ =
+      const z =
         (
           this.seededRandom(
             seed +
-            i *
-            17 +
+            i * 17 +
             100
           ) -
           0.5
         ) *
-        12;
+        13;
 
-      blade.position.x =
-        randomX;
-
-      blade.position.y =
-        0.45;
-
-      blade.position.z =
-        randomZ;
+      blade.position.set(
+        x,
+        0.45,
+        z
+      );
 
       const scale =
         0.75 +
         this.seededRandom(
           seed +
-          i *
-          23 +
+          i * 23 +
           200
         ) *
-        0.65;
+        0.7;
 
       blade.scale.set(
         scale,
@@ -461,8 +642,7 @@ export class EnvironmentManager {
       blade.rotation.y =
         this.seededRandom(
           seed +
-          i *
-          31 +
+          i * 31 +
           300
         ) *
         Math.PI;
@@ -494,22 +674,23 @@ export class EnvironmentManager {
       new THREE.Group();
 
     /*
-     * Natural tree size.
+     * Large but still believable
+     * roadside tree.
      */
     const treeScale =
-      1.5 +
+      1.45 +
       this.seededRandom(
         seed + 500
       ) *
-      0.8;
+      0.9;
 
     tree.scale.setScalar(
       treeScale
     );
 
-    // =======================================================
+    // -------------------------------------------------------
     // Trunk
-    // =======================================================
+    // -------------------------------------------------------
 
     const trunk =
       new THREE.Mesh(
@@ -539,9 +720,9 @@ export class EnvironmentManager {
       trunk
     );
 
-    // =======================================================
-    // Foliage 1
-    // =======================================================
+    // -------------------------------------------------------
+    // Lower foliage
+    // -------------------------------------------------------
 
     const leavesBottom =
       new THREE.Mesh(
@@ -556,9 +737,9 @@ export class EnvironmentManager {
     );
 
     leavesBottom.scale.set(
-      1.25,
+      1.3,
       1.0,
-      1.25
+      1.3
     );
 
     leavesBottom.castShadow =
@@ -571,14 +752,14 @@ export class EnvironmentManager {
       leavesBottom
     );
 
-    // =======================================================
-    // Foliage 2
-    // =======================================================
+    // -------------------------------------------------------
+    // Middle foliage
+    // -------------------------------------------------------
 
     const leavesMiddle =
       new THREE.Mesh(
         this.leafGeometry,
-        this.leafMaterial
+        this.leafLightMaterial
       );
 
     leavesMiddle.position.set(
@@ -588,9 +769,9 @@ export class EnvironmentManager {
     );
 
     leavesMiddle.scale.set(
-      0.95,
+      1.0,
       0.9,
-      0.95
+      1.0
     );
 
     leavesMiddle.castShadow =
@@ -603,9 +784,9 @@ export class EnvironmentManager {
       leavesMiddle
     );
 
-    // =======================================================
-    // Foliage 3
-    // =======================================================
+    // -------------------------------------------------------
+    // Top foliage
+    // -------------------------------------------------------
 
     const leavesTop =
       new THREE.Mesh(
@@ -615,14 +796,14 @@ export class EnvironmentManager {
 
     leavesTop.position.set(
       0.2,
-      4.45,
+      4.5,
       -0.1
     );
 
     leavesTop.scale.set(
-      0.75,
-      0.75,
-      0.75
+      0.78,
+      0.78,
+      0.78
     );
 
     leavesTop.castShadow =
@@ -635,34 +816,10 @@ export class EnvironmentManager {
       leavesTop
     );
 
-    /*
-     * Small deterministic rotation.
-     */
-    tree.rotation.y =
-      (
-        this.seededRandom(
-          seed + 502
-        ) -
-        0.5
-      ) *
-      0.5;
+    // -------------------------------------------------------
+    // Natural variation
+    // -------------------------------------------------------
 
-    /*
-     * Small natural lean.
-     */
-    tree.rotation.z =
-      (
-        this.seededRandom(
-          seed + 503
-        ) -
-        0.5
-      ) *
-      0.08;
-
-    /*
-     * Move the tree within its
-     * roadside slot.
-     */
     tree.position.x =
       (
         this.seededRandom(
@@ -681,9 +838,242 @@ export class EnvironmentManager {
       ) *
       7;
 
+    tree.rotation.y =
+      (
+        this.seededRandom(
+          seed + 506
+        ) -
+        0.5
+      ) *
+      0.6;
+
+    tree.rotation.z =
+      (
+        this.seededRandom(
+          seed + 507
+        ) -
+        0.5
+      ) *
+      0.08;
+
     group.add(
       tree
     );
+  }
+
+  // =========================================================
+  // Bush
+  // =========================================================
+
+  private addBush(
+    group: THREE.Group,
+    seed: number
+  ): void {
+    const bushGroup =
+      new THREE.Group();
+
+    const bushCount = 2;
+
+    for (
+      let i = 0;
+      i < bushCount;
+      i++
+    ) {
+      const bush =
+        new THREE.Mesh(
+          this.bushGeometry,
+          this.bushMaterial
+        );
+
+      const scale =
+        0.65 +
+        this.seededRandom(
+          seed +
+          i * 41 +
+          1000
+        ) *
+        0.55;
+
+      bush.scale.set(
+        scale * 1.25,
+        scale,
+        scale * 1.1
+      );
+
+      bush.position.set(
+        (
+          this.seededRandom(
+            seed +
+            i * 43 +
+            1010
+          ) -
+          0.5
+        ) *
+        3.5,
+        0.55,
+        (
+          this.seededRandom(
+            seed +
+            i * 47 +
+            1020
+          ) -
+          0.5
+        ) *
+        6
+      );
+
+      bush.rotation.y =
+        this.seededRandom(
+          seed +
+          i * 53 +
+          1030
+        ) *
+        Math.PI;
+
+      bush.castShadow =
+        false;
+
+      bush.receiveShadow =
+        false;
+
+      bush.frustumCulled =
+        true;
+
+      bushGroup.add(
+        bush
+      );
+    }
+
+    bushGroup.position.y =
+      0;
+
+    group.add(
+      bushGroup
+    );
+  }
+
+  // =========================================================
+  // Flowers
+  // =========================================================
+
+  private addFlowerCluster(
+    group: THREE.Group,
+    seed: number
+  ): void {
+    const flowerCount = 5;
+
+    for (
+      let i = 0;
+      i < flowerCount;
+      i++
+    ) {
+      const materialIndex =
+        Math.floor(
+          this.seededRandom(
+            seed +
+            i * 61 +
+            1100
+          ) *
+          3
+        );
+
+      let material:
+        THREE.MeshStandardMaterial;
+
+      if (
+        materialIndex === 0
+      ) {
+        material =
+          this.flowerYellowMaterial;
+      } else if (
+        materialIndex === 1
+      ) {
+        material =
+          this.flowerPinkMaterial;
+      } else {
+        material =
+          this.flowerWhiteMaterial;
+      }
+
+      const flower =
+        new THREE.Group();
+
+      const stem =
+        new THREE.Mesh(
+          this.flowerStemGeometry,
+          this.grassMaterial
+        );
+
+      stem.position.y =
+        0.25;
+
+      const head =
+        new THREE.Mesh(
+          new THREE.IcosahedronGeometry(
+            0.14,
+            0
+          ),
+          material
+        );
+
+      head.position.y =
+        0.52;
+
+      flower.add(
+        stem
+      );
+
+      flower.add(
+        head
+      );
+
+      flower.position.x =
+        (
+          this.seededRandom(
+            seed +
+            i * 67 +
+            1150
+          ) -
+          0.5
+        ) *
+        5;
+
+      flower.position.z =
+        (
+          this.seededRandom(
+            seed +
+            i * 71 +
+            1160
+          ) -
+          0.5
+        ) *
+        9;
+
+      const scale =
+        0.8 +
+        this.seededRandom(
+          seed +
+          i * 73 +
+          1170
+        ) *
+        0.55;
+
+      flower.scale.setScalar(
+        scale
+      );
+
+      flower.rotation.y =
+        this.seededRandom(
+          seed +
+          i * 79 +
+          1180
+        ) *
+        Math.PI;
+
+      group.add(
+        flower
+      );
+    }
   }
 
   // =========================================================
@@ -701,58 +1091,58 @@ export class EnvironmentManager {
       );
 
     const scale =
-      0.7 +
+      0.75 +
       this.seededRandom(
-        seed + 600
+        seed + 1200
       ) *
-      0.7;
+      0.85;
 
     rock.scale.set(
-      scale * 1.25,
-      scale * 0.65,
+      scale * 1.35,
+      scale * 0.7,
       scale
     );
 
     rock.position.x =
       (
         this.seededRandom(
-          seed + 601
+          seed + 1201
         ) -
         0.5
       ) *
       5;
 
     rock.position.y =
-      0.45;
+      0.42;
 
     rock.position.z =
       (
         this.seededRandom(
-          seed + 602
+          seed + 1202
         ) -
         0.5
       ) *
-      8;
+      9;
 
     rock.rotation.set(
       (
         this.seededRandom(
-          seed + 603
+          seed + 1203
         ) -
         0.5
       ) *
-      0.4,
+      0.45,
       this.seededRandom(
-        seed + 604
+        seed + 1204
       ) *
       Math.PI,
       (
         this.seededRandom(
-          seed + 605
+          seed + 1205
         ) -
         0.5
       ) *
-      0.3
+      0.35
     );
 
     rock.castShadow =
@@ -806,8 +1196,8 @@ export class EnvironmentManager {
         prop.object;
 
       /*
-       * Each pair occupies one
-       * longitudinal roadside slot.
+       * One longitudinal slot for
+       * every left/right pair.
        */
       const slot =
         Math.floor(
@@ -815,9 +1205,7 @@ export class EnvironmentManager {
         );
 
       /*
-       * Start slightly behind the player
-       * so the roadside is already visible
-       * when the race begins.
+       * Start behind the player.
        */
       let targetZ =
         playerZ -
@@ -826,12 +1214,12 @@ export class EnvironmentManager {
         this.spacing;
 
       /*
-       * Small deterministic variation.
+       * Small deterministic offset.
        */
       targetZ +=
         (
           this.seededRandom(
-            prop.seed + 700
+            prop.seed + 1300
           ) -
           0.5
         ) *
@@ -869,191 +1257,4 @@ export class EnvironmentManager {
       }
     }
   }
-
-  // =========================================================
-  // Place Prop
-  // =========================================================
-
-  private placeProp(
-    prop: EnvironmentProp,
-    worldZ: number
-  ): void {
-    const centerX =
-      this.getRoadCenterX(
-        worldZ
-      );
-
-    /*
-     * Keep every object outside
-     * the road and guardrail zone.
-     */
-    const randomDistance =
-      this.seededRandom(
-        prop.seed + 800
-      ) *
-      3.5;
-
-    const distance =
-      this.sideOffset +
-      randomDistance;
-
-    const x =
-      centerX +
-      prop.side *
-      (
-        this.roadWidth / 2 +
-        distance
-      );
-
-    prop.object.position.x =
-      x;
-
-    prop.object.position.z =
-      worldZ;
-
-    /*
-     * Keep generated environment upright.
-     */
-    prop.object.position.y =
-      0;
-
-    prop.object.rotation.x =
-      0;
-
-    prop.object.rotation.z =
-      0;
-
-    prop.object.rotation.y =
-      (
-        this.seededRandom(
-          prop.seed + 801
-        ) -
-        0.5
-      ) *
-      0.15;
-  }
-
-  // =========================================================
-  // Recycle
-  // =========================================================
-
-  private recycleProp(
-    prop: EnvironmentProp,
-    playerZ: number
-  ): void {
-    /*
-     * Put the same pooled object
-     * far ahead of the player.
-     *
-     * No new object is allocated.
-     */
-    const variation =
-      (
-        this.seededRandom(
-          prop.seed + 900
-        ) -
-        0.5
-      ) *
-      5;
-
-    const newZ =
-      playerZ -
-      this.visibleAhead -
-      variation;
-
-    this.placeProp(
-      prop,
-      newZ
-    );
-  }
-
-  // =========================================================
-  // Seed
-  // =========================================================
-
-  private createSeed(
-    index: number
-  ): number {
-    return (
-      (
-        index *
-        1103515245 +
-        12345
-      ) >>>
-      0
-    );
-  }
-
-  private seededRandom(
-    seed: number
-  ): number {
-    const value =
-      Math.sin(
-        seed *
-        12.9898
-      ) *
-      43758.5453;
-
-    return (
-      value -
-      Math.floor(
-        value
-      )
-    );
-  }
-
-  // =========================================================
-  // Ready
-  // =========================================================
-
-  public isReady(): boolean {
-    return this.loaded;
-  }
-
-  // =========================================================
-  // Dispose Props
-  // =========================================================
-
-  private disposeProps(): void {
-    for (
-      const prop of this.props
-    ) {
-      this.environmentGroup.remove(
-        prop.object
-      );
-    }
-
-    this.props.length =
-      0;
-  }
-
-  // =========================================================
-  // Dispose
-  // =========================================================
-
-  public dispose(): void {
-    this.disposeProps();
-
-    this.scene.remove(
-      this.environmentGroup
-    );
-
-    this.grassBladeGeometry.dispose();
-    this.grassMaterial.dispose();
-
-    this.trunkGeometry.dispose();
-    this.trunkMaterial.dispose();
-
-    this.leafGeometry.dispose();
-    this.leafMaterial.dispose();
-
-    this.rockGeometry.dispose();
-    this.rockMaterial.dispose();
-
-    this.loaded =
-      false;
-
-    this.loading =
-      false;
-  }
-}
+       
