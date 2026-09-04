@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { World } from "../world/World";
+import { EnvironmentManager } from "../world/EnvironmentManager";
 
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
@@ -117,6 +118,13 @@ private handleAudioUnlock = (): void => {
 
   private readonly world:
     World;
+
+  // =========================================================
+// M7 — Roadside Environment
+// =========================================================
+
+private readonly environmentManager:
+  EnvironmentManager;
 
   // =========================================================
   // Player
@@ -396,6 +404,35 @@ this.audioManager.initialize();
           curveFrequency: 0.008
         }
       );
+
+    // =======================================================
+// M7 — Roadside Environment
+// =======================================================
+
+this.environmentManager =
+  new EnvironmentManager(
+    this.scene,
+    (worldZ: number) =>
+      this.world.getRoadCenterX(
+        worldZ
+      ),
+    {
+      roadWidth:
+        this.world.getRoadWidth(),
+
+      sideOffset: 2,
+
+      propCount: 32,
+
+      spacing: 18,
+
+      visibleAhead: 260,
+
+      visibleBehind: 100
+    }
+  );
+
+void this.environmentManager.load();
 
     // =======================================================
     // Economy Manager
@@ -1406,6 +1443,10 @@ this.raceHUD.update();
     this.world.update(
       playerZ
     );
+
+    this.environmentManager.update(
+  playerZ
+);
 
     // =======================================================
     // Traffic
@@ -2639,6 +2680,11 @@ this.completeRace(
     this.playerCar.dispose();
 
     this.world.dispose();
+    // =======================================================
+    // M7 — Roadside Environment
+    // =======================================================
+
+    this.environmentManager.dispose();
 
     // =======================================================
     // HUD
