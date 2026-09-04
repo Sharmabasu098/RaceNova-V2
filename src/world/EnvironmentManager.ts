@@ -1256,6 +1256,3 @@ export class EnvironmentManager {
         );
       }
     }
-  }
-}
-       
