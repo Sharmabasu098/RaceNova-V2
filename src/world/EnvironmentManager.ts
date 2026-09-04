@@ -2,23 +2,26 @@
  * ============================================================
  * RaceNova V2
  * Environment Manager
- * M7 - Endless Roadside Environment
+ * M7.2 - Endless Roadside Environment
  * ============================================================
  *
  * Responsibilities:
  * - Load roadside vegetation GLB
- * - Create lightweight roadside prop pool
- * - Place vegetation on both sides of the road
- * - Follow the curved road center
- * - Recycle props endlessly as the player moves
- * - Normalize vegetation size for RaceNova world scale
- * - Keep mobile rendering lightweight
+ * - Create lightweight pooled vegetation
+ * - Keep roadside vegetation endless
+ * - Place vegetation outside the road
+ * - Use larger natural-looking props
+ * - Reduce visible grass gaps
+ * - Apply safe fallback colors when GLB materials are plain
+ * - Follow curved road center
+ * - Recycle props as player moves
  *
  * IMPORTANT:
  * - No gameplay collision
  * - No economy dependency
  * - No audio dependency
  * - No modification to World.ts
+ * - Mobile-first pooled rendering
  * ============================================================
  */
 
@@ -38,6 +41,11 @@ interface EnvironmentProp {
   object: THREE.Object3D;
   side: -1 | 1;
   seed: number;
+  category:
+    | "tree"
+    | "rock"
+    | "grass"
+    | "other";
 }
 
 export class EnvironmentManager {
@@ -53,13 +61,22 @@ export class EnvironmentManager {
   private readonly visibleAhead: number;
   private readonly visibleBehind: number;
 
-  private readonly environmentGroup: THREE.Group;
+  private readonly environmentGroup:
+    THREE.Group;
 
   private readonly props:
     EnvironmentProp[] = [];
 
   private readonly sourceObjects:
     THREE.Object3D[] = [];
+
+  private readonly sourceCategories:
+    (
+      | "tree"
+      | "rock"
+      | "grass"
+      | "other"
+    )[] = [];
 
   private readonly loader:
     GLTFLoader;
@@ -84,42 +101,49 @@ export class EnvironmentManager {
       config.roadWidth ?? 12;
 
     /*
-     * Keep vegetation outside the road
-     * and outside the immediate guardrail area.
+     * Keep all decorative objects
+     * safely outside the road.
      */
     this.sideOffset =
       Math.max(
-        2.5,
+        3.0,
         config.sideOffset ?? 3.0
       );
 
     /*
-     * Fixed pool for mobile performance.
+     * Fixed pool.
+     *
+     * More objects than before so the
+     * roadside does not look empty.
      */
     this.propCount =
       Math.max(
-        16,
+        24,
         Math.floor(
-          config.propCount ?? 32
+          config.propCount ?? 40
         )
       );
 
+    /*
+     * Smaller slot spacing gives denser
+     * roadside decoration.
+     */
     this.spacing =
       Math.max(
-        12,
-        config.spacing ?? 18
+        10,
+        config.spacing ?? 14
       );
 
     this.visibleAhead =
       Math.max(
-        160,
-        config.visibleAhead ?? 260
+        180,
+        config.visibleAhead ?? 280
       );
 
     this.visibleBehind =
       Math.max(
-        60,
-        config.visibleBehind ?? 100
+        70,
+        config.visibleBehind ?? 110
       );
 
     this.environmentGroup =
@@ -183,9 +207,6 @@ export class EnvironmentManager {
 
       this.loaded = true;
 
-      /*
-       * Initial placement.
-       */
       this.update(
         this.lastPlayerZ
       );
@@ -207,14 +228,12 @@ export class EnvironmentManager {
     root: THREE.Object3D
   ): void {
     this.sourceObjects.length = 0;
+    this.sourceCategories.length = 0;
 
-    /*
-     * The GLB is a combined vegetation pack.
-     *
-     * Keep each top-level object separate
-     * so the pool can reuse individual
-     * trees, rocks and vegetation pieces.
-     */
+    root.updateMatrixWorld(
+      true
+    );
+
     for (
       const child of root.children
     ) {
@@ -225,8 +244,18 @@ export class EnvironmentManager {
         true
       );
 
+      const category =
+        this.detectCategory(
+          clone,
+          this.sourceObjects.length
+        );
+
       this.sourceObjects.push(
         clone
+      );
+
+      this.sourceCategories.push(
+        category
       );
     }
 
@@ -246,80 +275,30 @@ export class EnvironmentManager {
       this.sourceObjects.push(
         clone
       );
+
+      this.sourceCategories.push(
+        "other"
+      );
     }
   }
 
   // =========================================================
-  // Create Prop Pool
+  // Detect Category
   // =========================================================
 
-  private createPropPool(): void {
-    this.disposeProps();
+  private detectCategory(
+    object: THREE.Object3D,
+    sourceIndex: number
+  ):
+    | "tree"
+    | "rock"
+    | "grass"
+    | "other" {
+    let hasLeaf = false;
+    let hasRock = false;
 
-    for (
-      let i = 0;
-      i < this.propCount;
-      i++
-    ) {
-      const sourceIndex =
-        i %
-        this.sourceObjects.length;
+    let meshCount = 0;
 
-      const source =
-        this.sourceObjects[
-          sourceIndex
-        ];
-
-      const side: -1 | 1 =
-        i % 2 === 0
-          ? -1
-          : 1;
-
-      const clone =
-        source.clone(true);
-
-      clone.name =
-        `RoadsideProp_${i}`;
-
-      const seed =
-        this.createSeed(i);
-
-      this.prepareObject(
-        clone
-      );
-
-      /*
-       * Normalize the actual GLB dimensions.
-       *
-       * This is important because the
-       * vegetation pack contains objects
-       * with very different natural sizes.
-       */
-      this.normalizeObjectScale(
-        clone,
-        sourceIndex,
-        seed
-      );
-
-      this.environmentGroup.add(
-        clone
-      );
-
-      this.props.push({
-        object: clone,
-        side,
-        seed
-      });
-    }
-  }
-
-  // =========================================================
-  // Prepare Object
-  // =========================================================
-
-  private prepareObject(
-    object: THREE.Object3D
-  ): void {
     object.traverse(
       (child) => {
         if (
@@ -328,34 +307,59 @@ export class EnvironmentManager {
           return;
         }
 
-        /*
-         * Roadside vegetation is decorative only.
-         */
-        child.castShadow = false;
-        child.receiveShadow = false;
+        meshCount++;
 
-        /*
-         * Let Three.js skip objects
-         * outside the camera frustum.
-         */
-        child.frustumCulled = true;
+        const materials =
+          Array.isArray(
+            child.material
+          )
+            ? child.material
+            : [
+                child.material
+              ];
+
+        for (
+          const material of materials
+        ) {
+          const name =
+            (
+              material.name ??
+              ""
+            ).toLowerCase();
+
+          if (
+            name.includes(
+              "leaf"
+            ) ||
+            name.includes(
+              "tree"
+            )
+          ) {
+            hasLeaf = true;
+          }
+
+          if (
+            name.includes(
+              "rock"
+            )
+          ) {
+            hasRock = true;
+          }
+        }
       }
     );
-  }
 
-  // =========================================================
-  // Normalize Object Scale
-  // =========================================================
+    if (hasRock) {
+      return "rock";
+    }
 
-  private normalizeObjectScale(
-    object: THREE.Object3D,
-    sourceIndex: number,
-    seed: number
-  ): void {
-    object.updateMatrixWorld(
-      true
-    );
+    if (hasLeaf) {
+      return "tree";
+    }
 
+    /*
+     * Measure object dimensions.
+     */
     const box =
       new THREE.Box3()
         .setFromObject(
@@ -382,22 +386,190 @@ export class EnvironmentManager {
       );
 
     /*
-     * The current vegetation pack contains:
-     *
-     * - leaf object
-     * - rocks
-     * - trees
-     * - trunks / smaller vegetation
-     *
-     * Material names are not always reliable,
-     * so dimensions are also used.
+     * Tall objects are trees.
      */
-    const category =
-      this.getObjectCategory(
-        object,
-        sourceIndex,
-        height,
-        width
+    if (
+      height >= 4.0
+    ) {
+      return "tree";
+    }
+
+    /*
+     * Small thin objects are grass.
+     */
+    if (
+      height <= 2.5 &&
+      width <= 2.5 &&
+      meshCount > 0
+    ) {
+      return "grass";
+    }
+
+    /*
+     * Compact medium objects are rocks.
+     */
+    if (
+      height <= 3.5 &&
+      width <= 4.0
+    ) {
+      return "rock";
+    }
+
+    /*
+     * A few assets in the combined pack
+     * may be trunks or unnamed vegetation.
+     *
+     * Use source position as a deterministic
+     * fallback classification.
+     */
+    if (
+      sourceIndex % 3 === 0
+    ) {
+      return "tree";
+    }
+
+    return "other";
+  }
+
+  // =========================================================
+  // Create Prop Pool
+  // =========================================================
+
+  private createPropPool(): void {
+    this.disposeProps();
+
+    for (
+      let i = 0;
+      i < this.propCount;
+      i++
+    ) {
+      const sourceIndex =
+        i %
+        this.sourceObjects.length;
+
+      const source =
+        this.sourceObjects[
+          sourceIndex
+        ];
+
+      const category =
+        this.sourceCategories[
+          sourceIndex
+        ];
+
+      const side: -1 | 1 =
+        i % 2 === 0
+          ? -1
+          : 1;
+
+      const clone =
+        source.clone(true);
+
+      clone.name =
+        `RoadsideProp_${i}`;
+
+      const seed =
+        this.createSeed(i);
+
+      this.prepareObject(
+        clone,
+        category
+      );
+
+      this.normalizeObjectScale(
+        clone,
+        category,
+        seed
+      );
+
+      this.applyFallbackMaterials(
+        clone,
+        category
+      );
+
+      this.environmentGroup.add(
+        clone
+      );
+
+      this.props.push({
+        object: clone,
+        side,
+        seed,
+        category
+      });
+    }
+  }
+
+  // =========================================================
+  // Prepare Object
+  // =========================================================
+
+  private prepareObject(
+    object: THREE.Object3D,
+    category:
+      | "tree"
+      | "rock"
+      | "grass"
+      | "other"
+  ): void {
+    object.traverse(
+      (child) => {
+        if (
+          !(child instanceof THREE.Mesh)
+        ) {
+          return;
+        }
+
+        child.castShadow = false;
+        child.receiveShadow = false;
+
+        child.frustumCulled = true;
+
+        /*
+         * Decorative roadside objects
+         * never participate in gameplay.
+         */
+        child.matrixAutoUpdate = true;
+
+        void category;
+      }
+    );
+  }
+
+  // =========================================================
+  // Normalize Scale
+  // =========================================================
+
+  private normalizeObjectScale(
+    object: THREE.Object3D,
+    category:
+      | "tree"
+      | "rock"
+      | "grass"
+      | "other",
+    seed: number
+  ): void {
+    object.updateMatrixWorld(
+      true
+    );
+
+    const box =
+      new THREE.Box3()
+        .setFromObject(
+          object
+        );
+
+    const size =
+      new THREE.Vector3();
+
+    box.getSize(
+      size
+    );
+
+    const height =
+      Math.max(
+        size.y,
+        0.001
       );
 
     let targetHeight: number;
@@ -405,59 +577,53 @@ export class EnvironmentManager {
     switch (category) {
       case "tree":
         /*
-         * Natural roadside tree size.
+         * Bigger trees.
          */
         targetHeight =
-          5.0 +
+          6.5 +
           this.seededRandom(
-            seed + 201
+            seed + 200
           ) *
-          1.5;
+          2.5;
         break;
 
       case "rock":
         /*
-         * Small roadside rocks.
+         * Clearly visible roadside rocks.
+         */
+        targetHeight =
+          1.0 +
+          this.seededRandom(
+            seed + 201
+          ) *
+          1.0;
+        break;
+
+      case "grass":
+        /*
+         * Grass is kept low.
+         *
+         * It will be placed densely so
+         * individual patches are less obvious.
          */
         targetHeight =
           0.7 +
           this.seededRandom(
             seed + 202
           ) *
-          0.7;
-        break;
-
-      case "grass":
-        /*
-         * Small decorative vegetation.
-         */
-        targetHeight =
-          0.45 +
-          this.seededRandom(
-            seed + 203
-          ) *
-          0.45;
+          0.5;
         break;
 
       default:
-        /*
-         * Safe size for unknown objects.
-         */
         targetHeight =
-          1.0 +
+          1.5 +
           this.seededRandom(
-            seed + 204
+            seed + 203
           ) *
-          0.8;
+          1.0;
         break;
     }
 
-    /*
-     * Scale according to actual GLB height.
-     *
-     * This prevents giant trees/trunks
-     * from entering the road.
-     */
     const scale =
       targetHeight /
       height;
@@ -465,56 +631,45 @@ export class EnvironmentManager {
     object.scale.setScalar(
       scale
     );
-
-    /*
-     * Keep width under control as well.
-     *
-     * This is especially important for
-     * wide tree canopies and rocks.
-     */
-    const maxWidth =
-      category === "tree"
-        ? 4.5
-        : category === "rock"
-          ? 1.8
-          : category === "grass"
-            ? 1.2
-            : 2.0;
-
-    const scaledWidth =
-      width *
-      scale;
-
-    if (
-      scaledWidth >
-      maxWidth
-    ) {
-      const widthScale =
-        maxWidth /
-        scaledWidth;
-
-      object.scale.multiplyScalar(
-        widthScale
-      );
-    }
   }
 
   // =========================================================
-  // Object Category
+  // Fallback Materials
   // =========================================================
 
-  private getObjectCategory(
+  private applyFallbackMaterials(
     object: THREE.Object3D,
-    sourceIndex: number,
-    height: number,
-    width: number
-  ):
-    "tree" |
-    "rock" |
-    "grass" |
-    "other" {
-    let hasRockMaterial = false;
-    let hasLeafMaterial = false;
+    category:
+      | "tree"
+      | "rock"
+      | "grass"
+      | "other"
+  ): void {
+    let fallbackColor:
+      | number
+      | null = null;
+
+    switch (category) {
+      case "tree":
+        fallbackColor =
+          0x3f8f3f;
+        break;
+
+      case "grass":
+        fallbackColor =
+          0x4fa84f;
+        break;
+
+      case "rock":
+        fallbackColor =
+          0x777777;
+        break;
+
+      default:
+        fallbackColor =
+          0x6b6b6b;
+        break;
+    }
 
     object.traverse(
       (child) => {
@@ -533,85 +688,44 @@ export class EnvironmentManager {
                 child.material
               ];
 
-        for (
-          const material of materials
-        ) {
-          const name =
-            (
-              material.name ??
-              ""
-            ).toLowerCase();
+        const clonedMaterials =
+          materials.map(
+            (material) => {
+              const cloned =
+                material.clone();
 
-          if (
-            name.includes(
-              "rock"
-            )
-          ) {
-            hasRockMaterial = true;
-          }
+              /*
+               * Only use fallback color when
+               * there is no texture.
+               */
+              if (
+                "color" in cloned &&
+                "map" in cloned
+              ) {
+                const materialWithColor =
+                  cloned as THREE.MeshStandardMaterial;
 
-          if (
-            name.includes(
-              "leaf"
-            )
-          ) {
-            hasLeafMaterial = true;
-          }
-        }
+                if (
+                  !materialWithColor.map
+                ) {
+                  materialWithColor.color.setHex(
+                    fallbackColor as number
+                  );
+                }
+              }
+
+              return cloned;
+            }
+          );
+
+        child.material =
+          Array.isArray(
+            child.material
+          )
+            ? clonedMaterials
+            : clonedMaterials[0];
       }
     );
-
-    if (
-      hasRockMaterial
-    ) {
-      return "rock";
-    }
-
-    if (
-      hasLeafMaterial
-    ) {
-      return "tree";
-    }
-
-    /*
-     * Current pack contains several
-     * unnamed-material vegetation objects.
-     *
-     * Tall objects are treated as trees.
-     */
-    if (
-      height >= 5
-    ) {
-      return "tree";
-    }
-
-    /*
-     * Very small objects are grass.
-     */
-    if (
-      height <= 2.4 &&
-      width <= 2.0
-    ) {
-      return "grass";
-    }
-
-    /*
-     * Medium compact objects are treated
-     * as small roadside decoration.
-     */
-    if (
-      height <= 3 &&
-      width <= 4
-    ) {
-      return "rock";
-    }
-
-    /*
-     * Final fallback.
-     */
-    void sourceIndex;
-
-    return "other";
   }
 
   // =========================================================
@@ -686,12 +800,8 @@ export class EnvironmentManager {
         prop.object;
 
       /*
-       * Two props per longitudinal slot:
-       *
-       * left  + right
-       *
-       * This keeps the road visually
-       * surrounded on both sides.
+       * Two props per slot:
+       * left + right.
        */
       const slot =
         Math.floor(
@@ -700,12 +810,12 @@ export class EnvironmentManager {
 
       let targetZ =
         playerZ -
-        40 -
+        50 -
         slot *
         this.spacing;
 
       /*
-       * Deterministic longitudinal variation.
+       * Small deterministic variation.
        */
       targetZ +=
         (
@@ -714,14 +824,10 @@ export class EnvironmentManager {
           ) -
           0.5
         ) *
-        6;
+        4;
 
       /*
-       * Place/reposition only when
-       * the prop has moved sufficiently
-       * away from its intended slot.
-       *
-       * This avoids visible jitter.
+       * Initial / recycled placement.
        */
       if (
         Math.abs(
@@ -738,10 +844,7 @@ export class EnvironmentManager {
       }
 
       /*
-       * Endless recycling:
-       *
-       * Once a prop moves behind the player,
-       * send it far ahead again.
+       * Endless recycling.
        */
       if (
         object.position.z >
@@ -751,25 +854,6 @@ export class EnvironmentManager {
         this.recycleProp(
           prop,
           playerZ
-        );
-      }
-
-      /*
-       * Safety check:
-       *
-       * If a prop somehow gets too far
-       * outside the forward environment,
-       * reposition it.
-       */
-      if (
-        object.position.z <
-        playerZ -
-        this.visibleAhead -
-        this.spacing
-      ) {
-        this.placeProp(
-          prop,
-          targetZ
         );
       }
     }
@@ -788,27 +872,38 @@ export class EnvironmentManager {
         worldZ
       );
 
-    const sideRandom =
+    /*
+     * Keep vegetation clearly outside
+     * the road edge.
+     */
+    let extraDistance =
+      this.sideOffset +
       this.seededRandom(
         prop.seed + 31
-      );
+      ) *
+      4;
 
     /*
-     * Road width / 2 = road edge.
-     *
-     * Add a safe roadside offset.
+     * Grass can sit slightly closer
+     * to the roadside.
      */
-    const distance =
-      this.sideOffset +
-      sideRandom *
-      4.0;
+    if (
+      prop.category === "grass"
+    ) {
+      extraDistance =
+        2.5 +
+        this.seededRandom(
+          prop.seed + 32
+        ) *
+        2.5;
+    }
 
     const x =
       centerX +
       prop.side *
       (
         this.roadWidth / 2 +
-        distance
+        extraDistance
       );
 
     prop.object.position.x =
@@ -818,9 +913,7 @@ export class EnvironmentManager {
       worldZ;
 
     /*
-     * Keep vegetation upright.
-     *
-     * Only rotate around Y axis.
+     * Keep everything upright.
      */
     prop.object.rotation.x =
       0;
@@ -837,9 +930,6 @@ export class EnvironmentManager {
       ) *
       Math.PI;
 
-    /*
-     * Put object on ground.
-     */
     this.placeOnGround(
       prop.object
     );
@@ -873,10 +963,6 @@ export class EnvironmentManager {
       return;
     }
 
-    /*
-     * Compensate for the object's
-     * bounding-box bottom.
-     */
     object.position.y -=
       box.min.y;
   }
@@ -889,6 +975,11 @@ export class EnvironmentManager {
     prop: EnvironmentProp,
     playerZ: number
   ): void {
+    /*
+     * Recycle far ahead.
+     *
+     * No new object is created.
+     */
     const randomOffset =
       (
         this.seededRandom(
@@ -896,15 +987,8 @@ export class EnvironmentManager {
         ) -
         0.5
       ) *
-      10;
+      8;
 
-    /*
-     * Send recycled object ahead
-     * of the player.
-     *
-     * This makes the roadside effectively
-     * endless without creating new objects.
-     */
     const newZ =
       playerZ -
       this.visibleAhead -
@@ -952,6 +1036,9 @@ export class EnvironmentManager {
     );
 
     this.sourceObjects.length =
+      0;
+
+    this.sourceCategories.length =
       0;
 
     this.loaded =
