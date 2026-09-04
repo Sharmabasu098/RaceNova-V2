@@ -638,92 +638,195 @@ export class EnvironmentManager {
   // =========================================================
 
   private applyFallbackMaterials(
-    object: THREE.Object3D,
-    category:
-      | "tree"
-      | "rock"
-      | "grass"
-      | "other"
-  ): void {
-    let fallbackColor:
-      | number
-      | null = null;
+  object: THREE.Object3D,
+  category:
+    | "tree"
+    | "rock"
+    | "grass"
+    | "other"
+): void {
+  object.traverse(
+    (child) => {
+      if (
+        !(child instanceof THREE.Mesh)
+      ) {
+        return;
+      }
 
-    switch (category) {
-      case "tree":
-        fallbackColor =
-          0x3f8f3f;
-        break;
+      const materials =
+        Array.isArray(
+          child.material
+        )
+          ? child.material
+          : [
+              child.material
+            ];
 
-      case "grass":
-        fallbackColor =
-          0x4fa84f;
-        break;
+      const clonedMaterials =
+        materials.map(
+          (material) => {
+            const cloned =
+              material.clone();
 
-      case "rock":
-        fallbackColor =
-          0x777777;
-        break;
+            const materialName =
+              (
+                cloned.name ??
+                ""
+              ).toLowerCase();
 
-      default:
-        fallbackColor =
-          0x6b6b6b;
-        break;
-    }
+            /*
+             * Preserve real textures.
+             */
+            if (
+              "map" in cloned &&
+              (
+                cloned as THREE.MeshStandardMaterial
+              ).map
+            ) {
+              return cloned;
+            }
 
-    object.traverse(
-      (child) => {
-        if (
-          !(child instanceof THREE.Mesh)
-        ) {
-          return;
-        }
-
-        const materials =
-          Array.isArray(
-            child.material
-          )
-            ? child.material
-            : [
-                child.material
-              ];
-
-        const clonedMaterials =
-          materials.map(
-            (material) => {
-              const cloned =
-                material.clone();
-
-              /*
-               * Only use fallback color when
-               * there is no texture.
-               */
+            /*
+             * Leaf / foliage.
+             */
+            if (
+              materialName.includes(
+                "leaf"
+              ) ||
+              materialName.includes(
+                "foliage"
+              ) ||
+              materialName.includes(
+                "grass"
+              )
+            ) {
               if (
-                "color" in cloned &&
-                "map" in cloned
+                "color" in cloned
               ) {
-                const materialWithColor =
-                  cloned as THREE.MeshStandardMaterial;
-
-                if (
-                  !materialWithColor.map
-                ) {
-                  materialWithColor.color.setHex(
-                    fallbackColor as number
-                  );
-                }
+                (
+                  cloned as THREE.MeshStandardMaterial
+                ).color.setHex(
+                  0x3f8f3f
+                );
               }
 
               return cloned;
             }
-          );
 
-        child.material =
-          Array.isArray(
-            child.material
-          )
-            ? clonedMaterials
-            : clonedMaterials[0];
+            /*
+             * Tree trunk / wood.
+             */
+            if (
+              materialName.includes(
+                "trunk"
+              ) ||
+              materialName.includes(
+                "wood"
+              ) ||
+              materialName.includes(
+                "bark"
+              )
+            ) {
+              if (
+                "color" in cloned
+              ) {
+                (
+                  cloned as THREE.MeshStandardMaterial
+                ).color.setHex(
+                  0x76502f
+                );
+              }
+
+              return cloned;
+            }
+
+            /*
+             * Rocks.
+             */
+            if (
+              materialName.includes(
+                "rock"
+              ) ||
+              category === "rock"
+            ) {
+              if (
+                "color" in cloned
+              ) {
+                (
+                  cloned as THREE.MeshStandardMaterial
+                ).color.setHex(
+                  0x777777
+                );
+              }
+
+              return cloned;
+            }
+
+            /*
+             * Grass / small vegetation.
+             */
+            if (
+              category === "grass"
+            ) {
+              if (
+                "color" in cloned
+              ) {
+                (
+                  cloned as THREE.MeshStandardMaterial
+                ).color.setHex(
+                  0x4fa84f
+                );
+              }
+
+              return cloned;
+            }
+
+            /*
+             * Tree fallback:
+             *
+             * Do NOT make every tree part green.
+             * Keep unnamed geometry natural brown/green
+             * depending on its material role.
+             */
+            if (
+              category === "tree"
+            ) {
+              if (
+                "color" in cloned
+              ) {
+                (
+                  cloned as THREE.MeshStandardMaterial
+                ).color.setHex(
+                  0x5f7138
+                );
+              }
+
+              return cloned;
+            }
+
+            /*
+             * Generic fallback.
+             */
+            if (
+              "color" in cloned
+            ) {
+              (
+                cloned as THREE.MeshStandardMaterial
+              ).color.setHex(
+                0x6b6b6b
+              );
+            }
+
+            return cloned;
+          }
+        );
+
+      child.material =
+        Array.isArray(
+          child.material
+        )
+          ? clonedMaterials
+          : clonedMaterials[0];
       }
     );
   }
