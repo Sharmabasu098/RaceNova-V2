@@ -1164,98 +1164,172 @@ export class EnvironmentManager {
   // =========================================================
 
   public update(
-    playerZ: number
-  ): void {
+  playerZ: number
+): void {
+  if (
+    !Number.isFinite(
+      playerZ
+    )
+  ) {
+    return;
+  }
+
+  this.lastPlayerZ =
+    playerZ;
+
+  if (
+    !this.loaded ||
+    this.props.length === 0
+  ) {
+    return;
+  }
+
+  /*
+   * Keep both roadside sides active.
+   *
+   * Every pooled prop receives a stable
+   * longitudinal slot and is positioned
+   * relative to the player's current Z.
+   */
+  for (
+    let i = 0;
+    i < this.props.length;
+    i++
+  ) {
+    const prop =
+      this.props[i];
+
+    const object =
+      prop.object;
+
+    const slot =
+      Math.floor(
+        i / 2
+      );
+
+    /*
+     * Environment starts farther ahead
+     * of the player.
+     *
+     * This prevents trees/props from
+     * appearing immediately beside the car.
+     */
+    const slotZ =
+      playerZ -
+      95 -
+      slot *
+      this.spacing;
+
+    const variation =
+      (
+        this.seededRandom(
+          prop.seed + 1600
+        ) -
+        0.5
+      ) *
+      5;
+
+    const targetZ =
+      slotZ +
+      variation;
+
+    /*
+     * Recycle the prop when it moves
+     * behind the active environment range.
+     *
+     * The same object is reused.
+     */
+    const isBehind =
+      object.position.z >
+      playerZ +
+      this.visibleBehind;
+
+    const isTooFarAhead =
+      object.position.z <
+      playerZ -
+      this.visibleAhead -
+      40;
+
     if (
+      isBehind ||
+      isTooFarAhead ||
       !Number.isFinite(
-        playerZ
+        object.position.z
       )
     ) {
-      return;
+      this.placeProp(
+        prop,
+        targetZ
+      );
+
+      continue;
     }
 
-    this.lastPlayerZ =
-      playerZ;
+    /*
+     * IMPORTANT:
+     *
+     * Recalculate the road center every
+     * frame so roadside props follow
+     * curved/endless road positioning.
+     */
+    const centerX =
+      this.getRoadCenterX(
+        object.position.z
+      );
+
+    const randomDistance =
+      this.sideOffset +
+      this.seededRandom(
+        prop.seed + 1700
+      ) *
+      3.5;
+
+    object.position.x =
+      centerX +
+      prop.side *
+      (
+        this.roadWidth / 2 +
+        randomDistance
+      );
+
+    /*
+     * Hard safety clamp:
+     *
+     * Never allow a roadside prop to
+     * enter the playable road.
+     */
+    const minimumRoadDistance =
+      this.roadWidth / 2 +
+      this.sideOffset;
+
+    const distanceFromCenter =
+      Math.abs(
+        object.position.x -
+        centerX
+      );
 
     if (
-      !this.loaded ||
-      this.props.length === 0
+      distanceFromCenter <
+      minimumRoadDistance
     ) {
-      return;
+      object.position.x =
+        centerX +
+        prop.side *
+        minimumRoadDistance;
     }
 
-    for (
-      let i = 0;
-      i < this.props.length;
-      i++
-    ) {
-      const prop =
-        this.props[i];
+    /*
+     * Keep the roadside group grounded.
+     */
+    object.position.y =
+      0;
 
-      const object =
-        prop.object;
+    object.rotation.x =
+      0;
 
-      /*
-       * One longitudinal slot for
-       * every left/right pair.
-       */
-      const slot =
-        Math.floor(
-          i / 2
-        );
-
-      /*
-       * Start behind the player.
-       */
-      let targetZ =
-        playerZ -
-        45 -
-        slot *
-        this.spacing;
-
-      /*
-       * Small deterministic offset.
-       */
-      targetZ +=
-        (
-          this.seededRandom(
-            prop.seed + 1300
-          ) -
-          0.5
-        ) *
-        3;
-
-      /*
-       * Initial placement.
-       */
-      if (
-        Math.abs(
-          object.position.z -
-          targetZ
-        ) >
-        this.spacing *
-        1.5
-      ) {
-        this.placeProp(
-          prop,
-          targetZ
-        );
-      }
-
-      /*
-       * Endless recycling.
-       */
-      if (
-        object.position.z >
-        playerZ +
-        this.visibleBehind
-      ) {
-        this.recycleProp(
-          prop,
-          playerZ
-        );
-      }
-    }
+    object.rotation.z =
+      0;
+  }
   }
 
   // =========================================================
