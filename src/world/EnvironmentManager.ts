@@ -1140,7 +1140,7 @@ export class EnvironmentManager {
         this.seededRandom(
           seed + 1205
         ) -
-        0.5
+       0.5
       ) *
       0.35
     );
@@ -1256,3 +1256,218 @@ export class EnvironmentManager {
         );
       }
     }
+  }
+
+  // =========================================================
+  // Place Prop
+  // =========================================================
+
+  private placeProp(
+    prop: EnvironmentProp,
+    worldZ: number
+  ): void {
+    const centerX =
+      this.getRoadCenterX(
+        worldZ
+      );
+
+    /*
+     * Random distance outside
+     * the road edge.
+     */
+    const randomDistance =
+      this.seededRandom(
+        prop.seed + 1400
+      ) *
+      3.5;
+
+    const distance =
+      this.sideOffset +
+      randomDistance;
+
+    const x =
+      centerX +
+      prop.side *
+      (
+        this.roadWidth / 2 +
+        distance
+      );
+
+    prop.object.position.x =
+      x;
+
+    prop.object.position.z =
+      worldZ;
+
+    prop.object.position.y =
+      0;
+
+    /*
+     * Keep the roadside group upright.
+     */
+    prop.object.rotation.x =
+      0;
+
+    prop.object.rotation.z =
+      0;
+
+    prop.object.rotation.y =
+      (
+        this.seededRandom(
+          prop.seed + 1401
+        ) -
+        0.5
+      ) *
+      0.18;
+    }
+
+   // =========================================================
+  // Recycle
+  // =========================================================
+
+  private recycleProp(
+    prop: EnvironmentProp,
+    playerZ: number
+  ): void {
+    /*
+     * Reuse the existing object.
+     *
+     * No new Three.js objects are
+     * created during normal gameplay.
+     */
+    const variation =
+      (
+        this.seededRandom(
+          prop.seed + 1500
+        ) -
+        0.5
+      ) *
+      6;
+
+    const newZ =
+      playerZ -
+      this.visibleAhead -
+      variation;
+
+    this.placeProp(
+      prop,
+      newZ
+    );
+  }
+
+  // =========================================================
+  // Seed
+  // =========================================================
+
+  private createSeed(
+    index: number
+  ): number {
+    return (
+      (
+        index *
+        1103515245 +
+        12345
+      ) >>>
+      0
+    );
+  }
+
+  private seededRandom(
+    seed: number
+  ): number {
+    const value =
+      Math.sin(
+        seed *
+        12.9898
+      ) *
+      43758.5453;
+
+    return (
+      value -
+      Math.floor(
+        value
+      )
+    );
+  }
+
+  // =========================================================
+  // Ready
+  // =========================================================
+
+  public isReady(): boolean {
+    return this.loaded;
+  }
+
+  // =========================================================
+  // Dispose Props
+  // =========================================================
+
+  private disposeProps(): void {
+    for (
+      const prop of this.props
+    ) {
+      this.environmentGroup.remove(
+        prop.object
+      );
+    }
+
+    this.props.length =
+      0;
+  }
+
+  // =========================================================
+  // Dispose
+  // =========================================================
+
+  public dispose(): void {
+    this.disposeProps();
+
+    this.scene.remove(
+      this.environmentGroup
+    );
+
+    // -------------------------------------------------------
+    // Geometry
+    // -------------------------------------------------------
+
+    this.grassBladeGeometry.dispose();
+
+    this.trunkGeometry.dispose();
+
+    this.leafGeometry.dispose();
+
+    this.rockGeometry.dispose();
+
+    this.bushGeometry.dispose();
+
+    this.flowerStemGeometry.dispose();
+
+    // -------------------------------------------------------
+    // Materials
+    // -------------------------------------------------------
+
+    this.grassMaterial.dispose();
+
+    this.trunkMaterial.dispose();
+
+    this.leafMaterial.dispose();
+
+    this.leafLightMaterial.dispose();
+
+    this.rockMaterial.dispose();
+
+    this.bushMaterial.dispose();
+
+    this.flowerYellowMaterial.dispose();
+
+    this.flowerPinkMaterial.dispose();
+
+    this.flowerWhiteMaterial.dispose();
+
+    this.loaded =
+      false;
+
+    this.loading =
+      false;
+  }
+}
