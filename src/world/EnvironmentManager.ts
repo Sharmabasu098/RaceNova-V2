@@ -1474,12 +1474,13 @@ export class EnvironmentManager {
   // Seed
   // =========================================================
 
+    // =========================================================
+  // Seed
+  // =========================================================
+
   private createSeed(
     index: number
   ): number {
-    /*
-     * Deterministic integer seed.
-     */
     let value =
       (
         index + 1
@@ -1492,6 +1493,37 @@ export class EnvironmentManager {
         12345
       ) &
       0x7fffffff;
+
+    return value;
+  }
+
+  // =========================================================
+  // Seeded Random
+  // =========================================================
+
+  private seededRandom(
+    seed: number
+  ): number {
+    let value =
+      Math.sin(
+        seed *
+        12.9898
+      ) *
+      43758.5453;
+
+    value =
+      value -
+      Math.floor(
+        value
+      );
+
+    if (
+      !Number.isFinite(
+        value
+      )
+    ) {
+      return 0.5;
+    }
 
     return value;
   }
