@@ -11,10 +11,11 @@
  * - Create CampaignMenu
  * - Connect Main Menu navigation
  * - Connect Campaign navigation
- * - Keep UI navigation outside the engine loop
+ * - Pass selected campaign race to the engine
  *
  * IMPORTANT:
  * - No Three.js code here
+ * - No gameplay logic here
  * - Engine remains responsible for gameplay
  * - MainMenu remains responsible for main-menu UI
  * - CampaignMenu remains responsible for campaign UI
@@ -59,20 +60,25 @@ const engine =
   );
 
 // ============================================================
-// Main Menu
+// Campaign Menu Reference
 // ============================================================
 
 let campaignMenu:
   CampaignMenu | null =
     null;
 
+// ============================================================
+// Main Menu
+// ============================================================
+
 const mainMenu =
   new MainMenu(
     app,
     {
-      // ------------------------------------------------------
+
+      // ======================================================
       // START RACE
-      // ------------------------------------------------------
+      // ======================================================
 
       onStartRace: () => {
 
@@ -86,9 +92,9 @@ const mainMenu =
         engine.start();
       },
 
-      // ------------------------------------------------------
+      // ======================================================
       // CAMPAIGN
-      // ------------------------------------------------------
+      // ======================================================
 
       onCampaign: () => {
 
@@ -98,13 +104,17 @@ const mainMenu =
           campaignMenu
         ) {
 
+          campaignMenu.setProgress(
+            engine.getPlayerProgress()
+          );
+
           campaignMenu.show();
         }
       },
 
-      // ------------------------------------------------------
+      // ======================================================
       // GARAGE
-      // ------------------------------------------------------
+      // ======================================================
 
       onGarage: () => {
 
@@ -123,9 +133,10 @@ campaignMenu =
   new CampaignMenu(
     app,
     {
-      // ------------------------------------------------------
-      // BACK
-      // ------------------------------------------------------
+
+      // ======================================================
+      // BACK TO MAIN MENU
+      // ======================================================
 
       onBack: () => {
 
@@ -136,30 +147,83 @@ campaignMenu =
         mainMenu.show();
       },
 
-      // ------------------------------------------------------
-      // START CAMPAIGN RACE
-      // ------------------------------------------------------
+      // ======================================================
+      // START SELECTED CAMPAIGN RACE
+      // ======================================================
 
       onStartRace: (
         raceId: string
       ) => {
 
+        if (
+          !raceId
+        ) {
+
+          return;
+        }
+
+        // ----------------------------------------------------
+        // Get current player progress
+        // ----------------------------------------------------
+
+        const progress =
+          engine.getPlayerProgress();
+
+        // ----------------------------------------------------
+        // Update selected race
+        //
+        // RaceNovaEngine uses:
+        // playerProgress.raceProgression.selectedRaceId
+        // ----------------------------------------------------
+
+        const updatedProgress = {
+
+          ...progress,
+
+          selectedRaceId:
+            raceId,
+
+          raceProgression: {
+
+            ...progress.raceProgression,
+
+            selectedRaceId:
+              raceId,
+
+            races:
+              progress.raceProgression.races.map(
+                (
+                  race
+                ) => ({
+                  ...race
+                })
+              )
+          }
+        };
+
+        // ----------------------------------------------------
+        // Give updated progression back to engine
+        // ----------------------------------------------------
+
+        engine.setPlayerProgress(
+          updatedProgress
+        );
+
+        // ----------------------------------------------------
+        // Close campaign UI
+        // ----------------------------------------------------
+
         campaignMenu?.hide();
+
+        // ----------------------------------------------------
+        // Reset Main Menu button state
+        // ----------------------------------------------------
 
         mainMenu.resetStartState();
 
-        /*
-         * IMPORTANT:
-         *
-         * Race selection is handled by CampaignMenu.
-         * The RaceNovaEngine race-selection connection
-         * will be added in the next milestone step.
-         *
-         * For now we keep the selected raceId here
-         * so the navigation flow is ready.
-         */
-
-        void raceId;
+        // ----------------------------------------------------
+        // Start engine
+        // ----------------------------------------------------
 
         engine.start();
       }
@@ -167,7 +231,7 @@ campaignMenu =
   );
 
 // ============================================================
-// Load Campaign Progress
+// Initial Campaign Progress
 // ============================================================
 
 campaignMenu.setProgress(
