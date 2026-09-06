@@ -461,7 +461,7 @@ void this.environmentManager.load();
 
           laneCount: 3,
 
-          obstacleCount: 18,
+          obstacleCount: 9,
 
           spawnDistance: 180,
 
