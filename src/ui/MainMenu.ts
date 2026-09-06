@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Main Menu
- * M7.9.7
+ * M7.9.8
  * ============================================================
  *
  * Main start screen.
@@ -11,8 +11,13 @@
  * - RaceNova title
  * - Next Race card
  * - START RACE button
+ * - CAMPAIGN button
+ * - GARAGE button
  * - Mobile responsive UI
  * - Start race callback
+ * - Campaign callback
+ * - Garage callback
+ * - Safe start-state reset for race restart
  *
  * IMPORTANT:
  * - No Three.js dependency
@@ -22,6 +27,8 @@
 
 export interface MainMenuConfig {
   onStartRace: () => void;
+  onCampaign: () => void;
+  onGarage: () => void;
 }
 
 export class MainMenu {
@@ -32,7 +39,19 @@ export class MainMenu {
   private readonly startButton:
     HTMLButtonElement;
 
+  private readonly campaignButton:
+    HTMLButtonElement;
+
+  private readonly garageButton:
+    HTMLButtonElement;
+
   private readonly onStartRace:
+    () => void;
+
+  private readonly onCampaign:
+    () => void;
+
+  private readonly onGarage:
     () => void;
 
   private started =
@@ -45,6 +64,12 @@ export class MainMenu {
 
     this.onStartRace =
       config.onStartRace;
+
+    this.onCampaign =
+      config.onCampaign;
+
+    this.onGarage =
+      config.onGarage;
 
     this.root =
       document.createElement(
@@ -149,7 +174,6 @@ export class MainMenu {
           <button
             type="button"
             class="racenova-secondary-button"
-            disabled
           >
             CAMPAIGN
           </button>
@@ -157,7 +181,6 @@ export class MainMenu {
           <button
             type="button"
             class="racenova-secondary-button"
-            disabled
           >
             GARAGE
           </button>
@@ -181,20 +204,50 @@ export class MainMenu {
       this.root
     );
 
-    const button =
+    const startButton =
       this.root.querySelector<HTMLButtonElement>(
         ".racenova-start-button"
       );
 
-    if (!button) {
+    const campaignButton =
+      this.root.querySelector<HTMLButtonElement>(
+        ".racenova-secondary-button:nth-child(1)"
+      );
+
+    const garageButton =
+      this.root.querySelector<HTMLButtonElement>(
+        ".racenova-secondary-button:nth-child(2)"
+      );
+
+    if (!startButton) {
 
       throw new Error(
         "RaceNova: START RACE button not found."
       );
     }
 
+    if (!campaignButton) {
+
+      throw new Error(
+        "RaceNova: CAMPAIGN button not found."
+      );
+    }
+
+    if (!garageButton) {
+
+      throw new Error(
+        "RaceNova: GARAGE button not found."
+      );
+    }
+
     this.startButton =
-      button;
+      startButton;
+
+    this.campaignButton =
+      campaignButton;
+
+    this.garageButton =
+      garageButton;
 
     this.injectStyles();
 
@@ -203,11 +256,25 @@ export class MainMenu {
       this.handleStart
     );
 
+    this.campaignButton.addEventListener(
+      "click",
+      this.handleCampaign
+    );
+
+    this.garageButton.addEventListener(
+      "click",
+      this.handleGarage
+    );
+
     this.root.setAttribute(
       "aria-hidden",
       "false"
     );
   }
+
+  // =========================================================
+  // START RACE
+  // =========================================================
 
   private readonly handleStart =
     (): void => {
@@ -222,6 +289,12 @@ export class MainMenu {
         true;
 
       this.startButton.disabled =
+        true;
+
+      this.campaignButton.disabled =
+        true;
+
+      this.garageButton.disabled =
         true;
 
       this.startButton.classList.add(
@@ -240,6 +313,72 @@ export class MainMenu {
       );
     };
 
+  // =========================================================
+  // CAMPAIGN
+  // =========================================================
+
+  private readonly handleCampaign =
+    (): void => {
+
+      if (
+        this.started
+      ) {
+        return;
+      }
+
+      this.onCampaign();
+    };
+
+  // =========================================================
+  // GARAGE
+  // =========================================================
+
+  private readonly handleGarage =
+    (): void => {
+
+      if (
+        this.started
+      ) {
+        return;
+      }
+
+      this.onGarage();
+    };
+
+  // =========================================================
+  // RESET START STATE
+  // =========================================================
+
+  /**
+   * Re-arms the Main Menu after a race crash/end.
+   *
+   * This does not start gameplay.
+   * It only makes START RACE available again.
+   */
+  public resetStartState():
+    void {
+
+    this.started =
+      false;
+
+    this.startButton.disabled =
+      false;
+
+    this.campaignButton.disabled =
+      false;
+
+    this.garageButton.disabled =
+      false;
+
+    this.startButton.classList.remove(
+      "is-pressed"
+    );
+  }
+
+  // =========================================================
+  // SHOW
+  // =========================================================
+
   public show():
     void {
 
@@ -252,6 +391,10 @@ export class MainMenu {
       "false"
     );
   }
+
+  // =========================================================
+  // HIDE
+  // =========================================================
 
   public hide():
     void {
@@ -266,6 +409,10 @@ export class MainMenu {
     );
   }
 
+  // =========================================================
+  // VISIBILITY
+  // =========================================================
+
   public isVisible():
     boolean {
 
@@ -273,6 +420,10 @@ export class MainMenu {
       "is-hidden"
     );
   }
+
+  // =========================================================
+  // DISPOSE
+  // =========================================================
 
   public dispose():
     void {
@@ -282,8 +433,22 @@ export class MainMenu {
       this.handleStart
     );
 
+    this.campaignButton.removeEventListener(
+      "click",
+      this.handleCampaign
+    );
+
+    this.garageButton.removeEventListener(
+      "click",
+      this.handleGarage
+    );
+
     this.root.remove();
   }
+
+  // =========================================================
+  // STYLES
+  // =========================================================
 
   private injectStyles():
     void {
@@ -856,6 +1021,9 @@ export class MainMenu {
 
         cursor:
           default;
+
+        opacity:
+          0.72;
       }
 
       .racenova-menu-secondary {
@@ -923,8 +1091,70 @@ export class MainMenu {
         letter-spacing:
           0.16em;
 
+        cursor:
+          pointer;
+
+        touch-action:
+          manipulation;
+
+        -webkit-tap-highlight-color:
+          transparent;
+
         opacity:
           0.9;
+
+        transition:
+          transform 90ms ease,
+          filter 120ms ease,
+          background 120ms ease,
+          border-color 120ms ease;
+
+      }
+
+      .racenova-secondary-button:hover {
+
+        filter:
+          brightness(
+            1.08
+          );
+
+        background:
+          rgba(
+            28,
+            39,
+            60,
+            0.82
+          );
+
+        border-color:
+          rgba(
+            228,
+            184,
+            63,
+            0.48
+          );
+      }
+
+      .racenova-secondary-button:active {
+
+        transform:
+          scale(
+            0.985
+          );
+
+        filter:
+          brightness(
+            0.92
+          );
+      }
+
+      .racenova-secondary-button:disabled {
+
+        cursor:
+          default;
+
+        opacity:
+          0.55;
       }
 
       .racenova-controls-hint {
@@ -1051,4 +1281,4 @@ export class MainMenu {
       style
     );
   }
-}
+        }
