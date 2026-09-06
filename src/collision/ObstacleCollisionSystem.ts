@@ -2,22 +2,17 @@
  * ============================================================
  * RaceNova V2
  * Obstacle Collision System
- * M7.9.4
+ * M7.9.5
  * ============================================================
  *
- * Responsibilities:
+ * Behavior:
  * - Detect obstacle collision
- * - Immediately stop PlayerCar
- * - Cancel nitro through PlayerCar.stop()
- * - Keep player permanently stopped after crash
- * - Prevent automatic re-acceleration
- * - Preserve ObstacleManager crash latch
+ * - Stop player immediately
+ * - Hold player briefly
+ * - Recover automatically
+ * - Allow the race to continue
+ * - Prevent instant repeated collision
  *
- * IMPORTANT:
- * - Crash remains latched until reset.
- * - No traffic collision modification.
- * - No audio dependency.
- * - No economy dependency.
  * ============================================================
  */
 
@@ -28,6 +23,7 @@ import { ObstacleManager } from "../obstacles/ObstacleManager";
 
 export interface ObstacleCollisionSystemConfig {
   impactStunDuration?: number;
+  recoveryCooldown?: number;
 }
 
 export class ObstacleCollisionSystem {
@@ -41,7 +37,13 @@ export class ObstacleCollisionSystem {
   private readonly impactStunDuration:
     number;
 
+  private readonly recoveryCooldown:
+    number;
+
   private stunTimer =
+    0;
+
+  private recoveryTimer =
     0;
 
   private crashed =
@@ -67,6 +69,12 @@ export class ObstacleCollisionSystem {
         0.1,
         config.impactStunDuration ?? 0.75
       );
+
+    this.recoveryCooldown =
+      Math.max(
+        0.25,
+        config.recoveryCooldown ?? 1.0
+      );
   }
 
   // =========================================================
@@ -85,12 +93,20 @@ export class ObstacleCollisionSystem {
     }
 
     // =======================================================
-    // Already crashed
+    // Crash / Recovery State
     // =======================================================
 
     if (
       this.crashed
     ) {
+
+      this.playerCar.setSpeed(
+        0
+      );
+
+      // -----------------------------------------------------
+      // Impact stun
+      // -----------------------------------------------------
 
       if (
         this.stunTimer > 0
@@ -102,20 +118,42 @@ export class ObstacleCollisionSystem {
             this.stunTimer -
               deltaTime
           );
+
+        return;
       }
 
-      /*
-       * IMPORTANT:
-       *
-       * Never allow PlayerCar.update()
-       * to rebuild speed after collision.
-       *
-       * Crash remains latched until reset.
-       */
-      this.playerCar.setSpeed(
-        0
-      );
+      // -----------------------------------------------------
+      // Recovery cooldown
+      // -----------------------------------------------------
 
+      if (
+        this.recoveryTimer > 0
+      ) {
+
+        this.recoveryTimer =
+          Math.max(
+            0,
+            this.recoveryTimer -
+              deltaTime
+          );
+
+        return;
+      }
+
+      // -----------------------------------------------------
+      // Recovery complete
+      // -----------------------------------------------------
+
+      this.crashed =
+        false;
+
+      /*
+       * Do NOT clear the obstacle latch here.
+       *
+       * The player may still overlap the obstacle.
+       * ObstacleManager will clear its latch when
+       * its normal reset/recycle lifecycle requires it.
+       */
       return;
     }
 
@@ -139,7 +177,7 @@ export class ObstacleCollisionSystem {
     }
 
     // =======================================================
-    // Crash Response
+    // Crash
     // =======================================================
 
     this.crashed =
@@ -148,11 +186,16 @@ export class ObstacleCollisionSystem {
     this.stunTimer =
       this.impactStunDuration;
 
+    this.recoveryTimer =
+      this.recoveryCooldown;
+
     /*
      * Immediate hard stop.
      *
-     * PlayerCar.stop() also cancels
-     * nitro and hides nitro effect.
+     * PlayerCar.stop():
+     * - speed -> 0
+     * - nitro -> off
+     * - nitro effect -> off
      */
     this.playerCar.stop();
   }
@@ -164,10 +207,6 @@ export class ObstacleCollisionSystem {
   public isFrozen():
     boolean {
 
-    /*
-     * Once obstacle collision happens,
-     * player movement remains blocked.
-     */
     return this.crashed;
   }
 
@@ -184,6 +223,9 @@ export class ObstacleCollisionSystem {
   public reset(): void {
 
     this.stunTimer =
+      0;
+
+    this.recoveryTimer =
       0;
 
     this.crashed =
