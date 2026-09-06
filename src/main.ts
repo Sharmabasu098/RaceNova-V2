@@ -1,11 +1,31 @@
 import { RaceNovaEngine } from "./core/RaceNovaEngine";
+import { MainMenu } from "./ui/MainMenu";
 
-const app = document.getElementById("app");
+const app =
+  document.getElementById(
+    "app"
+  );
 
 if (!app) {
-  throw new Error("RaceNova: #app element not found.");
+
+  throw new Error(
+    "RaceNova: #app element not found."
+  );
 }
 
-const engine = new RaceNovaEngine(app);
+const engine =
+  new RaceNovaEngine(
+    app
+  );
 
-engine.start();
+const mainMenu =
+  new MainMenu(
+    app,
+    {
+      onStartRace: () => {
+
+        engine.start();
+
+      }
+    }
+  );
