@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Obstacle Manager
- * M7.9 - Endless Road Obstacles
+ * M7.9.2 - Improved Road Obstacles
  * ============================================================
  *
  * Responsibilities:
@@ -13,6 +13,7 @@
  * - Curved-road compatible positioning
  * - Safe lane distribution
  * - Player collision detection
+ * - Crash latch
  * - Reset support
  *
  * IMPORTANT:
@@ -131,26 +132,59 @@ export class ObstacleManager {
   // Shared Geometry
   // ==========================================================
 
-  private readonly barrierGeometry:
+  private readonly barrierBodyGeometry:
+    THREE.BoxGeometry;
+
+  private readonly barrierStripeGeometry:
+    THREE.BoxGeometry;
+
+  private readonly barrierLegGeometry:
+    THREE.BoxGeometry;
+
+  private readonly barrierFootGeometry:
     THREE.BoxGeometry;
 
   private readonly blockGeometry:
     THREE.BoxGeometry;
 
+  private readonly blockStripeGeometry:
+    THREE.BoxGeometry;
+
   private readonly drumGeometry:
+    THREE.CylinderGeometry;
+
+  private readonly drumBandGeometry:
+    THREE.CylinderGeometry;
+
+  private readonly drumTopGeometry:
     THREE.CylinderGeometry;
 
   // ==========================================================
   // Shared Materials
   // ==========================================================
 
-  private readonly barrierMaterial:
+  private readonly barrierOrangeMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly barrierWhiteMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly barrierDarkMaterial:
     THREE.MeshStandardMaterial;
 
   private readonly blockMaterial:
     THREE.MeshStandardMaterial;
 
+  private readonly blockStripeMaterial:
+    THREE.MeshStandardMaterial;
+
   private readonly drumMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly drumBandMaterial:
+    THREE.MeshStandardMaterial;
+
+  private readonly drumTopMaterial:
     THREE.MeshStandardMaterial;
 
   // ==========================================================
@@ -211,42 +245,31 @@ export class ObstacleManager {
       );
 
     /*
-     * Fixed pool.
+     * M7.9.2:
      *
-     * Keep this moderate for mobile.
+     * Keep obstacle quantity low for now.
+     * We can increase it later.
      */
     this.obstacleCount =
       Math.max(
-        12,
+        9,
         Math.floor(
-          config.obstacleCount ?? 18
+          config.obstacleCount ?? 9
         )
       );
 
-    /*
-     * Obstacles begin ahead
-     * of the player.
-     */
     this.spawnDistance =
       Math.max(
         80,
         config.spawnDistance ?? 180
       );
 
-    /*
-     * Once an obstacle is far behind,
-     * it gets recycled.
-     */
     this.recycleDistance =
       Math.max(
         50,
         config.recycleDistance ?? 70
       );
 
-    /*
-     * Collision dimensions are deliberately
-     * smaller than the complete road lane.
-     */
     this.playerCollisionWidth =
       Math.max(
         0.5,
@@ -267,7 +290,7 @@ export class ObstacleManager {
       new THREE.Group();
 
     this.obstacleGroup.name =
-      "ProceduralObstacleEnvironment";
+      "ProceduralRoadObstacles";
 
     this.scene.add(
       this.obstacleGroup
@@ -277,51 +300,138 @@ export class ObstacleManager {
     // Materials
     // ========================================================
 
-    this.barrierMaterial =
+    this.barrierOrangeMaterial =
       new THREE.MeshStandardMaterial({
-        color: 0xd87928,
-        roughness: 0.9,
+        color: 0xf28c28,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
+    this.barrierWhiteMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xf4f4f4,
+        roughness: 0.8,
+        metalness: 0.0
+      });
+
+    this.barrierDarkMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.95,
         metalness: 0.0
       });
 
     this.blockMaterial =
       new THREE.MeshStandardMaterial({
-        color: 0x666666,
-        roughness: 1.0,
+        color: 0x5c6268,
+        roughness: 0.95,
+        metalness: 0.0
+      });
+
+    this.blockStripeMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xf2c94c,
+        roughness: 0.8,
         metalness: 0.0
       });
 
     this.drumMaterial =
       new THREE.MeshStandardMaterial({
-        color: 0xc94a2d,
+        color: 0xd94b2b,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
+    this.drumBandMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xf2c94c,
+        roughness: 0.8,
+        metalness: 0.0
+      });
+
+    this.drumTopMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x8d2f20,
         roughness: 0.9,
         metalness: 0.0
       });
 
     // ========================================================
-    // Geometry
+    // Barrier Geometry
     // ========================================================
 
-    this.barrierGeometry =
+    this.barrierBodyGeometry =
       new THREE.BoxGeometry(
-        2.2,
-        0.9,
-        0.75
+        2.5,
+        0.62,
+        0.28
       );
+
+    this.barrierStripeGeometry =
+      new THREE.BoxGeometry(
+        0.34,
+        0.64,
+        0.30
+      );
+
+    this.barrierLegGeometry =
+      new THREE.BoxGeometry(
+        0.16,
+        0.82,
+        0.20
+      );
+
+    this.barrierFootGeometry =
+      new THREE.BoxGeometry(
+        0.52,
+        0.12,
+        0.36
+      );
+
+    // ========================================================
+    // Block Geometry
+    // ========================================================
 
     this.blockGeometry =
       new THREE.BoxGeometry(
-        1.7,
-        1.2,
-        1.5
+        1.65,
+        1.05,
+        1.35
       );
+
+    this.blockStripeGeometry =
+      new THREE.BoxGeometry(
+        1.70,
+        0.16,
+        1.40
+      );
+
+    // ========================================================
+    // Drum Geometry
+    // ========================================================
 
     this.drumGeometry =
       new THREE.CylinderGeometry(
         0.48,
-        0.48,
-        1.0,
-        12
+        0.52,
+        1.05,
+        16
+      );
+
+    this.drumBandGeometry =
+      new THREE.CylinderGeometry(
+        0.495,
+        0.535,
+        0.12,
+        16
+      );
+
+    this.drumTopGeometry =
+      new THREE.CylinderGeometry(
+        0.38,
+        0.38,
+        0.08,
+        16
       );
   }
 
@@ -372,7 +482,8 @@ export class ObstacleManager {
       const obstacleObject =
         this.createObstacle(
           type,
-          i
+          i,
+          seed
         );
 
       const obstacle: Obstacle = {
@@ -407,7 +518,8 @@ export class ObstacleManager {
 
   private createObstacle(
     type: ObstacleType,
-    index: number
+    index: number,
+    seed: number
   ): THREE.Group {
 
     const group =
@@ -424,23 +536,9 @@ export class ObstacleManager {
       type === "barrier"
     ) {
 
-      const mesh =
-        new THREE.Mesh(
-          this.barrierGeometry,
-          this.barrierMaterial
-        );
-
-      mesh.position.y =
-        0.45;
-
-      mesh.rotation.y =
-        Math.PI * 0.5;
-
-      mesh.frustumCulled =
-        true;
-
-      group.add(
-        mesh
+      this.createBarrierVisual(
+        group,
+        seed
       );
     }
 
@@ -452,20 +550,9 @@ export class ObstacleManager {
       type === "block"
     ) {
 
-      const mesh =
-        new THREE.Mesh(
-          this.blockGeometry,
-          this.blockMaterial
-        );
-
-      mesh.position.y =
-        0.6;
-
-      mesh.frustumCulled =
-        true;
-
-      group.add(
-        mesh
+      this.createBlockVisual(
+        group,
+        seed
       );
     }
 
@@ -475,23 +562,9 @@ export class ObstacleManager {
 
     else {
 
-      const mesh =
-        new THREE.Mesh(
-          this.drumGeometry,
-          this.drumMaterial
-        );
-
-      mesh.position.y =
-        0.5;
-
-      mesh.rotation.z =
-        0;
-
-      mesh.frustumCulled =
-        true;
-
-      group.add(
-        mesh
+      this.createDrumVisual(
+        group,
+        seed
       );
     }
 
@@ -499,6 +572,343 @@ export class ObstacleManager {
       false;
 
     return group;
+  }
+
+  // ==========================================================
+  // Barrier Visual
+  // ==========================================================
+
+  private createBarrierVisual(
+    group: THREE.Group,
+    seed: number
+  ): void {
+
+    const body =
+      new THREE.Mesh(
+        this.barrierBodyGeometry,
+        this.barrierOrangeMaterial
+      );
+
+    body.position.y =
+      0.92;
+
+    body.frustumCulled =
+      true;
+
+    group.add(
+      body
+    );
+
+    // ========================================================
+    // White hazard stripes
+    // ========================================================
+
+    const stripeCount =
+      5;
+
+    for (
+      let i = 0;
+      i < stripeCount;
+      i++
+    ) {
+
+      const stripe =
+        new THREE.Mesh(
+          this.barrierStripeGeometry,
+          i % 2 === 0
+            ? this.barrierWhiteMaterial
+            : this.barrierOrangeMaterial
+        );
+
+      stripe.position.set(
+        -0.82 +
+        i *
+        0.41,
+        0.92,
+        0.015
+      );
+
+      stripe.rotation.z =
+        THREE.MathUtils.degToRad(
+          -18
+        );
+
+      stripe.frustumCulled =
+        true;
+
+      group.add(
+        stripe
+      );
+    }
+
+    // ========================================================
+    // Legs
+    // ========================================================
+
+    const leftLeg =
+      new THREE.Mesh(
+        this.barrierLegGeometry,
+        this.barrierDarkMaterial
+      );
+
+    leftLeg.position.set(
+      -0.82,
+      0.42,
+      0
+    );
+
+    leftLeg.frustumCulled =
+      true;
+
+    group.add(
+      leftLeg
+    );
+
+    const rightLeg =
+      new THREE.Mesh(
+        this.barrierLegGeometry,
+        this.barrierDarkMaterial
+      );
+
+    rightLeg.position.set(
+      0.82,
+      0.42,
+      0
+    );
+
+    rightLeg.frustumCulled =
+      true;
+
+    group.add(
+      rightLeg
+    );
+
+    // ========================================================
+    // Feet
+    // ========================================================
+
+    const leftFoot =
+      new THREE.Mesh(
+        this.barrierFootGeometry,
+        this.barrierDarkMaterial
+      );
+
+    leftFoot.position.set(
+      -0.82,
+      0.08,
+      0
+    );
+
+    leftFoot.frustumCulled =
+      true;
+
+    group.add(
+      leftFoot
+    );
+
+    const rightFoot =
+      new THREE.Mesh(
+        this.barrierFootGeometry,
+        this.barrierDarkMaterial
+      );
+
+    rightFoot.position.set(
+      0.82,
+      0.08,
+      0
+    );
+
+    rightFoot.frustumCulled =
+      true;
+
+    group.add(
+      rightFoot
+    );
+
+    group.rotation.y =
+      (
+        this.seededRandom(
+          seed + 510
+        ) -
+        0.5
+      ) *
+      0.08;
+  }
+
+  // ==========================================================
+  // Block Visual
+  // ==========================================================
+
+  private createBlockVisual(
+    group: THREE.Group,
+    seed: number
+  ): void {
+
+    const body =
+      new THREE.Mesh(
+        this.blockGeometry,
+        this.blockMaterial
+      );
+
+    body.position.y =
+      0.525;
+
+    body.rotation.y =
+      (
+        this.seededRandom(
+          seed + 610
+        ) -
+        0.5
+      ) *
+      0.08;
+
+    body.frustumCulled =
+      true;
+
+    group.add(
+      body
+    );
+
+    // ========================================================
+    // Lower warning stripe
+    // ========================================================
+
+    const stripe =
+      new THREE.Mesh(
+        this.blockStripeGeometry,
+        this.blockStripeMaterial
+      );
+
+    stripe.position.y =
+      0.40;
+
+    stripe.rotation.z =
+      THREE.MathUtils.degToRad(
+        -12
+      );
+
+    stripe.frustumCulled =
+      true;
+
+    group.add(
+      stripe
+    );
+
+    // ========================================================
+    // Top warning plate
+    // ========================================================
+
+    const top =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          1.30,
+          0.10,
+          0.95
+        ),
+        this.blockStripeMaterial
+      );
+
+    top.position.y =
+      1.08;
+
+    top.frustumCulled =
+      true;
+
+    group.add(
+      top
+    );
+  }
+
+  // ==========================================================
+  // Drum Visual
+  // ==========================================================
+
+  private createDrumVisual(
+    group: THREE.Group,
+    seed: number
+  ): void {
+
+    const drum =
+      new THREE.Mesh(
+        this.drumGeometry,
+        this.drumMaterial
+      );
+
+    drum.position.y =
+      0.525;
+
+    drum.frustumCulled =
+      true;
+
+    group.add(
+      drum
+    );
+
+    // ========================================================
+    // Upper yellow band
+    // ========================================================
+
+    const upperBand =
+      new THREE.Mesh(
+        this.drumBandGeometry,
+        this.drumBandMaterial
+      );
+
+    upperBand.position.y =
+      0.76;
+
+    upperBand.frustumCulled =
+      true;
+
+    group.add(
+      upperBand
+    );
+
+    // ========================================================
+    // Lower yellow band
+    // ========================================================
+
+    const lowerBand =
+      new THREE.Mesh(
+        this.drumBandGeometry,
+        this.drumBandMaterial
+      );
+
+    lowerBand.position.y =
+      0.30;
+
+    lowerBand.frustumCulled =
+      true;
+
+    group.add(
+      lowerBand
+    );
+
+    // ========================================================
+    // Top cap
+    // ========================================================
+
+    const top =
+      new THREE.Mesh(
+        this.drumTopGeometry,
+        this.drumTopMaterial
+      );
+
+    top.position.y =
+      1.07;
+
+    top.frustumCulled =
+      true;
+
+    group.add(
+      top
+    );
+
+    group.rotation.y =
+      this.seededRandom(
+        seed + 710
+      ) *
+      Math.PI;
   }
 
   // ==========================================================
@@ -564,15 +974,21 @@ export class ObstacleManager {
   }
 
   // ==========================================================
-  // Spawn Initial Pool
+  // Initial Spawn
   // ==========================================================
 
   private spawnInitialPool(
     playerZ: number
   ): void {
 
+    /*
+     * Start reasonably far ahead.
+     *
+     * Because obstacle count is now low,
+     * keep generous spacing.
+     */
     let distance =
-      55;
+      65;
 
     for (
       let i = 0;
@@ -583,13 +999,10 @@ export class ObstacleManager {
       const obstacle =
         this.obstacles[i];
 
-      /*
-       * Keep at least one lane open
-       * between nearby obstacle rows.
-       */
       const row =
         Math.floor(
-          i / this.laneCount
+          i /
+          this.laneCount
         );
 
       const lane =
@@ -616,11 +1029,11 @@ export class ObstacleManager {
       );
 
       distance +=
-        24 +
+        32 +
         this.seededRandom(
           obstacle.seed + 100
         ) *
-        18;
+        24;
     }
 
     this.spawnCursor =
@@ -628,7 +1041,7 @@ export class ObstacleManager {
   }
 
   // ==========================================================
-  // Recycle Obstacle
+  // Recycle
   // ==========================================================
 
   private recycleObstacle(
@@ -641,7 +1054,7 @@ export class ObstacleManager {
       this.seededRandom(
         obstacle.seed + 200
       ) *
-      100;
+      80;
 
     obstacle.lane =
       this.getNextLane(
@@ -664,7 +1077,7 @@ export class ObstacleManager {
   }
 
   // ==========================================================
-  // Update Obstacle X
+  // Update X
   // ==========================================================
 
   private updateObstacleX(
@@ -700,9 +1113,29 @@ export class ObstacleManager {
         obstacle.lane
       );
 
+    /*
+     * Keep obstacle inside the
+     * playable road.
+     */
+    const maximumRoadOffset =
+      Math.max(
+        0,
+        this.roadWidth *
+        0.5 -
+        this.laneWidth *
+        0.5
+      );
+
+    const safeLaneX =
+      THREE.MathUtils.clamp(
+        laneX,
+        -maximumRoadOffset,
+        maximumRoadOffset
+      );
+
     obstacle.object.position.x =
       roadCenterX +
-      laneX;
+      safeLaneX;
   }
 
   // ==========================================================
@@ -736,12 +1169,6 @@ export class ObstacleManager {
     seed: number
   ): number {
 
-    /*
-     * Deterministic lane selection.
-     *
-     * Never intentionally blocks all
-     * three lanes in one row.
-     */
     const value =
       Math.floor(
         this.seededRandom(
@@ -789,7 +1216,7 @@ export class ObstacleManager {
   }
 
   // ==========================================================
-  // Collision Check
+  // Collision
   // ==========================================================
 
   public checkCollision(
@@ -856,14 +1283,17 @@ export class ObstacleManager {
         );
 
       /*
-       * Obstacle half-width is based
-       * on lane width but kept conservative.
+       * Conservative collision width.
+       *
+       * Prevents accidental collision
+       * when the player is clearly in
+       * another lane.
        */
       const obstacleHalfWidth =
         Math.max(
-          0.65,
+          0.70,
           this.laneWidth *
-          0.32
+          0.30
         );
 
       const collisionWidth =
@@ -889,6 +1319,23 @@ export class ObstacleManager {
     }
 
     return false;
+  }
+
+  // ==========================================================
+  // Crash State
+  // ==========================================================
+
+  public hasCrashed(): boolean {
+    return this.crashLatched;
+  }
+
+  // ==========================================================
+  // Clear Crash
+  // ==========================================================
+
+  public clearCrashLatch(): void {
+    this.crashLatched =
+      false;
   }
 
   // ==========================================================
@@ -923,15 +1370,6 @@ export class ObstacleManager {
     this.spawnInitialPool(
       playerZ
     );
-  }
-
-  // ==========================================================
-  // Clear Crash Latch
-  // ==========================================================
-
-  public clearCrashLatch(): void {
-    this.crashLatched =
-      false;
   }
 
   // ==========================================================
@@ -1084,13 +1522,28 @@ export class ObstacleManager {
       this.obstacleGroup
     );
 
-    this.barrierGeometry.dispose();
-    this.blockGeometry.dispose();
-    this.drumGeometry.dispose();
+    this.barrierBodyGeometry.dispose();
+    this.barrierStripeGeometry.dispose();
+    this.barrierLegGeometry.dispose();
+    this.barrierFootGeometry.dispose();
 
-    this.barrierMaterial.dispose();
+    this.blockGeometry.dispose();
+    this.blockStripeGeometry.dispose();
+
+    this.drumGeometry.dispose();
+    this.drumBandGeometry.dispose();
+    this.drumTopGeometry.dispose();
+
+    this.barrierOrangeMaterial.dispose();
+    this.barrierWhiteMaterial.dispose();
+    this.barrierDarkMaterial.dispose();
+
     this.blockMaterial.dispose();
+    this.blockStripeMaterial.dispose();
+
     this.drumMaterial.dispose();
+    this.drumBandMaterial.dispose();
+    this.drumTopMaterial.dispose();
 
     this.initialized =
       false;
@@ -1102,3 +1555,4 @@ export class ObstacleManager {
       0;
   }
 }
+   
