@@ -1281,4 +1281,4 @@ export class MainMenu {
       style
     );
   }
-        }
+}
