@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Obstacle Collision System
- * M7.9.5
+ * M7.9.6
  * ============================================================
  *
  * Behavior:
@@ -11,8 +11,15 @@
  * - Hold player briefly
  * - Recover automatically
  * - Allow the race to continue
- * - Prevent instant repeated collision
+ * - Prevent the same obstacle from re-triggering instantly
+ * - Re-enable collision for later obstacles
  *
+ * IMPORTANT:
+ * - Recovery clears the manager latch only when the car is
+ *   released from the crash state.
+ * - A short post-crash grace window gives the car time to move
+ *   completely away from the obstacle before collision checks
+ *   resume.
  * ============================================================
  */
 
@@ -24,6 +31,7 @@ import { ObstacleManager } from "../obstacles/ObstacleManager";
 export interface ObstacleCollisionSystemConfig {
   impactStunDuration?: number;
   recoveryCooldown?: number;
+  postCrashGraceDuration?: number;
 }
 
 export class ObstacleCollisionSystem {
@@ -40,10 +48,16 @@ export class ObstacleCollisionSystem {
   private readonly recoveryCooldown:
     number;
 
+  private readonly postCrashGraceDuration:
+    number;
+
   private stunTimer =
     0;
 
   private recoveryTimer =
+    0;
+
+  private postCrashGraceTimer =
     0;
 
   private crashed =
@@ -75,11 +89,19 @@ export class ObstacleCollisionSystem {
         0.25,
         config.recoveryCooldown ?? 1.0
       );
+
+    this.postCrashGraceDuration =
+      Math.max(
+        0.25,
+        config.postCrashGraceDuration ?? 0.75
+      );
   }
 
-  // =========================================================
-  // Update
-  // =========================================================
+  /**
+   * ==========================================================
+   * Update
+   * ==========================================================
+   */
 
   public update(
     deltaTime: number
@@ -92,22 +114,27 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    // =======================================================
-    // Crash / Recovery State
-    // =======================================================
+    /**
+     * --------------------------------------------------------
+     * CRASH STATE
+     * --------------------------------------------------------
+     */
 
     if (
       this.crashed
     ) {
 
+      /*
+       * Keep the player stopped while the crash
+       * stun/recovery sequence is active.
+       */
       this.playerCar.setSpeed(
         0
       );
 
-      // -----------------------------------------------------
-      // Impact stun
-      // -----------------------------------------------------
-
+      /**
+       * Impact stun
+       */
       if (
         this.stunTimer > 0
       ) {
@@ -122,10 +149,9 @@ export class ObstacleCollisionSystem {
         return;
       }
 
-      // -----------------------------------------------------
-      // Recovery cooldown
-      // -----------------------------------------------------
-
+      /**
+       * Recovery cooldown
+       */
       if (
         this.recoveryTimer > 0
       ) {
@@ -140,26 +166,65 @@ export class ObstacleCollisionSystem {
         return;
       }
 
-      // -----------------------------------------------------
-      // Recovery complete
-      // -----------------------------------------------------
+      /**
+       * ------------------------------------------------------
+       * CRASH COMPLETE
+       * ------------------------------------------------------
+       *
+       * Release player from frozen state.
+       *
+       * IMPORTANT:
+       * Clear ObstacleManager crash latch here so future
+       * obstacles can trigger collisions again.
+       */
 
       this.crashed =
         false;
 
-      /*
-       * Do NOT clear the obstacle latch here.
+      this.obstacleManager
+        .clearCrashLatch();
+
+      /**
+       * Give the player a short grace period.
        *
-       * The player may still overlap the obstacle.
-       * ObstacleManager will clear its latch when
-       * its normal reset/recycle lifecycle requires it.
+       * This prevents the exact same obstacle from causing
+       * an immediate second collision if the car is still
+       * overlapping it.
        */
+
+      this.postCrashGraceTimer =
+        this.postCrashGraceDuration;
+
       return;
     }
 
-    // =======================================================
-    // Collision Detection
-    // =======================================================
+    /**
+     * --------------------------------------------------------
+     * POST-CRASH GRACE PERIOD
+     * --------------------------------------------------------
+     *
+     * Collision checks are temporarily disabled.
+     */
+
+    if (
+      this.postCrashGraceTimer > 0
+    ) {
+
+      this.postCrashGraceTimer =
+        Math.max(
+          0,
+          this.postCrashGraceTimer -
+            deltaTime
+        );
+
+      return;
+    }
+
+    /**
+     * --------------------------------------------------------
+     * NORMAL COLLISION CHECK
+     * --------------------------------------------------------
+     */
 
     this.playerPosition.copy(
       this.playerCar.getPosition()
@@ -176,9 +241,11 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    // =======================================================
-    // Crash
-    // =======================================================
+    /**
+     * --------------------------------------------------------
+     * COLLISION DETECTED
+     * --------------------------------------------------------
+     */
 
     this.crashed =
       true;
@@ -189,20 +256,20 @@ export class ObstacleCollisionSystem {
     this.recoveryTimer =
       this.recoveryCooldown;
 
-    /*
-     * Immediate hard stop.
-     *
-     * PlayerCar.stop():
-     * - speed -> 0
-     * - nitro -> off
-     * - nitro effect -> off
+    this.postCrashGraceTimer =
+      0;
+
+    /**
+     * Immediately stop player.
      */
     this.playerCar.stop();
   }
 
-  // =========================================================
-  // State
-  // =========================================================
+  /**
+   * ==========================================================
+   * State
+   * ==========================================================
+   */
 
   public isFrozen():
     boolean {
@@ -216,9 +283,11 @@ export class ObstacleCollisionSystem {
     return this.crashed;
   }
 
-  // =========================================================
-  // Reset
-  // =========================================================
+  /**
+   * ==========================================================
+   * Reset
+   * ==========================================================
+   */
 
   public reset(): void {
 
@@ -228,6 +297,9 @@ export class ObstacleCollisionSystem {
     this.recoveryTimer =
       0;
 
+    this.postCrashGraceTimer =
+      0;
+
     this.crashed =
       false;
 
@@ -235,9 +307,11 @@ export class ObstacleCollisionSystem {
       .clearCrashLatch();
   }
 
-  // =========================================================
-  // Dispose
-  // =========================================================
+  /**
+   * ==========================================================
+   * Dispose
+   * ==========================================================
+   */
 
   public dispose(): void {
 
