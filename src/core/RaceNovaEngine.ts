@@ -1526,21 +1526,21 @@ this.raceHUD.update();
     }
 
     // =======================================================
-// M7.9 — Obstacle Collision
-// =======================================================
+    // M7.9 — Obstacle Collision
+    // =======================================================
 
-const playerPosition =
-  this.playerCar.getPosition();
+    const obstaclePlayerPosition =
+      this.playerCar.getPosition();
 
-if (
-  this.obstacleManager.checkCollision(
-    playerPosition
-  )
-) {
-  this.playerCar.setSpeed(
-    0
-  );
-}
+    if (
+    this.obstacleManager.checkCollision(
+      obstaclePlayerPosition
+     )
+   ) {
+    this.playerCar.setSpeed(
+      0
+     );
+   }
 
     // =======================================================
     // Coins
