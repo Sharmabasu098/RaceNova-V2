@@ -18,6 +18,7 @@
  * - No localStorage dependency
  * - No gameplay logic
  * - RaceDefinitions remain authoritative
+ * - PlayerProgress owns raceProgression
  * ============================================================
  */
 
@@ -31,11 +32,16 @@ import {
   type RaceProgressionState
 } from "../race/RaceProgressionData";
 
+import {
+  type PlayerProgress
+} from "../save/PlayerSaveData";
+
 // ============================================================
 // Configuration
 // ============================================================
 
 export interface CampaignMenuConfig {
+
   onBack: () => void;
 
   onStartRace: (
@@ -49,28 +55,50 @@ export interface CampaignMenuConfig {
 
 export class CampaignMenu {
 
-  private readonly root: HTMLDivElement;
+  // ==========================================================
+  // DOM
+  // ==========================================================
 
-  private readonly list: HTMLDivElement;
+  private readonly root:
+    HTMLDivElement;
 
-  private readonly progressLabel: HTMLDivElement;
+  private readonly list:
+    HTMLDivElement;
 
-  private readonly selectedLabel: HTMLDivElement;
+  private readonly progressLabel:
+    HTMLDivElement;
 
-  private readonly backButton: HTMLButtonElement;
+  private readonly selectedLabel:
+    HTMLDivElement;
 
-  private readonly startButton: HTMLButtonElement;
+  private readonly backButton:
+    HTMLButtonElement;
 
-  private readonly onBack: () => void;
+  private readonly startButton:
+    HTMLButtonElement;
 
-  private readonly onStartRace: (
-    raceId: string
-  ) => void;
+  // ==========================================================
+  // Callbacks
+  // ==========================================================
+
+  private readonly onBack:
+    () => void;
+
+  private readonly onStartRace:
+    (
+      raceId: string
+    ) => void;
+
+  // ==========================================================
+  // State
+  // ==========================================================
 
   private progressionState:
-    RaceProgressionState | null = null;
+    RaceProgressionState | null =
+      null;
 
-  private selectedRaceId = "";
+  private selectedRaceId:
+    string = "";
 
   // ==========================================================
   // Constructor
@@ -111,6 +139,10 @@ export class CampaignMenu {
     header.className =
       "racenova-campaign-header";
 
+    // --------------------------------------------------------
+    // Title
+    // --------------------------------------------------------
+
     const title =
       document.createElement(
         "div"
@@ -122,6 +154,10 @@ export class CampaignMenu {
     title.textContent =
       "CAMPAIGN";
 
+    // --------------------------------------------------------
+    // Subtitle
+    // --------------------------------------------------------
+
     const subtitle =
       document.createElement(
         "div"
@@ -132,6 +168,10 @@ export class CampaignMenu {
 
     subtitle.textContent =
       "Complete races and defeat every rival.";
+
+    // --------------------------------------------------------
+    // Progress
+    // --------------------------------------------------------
 
     this.progressLabel =
       document.createElement(
@@ -195,6 +235,10 @@ export class CampaignMenu {
     footer.className =
       "racenova-campaign-footer";
 
+    // --------------------------------------------------------
+    // Back Button
+    // --------------------------------------------------------
+
     this.backButton =
       document.createElement(
         "button"
@@ -208,6 +252,10 @@ export class CampaignMenu {
 
     this.backButton.textContent =
       "BACK";
+
+    // --------------------------------------------------------
+    // Start Button
+    // --------------------------------------------------------
 
     this.startButton =
       document.createElement(
@@ -226,6 +274,10 @@ export class CampaignMenu {
     this.startButton.disabled =
       true;
 
+    // --------------------------------------------------------
+    // Footer Assemble
+    // --------------------------------------------------------
+
     footer.appendChild(
       this.backButton
     );
@@ -235,7 +287,7 @@ export class CampaignMenu {
     );
 
     // --------------------------------------------------------
-    // Assemble
+    // Root Assemble
     // --------------------------------------------------------
 
     this.root.appendChild(
@@ -273,44 +325,76 @@ export class CampaignMenu {
     );
 
     // --------------------------------------------------------
-    // Style
+    // CSS
     // --------------------------------------------------------
 
     this.injectStyles();
 
     // --------------------------------------------------------
-    // Initial state
+    // Initial State
     // --------------------------------------------------------
 
     this.hide();
   }
 
   // ==========================================================
-  // Set Progress
+  // Set Player Progress
+  // ==========================================================
+  //
+  // IMPORTANT:
+  // RaceNovaEngine.getPlayerProgress()
+  // returns PlayerProgress.
+  //
+  // PlayerProgress.raceProgression contains
+  // RaceProgressionState.
   // ==========================================================
 
   public setProgress(
-    state: RaceProgressionState
+    playerProgress: PlayerProgress
   ): void {
 
-    this.progressionState =
-      state;
+    if (
+      !playerProgress ||
+      !playerProgress.raceProgression
+    ) {
 
-    const currentSelection =
-      state.selectedRaceId;
+      this.progressionState =
+        null;
+
+      this.selectedRaceId =
+        "";
+
+      this.render();
+
+      return;
+    }
+
+    this.progressionState =
+      playerProgress.raceProgression;
+
+    // --------------------------------------------------------
+    // Restore selected race
+    // --------------------------------------------------------
+
+    const savedRaceId =
+      this.progressionState.selectedRaceId;
 
     if (
       this.isSelectable(
-        currentSelection
+        savedRaceId
       )
     ) {
 
       this.selectedRaceId =
-        currentSelection;
+        savedRaceId;
 
     } else {
 
-      const firstAvailable =
+      // ------------------------------------------------------
+      // Find first available/completed race
+      // ------------------------------------------------------
+
+      const firstSelectable =
         RACE_DEFINITIONS.find(
           (
             definition
@@ -331,7 +415,7 @@ export class CampaignMenu {
         );
 
       this.selectedRaceId =
-        firstAvailable?.id ??
+        firstSelectable?.id ??
         RACE_DEFINITIONS[0]?.id ??
         "";
     }
@@ -366,10 +450,11 @@ export class CampaignMenu {
     }
 
     // --------------------------------------------------------
-    // Completed count
+    // Completed Count
     // --------------------------------------------------------
 
-    let completedCount = 0;
+    let completedCount =
+      0;
 
     for (
       const definition
@@ -394,7 +479,7 @@ export class CampaignMenu {
       `${completedCount} / ${RACE_DEFINITIONS.length} CLEARED`;
 
     // --------------------------------------------------------
-    // Cards
+    // Create Cards
     // --------------------------------------------------------
 
     for (
@@ -419,10 +504,10 @@ export class CampaignMenu {
     }
 
     // --------------------------------------------------------
-    // Selected label
+    // Selected Race
     // --------------------------------------------------------
 
-    const selected =
+    const selectedDefinition =
       RACE_DEFINITIONS.find(
         (
           definition
@@ -431,10 +516,12 @@ export class CampaignMenu {
           this.selectedRaceId
       );
 
-    if (selected) {
+    if (
+      selectedDefinition
+    ) {
 
       this.selectedLabel.textContent =
-        `SELECTED: ${selected.name}`;
+        `SELECTED: ${selectedDefinition.name}`;
 
     } else {
 
@@ -443,7 +530,7 @@ export class CampaignMenu {
     }
 
     // --------------------------------------------------------
-    // Start button
+    // Start Button
     // --------------------------------------------------------
 
     this.startButton.disabled =
@@ -453,7 +540,7 @@ export class CampaignMenu {
   }
 
   // ==========================================================
-  // Create Card
+  // Create Race Card
   // ==========================================================
 
   private createCard(
@@ -475,6 +562,10 @@ export class CampaignMenu {
     card.classList.add(
       `state-${progress.status}`
     );
+
+    // --------------------------------------------------------
+    // Selected
+    // --------------------------------------------------------
 
     if (
       definition.id ===
@@ -591,7 +682,7 @@ export class CampaignMenu {
     }
 
     // --------------------------------------------------------
-    // Statistics
+    // Stats
     // --------------------------------------------------------
 
     const stats =
@@ -660,7 +751,7 @@ export class CampaignMenu {
     }
 
     // --------------------------------------------------------
-    // Assemble card
+    // Assemble
     // --------------------------------------------------------
 
     card.appendChild(
@@ -684,7 +775,7 @@ export class CampaignMenu {
     );
 
     // --------------------------------------------------------
-    // Click
+    // Select
     // --------------------------------------------------------
 
     if (
@@ -707,7 +798,7 @@ export class CampaignMenu {
   }
 
   // ==========================================================
-  // Get Progress
+  // Get Race Progress
   // ==========================================================
 
   private getProgress(
@@ -718,7 +809,7 @@ export class CampaignMenu {
       !this.progressionState
     ) {
 
-      return this.defaultProgress(
+      return this.createDefaultProgress(
         raceId
       );
     }
@@ -726,27 +817,29 @@ export class CampaignMenu {
     const progress =
       this.progressionState.races.find(
         (
-          item
+          race
         ) =>
-          item.raceId ===
+          race.raceId ===
           raceId
       );
 
-    if (progress) {
+    if (
+      progress
+    ) {
 
       return progress;
     }
 
-    return this.defaultProgress(
+    return this.createDefaultProgress(
       raceId
     );
   }
 
   // ==========================================================
-  // Default Progress
+  // Default Race Progress
   // ==========================================================
 
-  private defaultProgress(
+  private createDefaultProgress(
     raceId: string
   ): RaceProgress {
 
@@ -798,7 +891,7 @@ export class CampaignMenu {
   }
 
   // ==========================================================
-  // Selectable Check
+  // Is Selectable
   // ==========================================================
 
   private isSelectable(
@@ -905,20 +998,20 @@ export class CampaignMenu {
 
   public reset(): void {
 
-    this.selectedRaceId =
-      "";
-
     this.progressionState =
       null;
+
+    this.selectedRaceId =
+      "";
 
     this.list.innerHTML =
       "";
 
-    this.selectedLabel.textContent =
-      "SELECT A RACE";
-
     this.progressLabel.textContent =
       "0 / 8 CLEARED";
+
+    this.selectedLabel.textContent =
+      "SELECT A RACE";
 
     this.startButton.disabled =
       true;
@@ -956,7 +1049,10 @@ export class CampaignMenu {
       `${minutes}:` +
       `${remaining
         .toFixed(2)
-        .padStart(5, "0")}`
+        .padStart(
+          5,
+          "0"
+        )}`
     );
   }
 
@@ -991,6 +1087,7 @@ export class CampaignMenu {
       .racenova-campaign-menu {
         position: fixed;
         inset: 0;
+
         z-index: 11000;
 
         display: none;
@@ -1001,7 +1098,9 @@ export class CampaignMenu {
         width: 100%;
         height: 100%;
 
-        padding: 24px 16px;
+        padding:
+          24px
+          16px;
 
         overflow-y: auto;
 
@@ -1018,22 +1117,29 @@ export class CampaignMenu {
           Arial,
           Helvetica,
           sans-serif;
+
+        -webkit-tap-highlight-color:
+          transparent;
       }
 
       .racenova-campaign-header {
         width: 100%;
         max-width: 900px;
 
-        margin: 0 auto 18px;
+        margin:
+          0 auto
+          18px;
 
         text-align: center;
       }
 
       .racenova-campaign-title {
         font-size: 32px;
+
         font-weight: 900;
 
-        letter-spacing: 0.14em;
+        letter-spacing:
+          0.14em;
       }
 
       .racenova-campaign-subtitle {
@@ -1049,21 +1155,36 @@ export class CampaignMenu {
 
         margin-top: 12px;
 
-        padding: 7px 13px;
+        padding:
+          7px
+          13px;
 
         border:
           1px solid
-          rgba(255, 255, 255, 0.18);
+          rgba(
+            255,
+            255,
+            255,
+            0.18
+          );
 
-        border-radius: 999px;
+        border-radius:
+          999px;
 
         background:
-          rgba(255, 255, 255, 0.05);
+          rgba(
+            255,
+            255,
+            255,
+            0.05
+          );
 
         font-size: 11px;
+
         font-weight: 900;
 
-        letter-spacing: 0.08em;
+        letter-spacing:
+          0.08em;
       }
 
       .racenova-campaign-list {
@@ -1072,7 +1193,7 @@ export class CampaignMenu {
         grid-template-columns:
           repeat(
             auto-fit,
-         minmax(
+            minmax(
               240px,
               1fr
             )
@@ -1083,7 +1204,8 @@ export class CampaignMenu {
         width: 100%;
         max-width: 900px;
 
-        margin: 0 auto;
+        margin:
+          0 auto;
       }
 
       .racenova-campaign-card {
@@ -1100,23 +1222,40 @@ export class CampaignMenu {
 
         border:
           1px solid
-          rgba(255, 255, 255, 0.14);
+          rgba(
+            255,
+            255,
+            255,
+            0.14
+          );
 
-        border-radius: 15px;
+        border-radius:
+          15px;
 
         background:
-          rgba(255, 255, 255, 0.055);
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
 
-        color: #ffffff;
+        color:
+          #ffffff;
 
-        text-align: left;
+        text-align:
+          left;
 
-        cursor: pointer;
+        cursor:
+          pointer;
 
         transition:
-          transform 0.15s ease,
-          background 0.15s ease,
-          border-color 0.15s ease;
+          transform
+          0.15s ease,
+          background
+          0.15s ease,
+          border-color
+          0.15s ease;
       }
 
       .racenova-campaign-card:hover {
@@ -1124,157 +1263,258 @@ export class CampaignMenu {
           translateY(-2px);
 
         background:
-          rgba(255, 255, 255, 0.09);
+          rgba(
+            255,
+            255,
+            255,
+            0.09
+          );
       }
 
       .racenova-campaign-card.is-selected {
         border-color:
-          rgba(255, 255, 255, 0.75);
+          rgba(
+            255,
+            255,
+            255,
+            0.75
+          );
 
         background:
-          rgba(255, 255, 255, 0.12);
+          rgba(
+            255,
+            255,
+            255,
+            0.12
+          );
       }
 
       .racenova-campaign-card.state-locked {
-        opacity: 0.42;
+        opacity:
+          0.42;
 
-        cursor: not-allowed;
+        cursor:
+          not-allowed;
       }
 
       .racenova-campaign-card-level {
-        font-size: 9px;
-        font-weight: 900;
+        font-size:
+          9px;
 
-        letter-spacing: 0.12em;
+        font-weight:
+          900;
 
-        opacity: 0.55;
+        letter-spacing:
+          0.12em;
+
+        opacity:
+          0.55;
       }
 
       .racenova-campaign-card-name {
-        margin-top: 7px;
+        margin-top:
+          7px;
 
-        font-size: 20px;
-        font-weight: 900;
+        font-size:
+          20px;
+
+        font-weight:
+          900;
       }
 
       .racenova-campaign-card-description {
-        margin-top: 7px;
+        margin-top:
+          7px;
 
-        min-height: 32px;
+        min-height:
+          32px;
 
-        font-size: 11px;
+        font-size:
+          11px;
 
-        line-height: 1.4;
+        line-height:
+          1.4;
 
-        opacity: 0.65;
+        opacity:
+          0.65;
       }
 
       .racenova-campaign-card-status {
-        margin-top: 9px;
+        margin-top:
+          9px;
 
-        font-size: 10px;
-        font-weight: 900;
+        font-size:
+          10px;
 
-        letter-spacing: 0.08em;
+        font-weight:
+          900;
+
+        letter-spacing:
+          0.08em;
       }
 
       .racenova-campaign-card-stats {
-        margin-top: 6px;
+        margin-top:
+          6px;
 
-        font-size: 9px;
+        font-size:
+          9px;
 
-        line-height: 1.4;
+        line-height:
+          1.4;
 
-        opacity: 0.5;
+        opacity:
+          0.5;
       }
 
       .racenova-campaign-boss {
-        position: absolute;
+        position:
+          absolute;
 
-        top: 11px;
-        right: 11px;
+        top:
+          11px;
 
-        padding: 5px 8px;
+        right:
+          11px;
+
+        padding:
+          5px
+          8px;
 
         border:
           1px solid
-          rgba(255, 255, 255, 0.3);
+          rgba(
+            255,
+            255,
+            255,
+            0.3
+          );
 
-        border-radius: 6px;
+        border-radius:
+          6px;
 
-        font-size: 8px;
-        font-weight: 900;
+        font-size:
+          8px;
 
-        letter-spacing: 0.1em;
+        font-weight:
+          900;
+
+        letter-spacing:
+          0.1em;
       }
 
       .racenova-campaign-selected {
-        width: 100%;
-        max-width: 900px;
+        width:
+          100%;
 
-        min-height: 18px;
+        max-width:
+          900px;
 
-        margin: 16px auto 10px;
+        min-height:
+          18px;
 
-        text-align: center;
+        margin:
+          16px auto
+          10px;
 
-        font-size: 11px;
-        font-weight: 900;
+        text-align:
+          center;
 
-        letter-spacing: 0.08em;
+        font-size:
+          11px;
 
-        opacity: 0.75;
+        font-weight:
+          900;
+
+        letter-spacing:
+          0.08em;
+
+        opacity:
+          0.75;
       }
 
       .racenova-campaign-footer {
-        display: flex;
+        display:
+          flex;
 
-        gap: 10px;
+        gap:
+          10px;
 
-        width: 100%;
-        max-width: 900px;
+        width:
+          100%;
 
-        margin: 0 auto;
+        max-width:
+          900px;
+
+        margin:
+          0 auto;
       }
 
       .racenova-campaign-back,
       .racenova-campaign-start {
-        flex: 1;
+        flex:
+          1;
 
-        min-height: 50px;
+        min-height:
+          50px;
 
         border:
           1px solid
-          rgba(255, 255, 255, 0.18);
+          rgba(
+            255,
+            255,
+            255,
+            0.18
+          );
 
-        border-radius: 11px;
+        border-radius:
+          11px;
 
-        font-size: 12px;
-        font-weight: 900;
+        font-size:
+          12px;
 
-        letter-spacing: 0.08em;
+        font-weight:
+          900;
 
-        cursor: pointer;
+        letter-spacing:
+          0.08em;
+
+        cursor:
+          pointer;
       }
 
       .racenova-campaign-back {
         background:
-          rgba(255, 255, 255, 0.05);
+          rgba(
+            255,
+            255,
+            255,
+            0.05
+          );
 
-        color: #ffffff;
+        color:
+          #ffffff;
       }
 
       .racenova-campaign-start {
         background:
-          rgba(255, 255, 255, 0.15);
+          rgba(
+            255,
+            255,
+            255,
+            0.15
+          );
 
-        color: #ffffff;
+        color:
+          #ffffff;
       }
 
       .racenova-campaign-start:disabled {
-        opacity: 0.35;
+        opacity:
+          0.35;
 
-        cursor: not-allowed;
+        cursor:
+          not-allowed;
       }
 
       @media (
@@ -1283,19 +1523,23 @@ export class CampaignMenu {
 
         .racenova-campaign-menu {
           padding:
-            20px 12px;
+            20px
+            12px;
         }
 
         .racenova-campaign-title {
-          font-size: 27px;
+          font-size:
+            27px;
         }
 
         .racenova-campaign-list {
-          grid-template-columns: 1fr;
+          grid-template-columns:
+            1fr;
         }
 
         .racenova-campaign-card {
-          min-height: 135px;
+          min-height:
+            135px;
         }
       }
     `;
@@ -1324,5 +1568,3 @@ export class CampaignMenu {
     this.root.remove();
   }
 }
-
-  
