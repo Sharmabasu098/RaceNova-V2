@@ -14,6 +14,7 @@ import { SwipeController } from "../player/SwipeController";
 
 import { TrafficManager } from "../traffic/TrafficManager";
 import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
+import { ObstacleCollisionSystem } from "../collision/ObstacleCollisionSystem";
 
 import { RaceHUD } from "../ui/RaceHUD";
 import { Garage } from "../ui/Garage";
@@ -133,6 +134,9 @@ private handleAudioUnlock = (): void => {
 
   private readonly obstacleManager:
     ObstacleManager;
+
+  private readonly obstacleCollisionSystem:
+  ObstacleCollisionSystem;
 
   // =========================================================
   // Player
@@ -592,6 +596,19 @@ void this.environmentManager.load();
     this.playerCar.addToScene(
       this.scene
     );
+
+    // =======================================================
+    // M7.9.3 — Proper Obstacle Collision System
+    // =======================================================
+
+    this.obstacleCollisionSystem =
+      new ObstacleCollisionSystem(
+        this.playerCar,
+        this.obstacleManager,
+        {
+          impactStunDuration: 0.75
+        }
+     );
 
     // =======================================================
     // Coin Spawner
@@ -1450,13 +1467,15 @@ this.raceHUD.update();
     // =======================================================
 
     if (
-      !this.trafficCollisionSystem
-        .hasCrashed()
-    ) {
+  !this.trafficCollisionSystem
+    .hasCrashed() &&
+  !this.obstacleCollisionSystem
+    .isFrozen()
+) {
 
-      this.playerCar.update(
-        deltaTime
-      );
+  this.playerCar.update(
+    deltaTime
+  );
     }
 
     // =======================================================
@@ -1524,23 +1543,6 @@ this.raceHUD.update();
     "crash"
   );
     }
-
-    // =======================================================
-    // M7.9 — Obstacle Collision
-    // =======================================================
-
-    const obstaclePlayerPosition =
-      this.playerCar.getPosition();
-
-    if (
-    this.obstacleManager.checkCollision(
-      obstaclePlayerPosition
-     )
-   ) {
-    this.playerCar.setSpeed(
-      0
-     );
-   }
 
     // =======================================================
     // Coins
