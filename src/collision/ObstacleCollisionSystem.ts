@@ -2,20 +2,22 @@
  * ============================================================
  * RaceNova V2
  * Obstacle Collision System
- * M7.9.3
+ * M7.9.4
  * ============================================================
  *
  * Responsibilities:
- * - Consume ObstacleManager collision detection
- * - Apply a real crash stop to PlayerCar
- * - Hold player at zero speed during impact
- * - Prevent immediate re-acceleration
- * - Preserve existing ObstacleManager collision latch
+ * - Detect obstacle collision
+ * - Immediately stop PlayerCar
+ * - Cancel nitro through PlayerCar.stop()
+ * - Keep player permanently stopped after crash
+ * - Prevent automatic re-acceleration
+ * - Preserve ObstacleManager crash latch
  *
  * IMPORTANT:
- * - No audio dependency
- * - No economy dependency
- * - No traffic-system modification
+ * - Crash remains latched until reset.
+ * - No traffic collision modification.
+ * - No audio dependency.
+ * - No economy dependency.
  * ============================================================
  */
 
@@ -25,10 +27,6 @@ import { PlayerCar } from "../player/PlayerCar";
 import { ObstacleManager } from "../obstacles/ObstacleManager";
 
 export interface ObstacleCollisionSystemConfig {
-  /**
-   * How long the player remains stopped
-   * after hitting an obstacle.
-   */
   impactStunDuration?: number;
 }
 
@@ -86,48 +84,44 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    // -------------------------------------------------------
-    // Active crash stun
-    // -------------------------------------------------------
+    // =======================================================
+    // Already crashed
+    // =======================================================
 
     if (
-      this.stunTimer > 0
+      this.crashed
     ) {
 
-      this.stunTimer =
-        Math.max(
-          0,
-          this.stunTimer -
-            deltaTime
-        );
+      if (
+        this.stunTimer > 0
+      ) {
+
+        this.stunTimer =
+          Math.max(
+            0,
+            this.stunTimer -
+              deltaTime
+          );
+      }
 
       /*
-       * Hard hold at zero.
+       * IMPORTANT:
        *
-       * This is the important part:
-       * PlayerCar cannot accelerate again
-       * while the crash stun is active.
+       * Never allow PlayerCar.update()
+       * to rebuild speed after collision.
+       *
+       * Crash remains latched until reset.
        */
       this.playerCar.setSpeed(
         0
       );
 
-      if (
-        this.stunTimer > 0
-      ) {
-        return;
-      }
-
-      // Impact finished.
-      this.crashed =
-        false;
-
       return;
     }
 
-    // -------------------------------------------------------
-    // Collision detection
-    // -------------------------------------------------------
+    // =======================================================
+    // Collision Detection
+    // =======================================================
 
     this.playerPosition.copy(
       this.playerCar.getPosition()
@@ -144,9 +138,9 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    // -------------------------------------------------------
-    // Crash response
-    // -------------------------------------------------------
+    // =======================================================
+    // Crash Response
+    // =======================================================
 
     this.crashed =
       true;
@@ -156,6 +150,9 @@ export class ObstacleCollisionSystem {
 
     /*
      * Immediate hard stop.
+     *
+     * PlayerCar.stop() also cancels
+     * nitro and hides nitro effect.
      */
     this.playerCar.stop();
   }
@@ -167,9 +164,11 @@ export class ObstacleCollisionSystem {
   public isFrozen():
     boolean {
 
-    return (
-      this.stunTimer > 0
-    );
+    /*
+     * Once obstacle collision happens,
+     * player movement remains blocked.
+     */
+    return this.crashed;
   }
 
   public hasCrashed():
@@ -189,6 +188,9 @@ export class ObstacleCollisionSystem {
 
     this.crashed =
       false;
+
+    this.obstacleManager
+      .clearCrashLatch();
   }
 
   // =========================================================
