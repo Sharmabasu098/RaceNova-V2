@@ -6,6 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { World } from "../world/World";
 import { EnvironmentManager } from "../world/EnvironmentManager";
+import { ObstacleManager } from "../obstacles/ObstacleManager";
 
 import { PlayerCar } from "../player/PlayerCar";
 import { CarController } from "../player/CarController";
@@ -120,11 +121,18 @@ private handleAudioUnlock = (): void => {
     World;
 
   // =========================================================
-// M7 — Roadside Environment
-// =========================================================
+  // M7 — Roadside Environment
+  // =========================================================
 
-private readonly environmentManager:
-  EnvironmentManager;
+  private readonly environmentManager:
+    EnvironmentManager;
+
+  // =========================================================
+  // M7.9 — Road Obstacles
+  // =========================================================
+
+  private readonly obstacleManager:
+    ObstacleManager;
 
   // =========================================================
   // Player
@@ -433,6 +441,39 @@ this.environmentManager =
   );
 
 void this.environmentManager.load();
+
+        // =======================================================
+    // M7.9 — Road Obstacles
+    // =======================================================
+
+    this.obstacleManager =
+      new ObstacleManager(
+        this.scene,
+        (worldZ: number) =>
+          this.world.getRoadCenterX(
+            worldZ
+          ),
+        {
+          roadWidth:
+            this.world.getRoadWidth(),
+
+          laneWidth: 4,
+
+          laneCount: 3,
+
+          obstacleCount: 18,
+
+          spawnDistance: 180,
+
+          recycleDistance: 70,
+
+          playerCollisionWidth: 1.45,
+
+          playerCollisionDepth: 2.4
+        }
+      );
+
+    this.obstacleManager.initialize();
 
     // =======================================================
     // Economy Manager
@@ -1445,8 +1486,12 @@ this.raceHUD.update();
     );
 
     this.environmentManager.update(
-  playerZ
-);
+      playerZ
+    );
+
+    this.obstacleManager.update(
+      playerZ
+    );
 
     // =======================================================
     // Traffic
@@ -1479,6 +1524,23 @@ this.raceHUD.update();
     "crash"
   );
     }
+
+    // =======================================================
+// M7.9 — Obstacle Collision
+// =======================================================
+
+const playerPosition =
+  this.playerCar.getPosition();
+
+if (
+  this.obstacleManager.checkCollision(
+    playerPosition
+  )
+) {
+  this.playerCar.setSpeed(
+    0
+  );
+}
 
     // =======================================================
     // Coins
@@ -2685,6 +2747,8 @@ this.completeRace(
     // =======================================================
 
     this.environmentManager.dispose();
+
+    this.obstacleManager.dispose();
 
     // =======================================================
     // HUD
