@@ -244,4 +244,41 @@ campaignMenu.setProgress(
 
 campaignMenu.hide();
 
+// ============================================================
+// Traffic Crash → Main Menu
+// ============================================================
+
+const handleTrafficCrash =
+  (): void => {
+
+    // --------------------------------------------------------
+    // Reset gameplay runtime
+    // --------------------------------------------------------
+
+    engine.resetRaceState();
+
+    // --------------------------------------------------------
+    // Close Campaign UI if necessary
+    // --------------------------------------------------------
+
+    campaignMenu?.hide();
+
+    // --------------------------------------------------------
+    // Make Main Menu buttons available again
+    // --------------------------------------------------------
+
+    mainMenu.resetStartState();
+
+    // --------------------------------------------------------
+    // Show Main Menu
+    // --------------------------------------------------------
+
+    mainMenu.show();
+  };
+
+window.addEventListener(
+  "racenova:traffic-crash",
+  handleTrafficCrash
+);
+
 mainMenu.show();
