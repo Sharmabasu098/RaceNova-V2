@@ -299,6 +299,13 @@ private handleAudioUnlock = (): void => {
     number = 1500;
 
   // =========================================================
+// M7.9.10 — Engine Runtime State
+// =========================================================
+
+private running:
+  boolean = false;
+
+  // =========================================================
   // Constructor
   // =========================================================
 
@@ -1412,38 +1419,53 @@ this.raceHUD.update();
   }
 
   // =========================================================
-  // Start
-  // =========================================================
+// Start
+// =========================================================
 
-  public start(): void {
+public start(): void {
 
-    this.clock.start();
-
-    this.animate();
+  if (
+    this.running
+  ) {
+    return;
   }
 
+  this.running =
+    true;
+
+  this.clock.start();
+
+  this.animate();
+}
+
   // =========================================================
-  // Animation
-  // =========================================================
+// Animation
+// =========================================================
 
-  private animate = (): void => {
+private animate = (): void => {
 
-    requestAnimationFrame(
-      this.animate
-    );
+  if (
+    !this.running
+  ) {
+    return;
+  }
 
-    const deltaTime =
-      this.clock.getDelta();
+  requestAnimationFrame(
+    this.animate
+  );
 
-    this.update(
-      deltaTime
-    );
+  const deltaTime =
+    this.clock.getDelta();
 
-    this.renderer.render(
-      this.scene,
-      this.camera
-    );
-  };
+  this.update(
+    deltaTime
+  );
+
+  this.renderer.render(
+    this.scene,
+    this.camera
+  );
+};
 
   // =========================================================
   // Main Update
@@ -1547,8 +1569,36 @@ this.obstacleCollisionSystem.update(
   this.crashSoundPlayed =
     true;
 
+  // -------------------------------------------------------
+  // Existing crash SFX
+  // -------------------------------------------------------
+
   this.audioManager.playSFX(
     "crash"
+  );
+
+  // -------------------------------------------------------
+  // Stop engine loop.
+  //
+  // IMPORTANT:
+  // Obstacle collision system is NOT modified.
+  // -------------------------------------------------------
+
+  this.running =
+    false;
+
+  this.clock.stop();
+
+  // -------------------------------------------------------
+  // Notify application UI.
+  // main.ts will return the player
+  // to Main Menu.
+  // -------------------------------------------------------
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "racenova:traffic-crash"
+    )
   );
     }
 
@@ -2185,6 +2235,149 @@ this.completeRace(
       }
     };
   }
+
+  // =========================================================
+// M7.9.10 — Reset Race Runtime
+// =========================================================
+//
+// IMPORTANT:
+// - Player progress is NOT deleted.
+// - Coins/save data are NOT deleted.
+// - Garage upgrades are NOT deleted.
+// - Selected car is NOT changed.
+// - Campaign progression is NOT changed.
+// - Only active race runtime is reset.
+// =========================================================
+
+public resetRaceState(): void {
+
+  // -------------------------------------------------------
+  // Stop engine
+  // -------------------------------------------------------
+
+  this.running =
+    false;
+
+  this.clock.stop();
+
+  // -------------------------------------------------------
+  // Player
+  // -------------------------------------------------------
+
+  this.playerCar.stop();
+
+  this.playerCar.setX(
+    0
+  );
+
+  this.playerCar.setZ(
+    0
+  );
+
+  // -------------------------------------------------------
+  // Traffic
+  // -------------------------------------------------------
+
+  this.trafficCollisionSystem.reset();
+
+  this.trafficManager.clear();
+
+  // -------------------------------------------------------
+  // Obstacles
+  //
+  // M7.9.6 collision system remains unchanged.
+  // -------------------------------------------------------
+
+  this.obstacleCollisionSystem.reset();
+
+  this.obstacleManager.reset(
+    0
+  );
+
+  // -------------------------------------------------------
+  // Coins
+  // -------------------------------------------------------
+
+  this.coinSpawner.clear();
+
+  // -------------------------------------------------------
+  // Boss
+  // -------------------------------------------------------
+
+  this.bossRace.reset();
+
+  this.bossEncounterStarted =
+    false;
+
+  // -------------------------------------------------------
+  // Normal Race
+  // -------------------------------------------------------
+
+  this.normalRaceStarted =
+    false;
+
+  this.normalRaceCompleted =
+    false;
+
+  this.normalRaceId =
+    "";
+
+  this.normalRaceDistance =
+    0;
+
+  this.normalRaceTime =
+    0;
+
+  // -------------------------------------------------------
+  // Audio flags
+  // -------------------------------------------------------
+
+  this.crashSoundPlayed =
+    false;
+
+  this.bossDefeatSoundPlayed =
+    false;
+
+  this.bossCompleteSoundPlayed =
+    false;
+
+  this.bossFailSoundPlayed =
+    false;
+
+  this.normalRaceCompleteSoundPlayed =
+    false;
+
+  // -------------------------------------------------------
+  // Camera
+  // -------------------------------------------------------
+
+  this.camera.position.set(
+    0,
+    5,
+    10
+  );
+
+  this.camera.lookAt(
+    0,
+    0.5,
+    -20
+  );
+
+  // -------------------------------------------------------
+  // HUD
+  // -------------------------------------------------------
+
+  this.raceHUD.update();
+
+  // -------------------------------------------------------
+  // Render clean initial frame
+  // -------------------------------------------------------
+
+  this.renderer.render(
+    this.scene,
+    this.camera
+  );
+}
 
   // =========================================================
   // Complete Save Snapshot
