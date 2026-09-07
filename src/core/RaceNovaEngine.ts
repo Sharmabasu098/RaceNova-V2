@@ -2300,14 +2300,32 @@ public resetRaceState(): void {
 
   this.coinSpawner.clear();
 
-  // -------------------------------------------------------
+    // -------------------------------------------------------
   // Boss
+  //
+  // M7.9.12 — Full Boss Runtime Reset
   // -------------------------------------------------------
 
   this.bossRace.reset();
 
   this.bossEncounterStarted =
     false;
+
+  // Hide the old Boss visual immediately.
+  // Prevents the previous run's Boss position
+  // from appearing in the next race.
+
+  this.bossMesh.visible =
+    false;
+
+  this.bossMesh.position.set(
+    0,
+    0,
+    -80
+  );
+
+  this.bossMesh.rotation.y =
+    Math.PI;
 
   // -------------------------------------------------------
   // Normal Race
