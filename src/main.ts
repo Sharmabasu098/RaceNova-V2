@@ -248,32 +248,43 @@ campaignMenu.hide();
 // Traffic Crash → Main Menu
 // ============================================================
 
+// ============================================================
+// Traffic Crash → Main Menu
+// M7.9.11
+// ============================================================
+
 const handleTrafficCrash =
   (): void => {
 
     // --------------------------------------------------------
-    // Reset gameplay runtime
-    // --------------------------------------------------------
-
-    engine.resetRaceState();
-
-    // --------------------------------------------------------
-    // Close Campaign UI if necessary
+    // Close Campaign UI
     // --------------------------------------------------------
 
     campaignMenu?.hide();
 
     // --------------------------------------------------------
-    // Make Main Menu buttons available again
+    // Re-enable Main Menu
     // --------------------------------------------------------
 
     mainMenu.resetStartState();
 
     // --------------------------------------------------------
-    // Show Main Menu
+    // Show Main Menu FIRST
+    //
+    // This guarantees that the player can see
+    // the menu immediately after a traffic crash.
     // --------------------------------------------------------
 
     mainMenu.show();
+
+    // --------------------------------------------------------
+    // Reset active race runtime
+    //
+    // Player progress, coins, garage and upgrades
+    // remain untouched.
+    // --------------------------------------------------------
+
+    engine.resetRaceState();
   };
 
 window.addEventListener(
