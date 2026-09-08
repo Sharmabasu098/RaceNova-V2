@@ -1293,11 +1293,29 @@ if (
   return;
 }
 
+// -------------------------------------------------------
+// Check authoritative race definition
+// -------------------------------------------------------
+
+const selectedRaceDefinition =
+  RACE_DEFINITIONS.find(
+    (race) =>
+      race.id ===
+      selectedRace.raceId
+  );
+
 if (
-  !selectedRace.isBoss
+  !selectedRaceDefinition
 ) {
   return;
 }
+
+if (
+  !selectedRaceDefinition.isBoss
+) {
+  return;
+}
+
 
 // -------------------------------------------------------
 // Boss Unlock Check
