@@ -1420,15 +1420,35 @@ this.raceHUD.update();
 
   // =========================================================
 // Start
+// M7.9.13 — Fresh Race Start
 // =========================================================
 
 public start(): void {
+
+  // -------------------------------------------------------
+  // Prevent duplicate animation loops
+  // -------------------------------------------------------
 
   if (
     this.running
   ) {
     return;
   }
+
+  // -------------------------------------------------------
+  // IMPORTANT:
+  // Every START RACE gets a completely fresh
+  // runtime state.
+  //
+  // Player progress / coins / garage / upgrades
+  // are NOT deleted by resetRaceState().
+  // -------------------------------------------------------
+
+  this.resetRaceState();
+
+  // -------------------------------------------------------
+  // Start fresh race
+  // -------------------------------------------------------
 
   this.running =
     true;
