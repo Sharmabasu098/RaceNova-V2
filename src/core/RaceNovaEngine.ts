@@ -1261,24 +1261,51 @@ void this.environmentManager.load();
     }
 
     // -------------------------------------------------------
-    // Invalid player position
-    // -------------------------------------------------------
+// Invalid player position
+// -------------------------------------------------------
 
-    if (
-      !Number.isFinite(
-        playerZ
-      )
-    ) {
-      return;
-    }
+if (
+  !Number.isFinite(
+    playerZ
+  )
+) {
+  return;
+}
 
-    // -------------------------------------------------------
-    // Boss Unlock Check
-    // -------------------------------------------------------
+// -------------------------------------------------------
+// M8.1 — Only Boss Campaign Race can start Boss
+// -------------------------------------------------------
 
-    if (
-      !this.isBossUnlocked()
-    ) {
+const progression =
+  this.playerProgress
+    .raceProgression;
+
+const selectedRace =
+  progression.races.find(
+    (race) =>
+      race.raceId ===
+      progression.selectedRaceId
+  );
+
+if (
+  !selectedRace
+) {
+  return;
+}
+
+if (
+  !selectedRace.isBoss
+) {
+  return;
+}
+
+// -------------------------------------------------------
+// Boss Unlock Check
+// -------------------------------------------------------
+
+if (
+  !this.isBossUnlocked()
+) {
 
       /*
        * Boss is still locked.
