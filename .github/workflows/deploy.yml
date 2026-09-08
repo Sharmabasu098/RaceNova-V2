@@ -17,36 +17,95 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  # =========================================================
+  # BUILD
+  # =========================================================
+
   build:
     name: Build RaceNova V2
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+
+      # -------------------------------------------------------
+      # Checkout
+      # -------------------------------------------------------
+
+      - name: Checkout repository
         uses: actions/checkout@v7
+
+      # -------------------------------------------------------
+      # Node.js 24
+      # -------------------------------------------------------
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
 
+      # -------------------------------------------------------
+      # Install dependencies
+      # -------------------------------------------------------
+
       - name: Install dependencies
         run: npm install
 
-      - name: Build
+      # -------------------------------------------------------
+      # Build RaceNova V2
+      # -------------------------------------------------------
+
+      - name: Build project
         run: npm run build
 
-      - name: Setup Pages
+      # -------------------------------------------------------
+      # GitHub Pages configuration
+      # -------------------------------------------------------
+
+      - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
 
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
+      # -------------------------------------------------------
+      # Create Pages artifact archive
+      # -------------------------------------------------------
+
+      - name: Archive Pages artifact
+        shell: bash
+        run: |
+          tar \
+            --dereference \
+            --hard-dereference \
+            --directory "./dist" \
+            -cvf "$RUNNER_TEMP/artifact.tar" \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude=".[^/]*" \
+            .
+
+      # -------------------------------------------------------
+      # Upload Pages artifact
+      # Node 24 compatible
+      # -------------------------------------------------------
+
+      - name: Upload Pages artifact
+        uses: actions/upload-artifact@v7.0.1
         with:
-          path: ./dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
+
+
+  # =========================================================
+  # DEPLOY
+  # =========================================================
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: build
+
+    needs:
+      - build
+
     runs-on: ubuntu-latest
 
     environment:
@@ -54,6 +113,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy
+
+      # -------------------------------------------------------
+      # Deploy to GitHub Pages
+      # -------------------------------------------------------
+
+      - name: Deploy RaceNova V2
         id: deployment
         uses: actions/deploy-pages@v5
