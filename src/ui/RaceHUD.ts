@@ -4,7 +4,7 @@ import { EconomyManager } from "../economy/EconomyManager";
 // ============================================================
 // RaceNova V2
 // Race HUD
-// M6.8.5 — Level + Boss Unlock Status
+// M8.3 — Race Distance HUD
 // ============================================================
 
 export interface RaceHUDProgress {
@@ -21,6 +21,10 @@ export interface RaceHUDProgress {
 
   bossUnlocked: boolean;
 }
+
+// ============================================================
+// Race Distance State
+// ============================================================
 
 export interface RaceHUDDistance {
 
@@ -105,14 +109,21 @@ export class RaceHUD {
   private readonly distancePanel:
     HTMLDivElement;
 
-  private readonly distanceLabel:
-    HTMLDivElement;
-
   private readonly distanceValue:
     HTMLDivElement;
 
-  private readonly getDistance:
-    () => RaceHUDDistance;
+  private raceDistance:
+    RaceHUDDistance = {
+
+      distance:
+        0,
+
+      finishDistance:
+        1500,
+
+      raceActive:
+        false
+    };
 
   // =========================================================
   // Nitro
@@ -160,7 +171,7 @@ export class RaceHUD {
       () => void =
         () => undefined,
 
-        getProgress:
+    getProgress:
       () => RaceHUDProgress =
         () => ({
 
@@ -181,21 +192,8 @@ export class RaceHUD {
 
           bossUnlocked:
             false
-        }),
-
-    getDistance:
-      () => RaceHUDDistance =
-        () => ({
-
-          distance:
-            0,
-
-          finishDistance:
-            1500,
-
-          raceActive:
-            false
         })
+  ) {
 
     this.playerCar =
       playerCar;
@@ -211,9 +209,6 @@ export class RaceHUD {
 
     this.getProgress =
       getProgress;
-
-    this.getDistance =
-      getDistance;
 
     // =====================================================
     // Root
@@ -688,41 +683,12 @@ export class RaceHUD {
           "blur(6px)",
 
         WebkitBackdropFilter:
-          "blur(6px)"
+          "blur(6px)",
+
+        pointerEvents:
+          "none"
       }
     );
-
-    // =====================================================
-    // Distance Label
-    // =====================================================
-
-    this.distanceLabel =
-      document.createElement(
-        "div"
-      );
-
-    Object.assign(
-      this.distanceLabel.style,
-      {
-        fontSize:
-          "10px",
-
-        lineHeight:
-          "13px",
-
-        fontWeight:
-          "700",
-
-        letterSpacing:
-          "1.2px",
-
-        opacity:
-          "0.72"
-      }
-    );
-
-    this.distanceLabel.textContent =
-      "DISTANCE";
 
     // =====================================================
     // Distance Value
@@ -736,14 +702,11 @@ export class RaceHUD {
     Object.assign(
       this.distanceValue.style,
       {
-        marginTop:
-          "2px",
-
         fontSize:
-          "17px",
+          "16px",
 
         lineHeight:
-          "22px",
+          "20px",
 
         fontWeight:
           "900",
@@ -755,10 +718,6 @@ export class RaceHUD {
 
     this.distanceValue.textContent =
       "0 / 1500 m";
-
-    this.distancePanel.appendChild(
-      this.distanceLabel
-    );
 
     this.distancePanel.appendChild(
       this.distanceValue
@@ -1009,11 +968,11 @@ export class RaceHUD {
     );
 
     this.root.appendChild(
-      this.distancePanel
+      this.progressionPanel
     );
 
     this.root.appendChild(
-      this.progressionPanel
+      this.distancePanel
     );
 
     this.root.appendChild(
@@ -1061,6 +1020,65 @@ export class RaceHUD {
     // =====================================================
 
     this.update();
+  }
+
+  // =========================================================
+  // Race Distance
+  // M8.3
+  // =========================================================
+
+  public setRaceDistance(
+    distance: number,
+    finishDistance:
+      number = 1500,
+    raceActive:
+      boolean = false
+  ): void {
+
+    const safeDistance =
+      Number.isFinite(
+        distance
+      )
+        ? Math.max(
+            0,
+            distance
+          )
+        : 0;
+
+    const safeFinishDistance =
+      Number.isFinite(
+        finishDistance
+      ) &&
+      finishDistance > 0
+        ? finishDistance
+        : 1500;
+
+    this.raceDistance = {
+
+      distance:
+        Math.min(
+          safeDistance,
+          safeFinishDistance
+        ),
+
+      finishDistance:
+        safeFinishDistance,
+
+      raceActive:
+        raceActive
+    };
+
+    this.distanceValue.textContent =
+      `${Math.floor(
+        this.raceDistance.distance
+      )} / ${Math.floor(
+        this.raceDistance.finishDistance
+      )} m`;
+
+    this.distancePanel.style.opacity =
+      raceActive
+        ? "1"
+        : "0.72";
   }
 
   // =========================================================
@@ -1123,7 +1141,7 @@ export class RaceHUD {
       event.stopPropagation();
     };
 
-  // =========================================================
+  // ========================================================
   // Update
   // =========================================================
 
@@ -1174,51 +1192,6 @@ export class RaceHUD {
       Math.floor(
         safeCoins
       ).toString();
-    // =====================================================
-    // Race Distance
-    // M8.3
-    // =====================================================
-
-    const raceDistance =
-      this.getDistance();
-
-    const safeDistance =
-      Number.isFinite(
-        raceDistance.distance
-      )
-        ? Math.max(
-            0,
-            raceDistance.distance
-          )
-        : 0;
-
-    const safeFinishDistance =
-      Number.isFinite(
-        raceDistance.finishDistance
-      )
-        ? Math.max(
-            1,
-            raceDistance.finishDistance
-          )
-        : 1500;
-
-    const displayDistance =
-      Math.min(
-        safeDistance,
-        safeFinishDistance
-      );
-
-    this.distanceValue.textContent =
-      `${Math.floor(
-        displayDistance
-      )} / ${Math.floor(
-        safeFinishDistance
-      )} m`;
-
-    this.distancePanel.style.opacity =
-      raceDistance.raceActive
-        ? "1"
-        : "0.72";
 
     // =====================================================
     // Level / Boss Status
@@ -1304,6 +1277,31 @@ export class RaceHUD {
     }
 
     // =====================================================
+    // Distance
+    // =====================================================
+
+    const safeDistance =
+      Math.min(
+        Math.max(
+          0,
+          this.raceDistance.distance
+        ),
+        this.raceDistance.finishDistance
+      );
+
+    this.distanceValue.textContent =
+      `${Math.floor(
+        safeDistance
+      )} / ${Math.floor(
+        this.raceDistance.finishDistance
+      )} m`;
+
+    this.distancePanel.style.opacity =
+      this.raceDistance.raceActive
+        ? "1"
+        : "0.72";
+
+    // =====================================================
     // Nitro
     // =====================================================
 
@@ -1334,7 +1332,7 @@ export class RaceHUD {
       this.nitroButton.style.transform =
         "scale(1.05)";
 
-      } else {
+    } else {
 
       this.nitroLabel.textContent =
         "NITRO";
@@ -1409,4 +1407,4 @@ export class RaceHUD {
     }
   }
 }
-  
+ 
