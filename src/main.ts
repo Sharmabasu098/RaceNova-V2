@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Application Entry Point
- * M7.9.9
+ * M8.3
  * ============================================================
  *
  * Responsibilities:
@@ -12,6 +12,8 @@
  * - Connect Main Menu navigation
  * - Connect Campaign navigation
  * - Pass selected campaign race to the engine
+ * - Handle Traffic Crash → Main Menu
+ * - Handle Race Result → Main Menu
  *
  * IMPORTANT:
  * - No Three.js code here
@@ -19,6 +21,7 @@
  * - Engine remains responsible for gameplay
  * - MainMenu remains responsible for main-menu UI
  * - CampaignMenu remains responsible for campaign UI
+ * - RaceResultUI remains responsible for result UI
  * ============================================================
  */
 
@@ -173,7 +176,10 @@ campaignMenu =
         // Update selected race
         //
         // RaceNovaEngine uses:
-        // playerProgress.raceProgression.selectedRaceId
+        //
+        // playerProgress
+        //   .raceProgression
+        //   .selectedRaceId
         // ----------------------------------------------------
 
         const updatedProgress = {
@@ -191,13 +197,16 @@ campaignMenu =
               raceId,
 
             races:
-              progress.raceProgression.races.map(
-                (
-                  race
-                ) => ({
-                  ...race
-                })
-              )
+              progress
+                .raceProgression
+                .races
+                .map(
+                  (
+                    race
+                  ) => ({
+                    ...race
+                  })
+                )
           }
         };
 
@@ -246,10 +255,6 @@ campaignMenu.hide();
 
 // ============================================================
 // Traffic Crash → Main Menu
-// ============================================================
-
-// ============================================================
-// Traffic Crash → Main Menu
 // M7.9.11
 // ============================================================
 
@@ -291,5 +296,57 @@ window.addEventListener(
   "racenova:traffic-crash",
   handleTrafficCrash
 );
+
+// ============================================================
+// Race Result → Main Menu
+// M8.3
+// ============================================================
+
+const handleRaceResultMenu =
+  (): void => {
+
+    // --------------------------------------------------------
+    // Close Campaign UI
+    // --------------------------------------------------------
+
+    campaignMenu?.hide();
+
+    // --------------------------------------------------------
+    // Reset Main Menu button state
+    // --------------------------------------------------------
+
+    mainMenu.resetStartState();
+
+    // --------------------------------------------------------
+    // Reset active race runtime
+    //
+    // IMPORTANT:
+    // This does NOT delete:
+    // - Coins
+    // - Garage progress
+    // - Upgrade progress
+    // - Campaign progress
+    // - Race unlocks
+    //
+    // It only resets the active gameplay session.
+    // --------------------------------------------------------
+
+    engine.resetRaceState();
+
+    // --------------------------------------------------------
+    // Show Main Menu
+    // --------------------------------------------------------
+
+    mainMenu.show();
+  };
+
+window.addEventListener(
+  "racenova:race-result-menu",
+  handleRaceResultMenu
+);
+
+// ============================================================
+// Initial Main Menu
+// ============================================================
 
 mainMenu.show();
