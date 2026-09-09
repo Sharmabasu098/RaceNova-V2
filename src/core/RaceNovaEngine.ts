@@ -17,6 +17,7 @@ import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
 import { ObstacleCollisionSystem } from "../collision/ObstacleCollisionSystem";
 
 import { RaceHUD } from "../ui/RaceHUD";
+import { RaceResultUI } from "../ui/RaceResult";
 import { Garage } from "../ui/Garage";
 import { UpgradeScreen } from "../ui/UpgradeScreen";
 
@@ -44,6 +45,9 @@ import {
 import {
   RACE_DEFINITIONS
 } from "../race/RaceDefinitions";
+import {
+  RaceResult
+} from "../race/RaceResult";
 
 // ============================================================
 // M6.7 — Boss System
@@ -209,6 +213,16 @@ private handleAudioUnlock = (): void => {
 
   private readonly raceHUD:
     RaceHUD;
+
+    // =========================================================
+  // M8.3 — Race Result System
+  // =========================================================
+
+  private readonly raceResult:
+    RaceResult;
+
+  private readonly raceResultUI:
+    RaceResultUI;
 
   // =========================================================
   // Garage UI
@@ -702,6 +716,35 @@ void this.environmentManager.load();
           };
         }
       );
+
+        // =======================================================
+    // M8.3 — Race Result System
+    // =======================================================
+
+    this.raceResult =
+      new RaceResult();
+
+    this.raceResultUI =
+      new RaceResultUI(
+        document.body,
+        {
+          onNextRace: () => {
+
+            this.start();
+          },
+
+          onMainMenu: () => {
+
+            window.dispatchEvent(
+              new CustomEvent(
+                "racenova:race-result-menu"
+              )
+            );
+          }
+        }
+      );
+
+    this.raceResultUI.hide();
 
     // =======================================================
     // Garage UI
@@ -1968,8 +2011,8 @@ if (
     }
   }
 
-  // =========================================================
-  // M6.8.8 — Finish Normal Race
+    // =========================================================
+  // M8.3 — Finish Normal Race
   // =========================================================
 
   private finishNormalRace(): void {
@@ -1987,32 +2030,111 @@ if (
     const completedRaceTime =
       this.normalRaceTime;
 
+    // -------------------------------------------------------
+    // Mark race completed
+    // -------------------------------------------------------
+
     this.normalRaceCompleted =
-  true;
+      true;
 
-if (
-  !this.normalRaceCompleteSoundPlayed
-) {
+    // -------------------------------------------------------
+    // Existing race complete SFX
+    // -------------------------------------------------------
 
-  this.normalRaceCompleteSoundPlayed =
-    true;
+    if (
+      !this.normalRaceCompleteSoundPlayed
+    ) {
 
-  this.audioManager.playSFX(
-    "raceComplete"
-  );
-}
+      this.normalRaceCompleteSoundPlayed =
+        true;
 
-this.completeRace(
-  completedRaceId,
-  true,
-  1,
-  completedRaceTime
-);
+      this.audioManager.playSFX(
+        "raceComplete"
+      );
+    }
+
+    // -------------------------------------------------------
+    // Existing progression/save logic
+    // -------------------------------------------------------
+
+    this.completeRace(
+      completedRaceId,
+      true,
+      1,
+      completedRaceTime
+    );
+
+    // -------------------------------------------------------
+    // Unlock/select next campaign race
+    // -------------------------------------------------------
 
     this.advanceToNextRace();
 
+    // -------------------------------------------------------
+    // Race runtime finished
+    // -------------------------------------------------------
+
     this.normalRaceStarted =
       false;
+
+    // -------------------------------------------------------
+    // Build M8.3 result
+    //
+    // Reward calculation is intentionally NOT added here.
+    // M8.4 will own reward calculation.
+    // -------------------------------------------------------
+
+    this.raceResult.set({
+
+      raceId:
+        completedRaceId,
+
+      result:
+        "WIN",
+
+      position:
+        1,
+
+      time:
+        completedRaceTime,
+
+      distance:
+        this.normalRaceDistance,
+
+      reward:
+        0,
+
+      isBossRace:
+        false,
+
+      bossDefeated:
+        false,
+
+      nextRaceId:
+        this.getNextRaceId(
+          completedRaceId
+        ),
+
+      timestamp:
+        Date.now()
+    });
+
+    // -------------------------------------------------------
+    // Stop gameplay loop while Result UI is open.
+    // -------------------------------------------------------
+
+    this.running =
+      false;
+
+    this.clock.stop();
+
+    // -------------------------------------------------------
+    // Show Result Screen
+    // -------------------------------------------------------
+
+    this.raceResultUI.show(
+      this.raceResult.get()
+    );
   }
 
   // =========================================================
@@ -2065,6 +2187,52 @@ this.completeRace(
       nextRace.raceId;
 
     this.savePlayerData();
+  }
+
+    // =========================================================
+  // M8.3 — Get Next Race ID
+  // =========================================================
+
+  private getNextRaceId(
+    currentRaceId: string
+  ): string | null {
+
+    const progression =
+      this.playerProgress
+        .raceProgression;
+
+    const currentIndex =
+      progression.races.findIndex(
+        (race) =>
+          race.raceId ===
+          currentRaceId
+      );
+
+    if (
+      currentIndex < 0
+    ) {
+      return null;
+    }
+
+    const nextRace =
+      progression.races[
+        currentIndex + 1
+      ];
+
+    if (
+      !nextRace
+    ) {
+      return null;
+    }
+
+    if (
+      nextRace.status ===
+      "locked"
+    ) {
+      return null;
+    }
+
+    return nextRace.raceId;
   }
 
   // =========================================================
@@ -2324,6 +2492,14 @@ public resetRaceState(): void {
     false;
 
   this.clock.stop();
+
+    // -------------------------------------------------------
+  // M8.3 — Close Result UI
+  // -------------------------------------------------------
+
+  this.raceResultUI.hide();
+
+  this.raceResult.reset();
 
   // -------------------------------------------------------
   // Player
@@ -3064,6 +3240,12 @@ public resetRaceState(): void {
     // =======================================================
 
     this.upgradeScreen.dispose();
+
+        // =======================================================
+    // M8.3 — Race Result UI
+    // =======================================================
+
+    this.raceResultUI.dispose();
 
     // =======================================================
     // Renderer
