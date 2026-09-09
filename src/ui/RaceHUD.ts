@@ -22,6 +22,15 @@ export interface RaceHUDProgress {
   bossUnlocked: boolean;
 }
 
+export interface RaceHUDDistance {
+
+  distance: number;
+
+  finishDistance: number;
+
+  raceActive: boolean;
+}
+
 export class RaceHUD {
 
   // =========================================================
@@ -90,6 +99,22 @@ export class RaceHUD {
     HTMLDivElement;
 
   // =========================================================
+  // Race Distance
+  // =========================================================
+
+  private readonly distancePanel:
+    HTMLDivElement;
+
+  private readonly distanceLabel:
+    HTMLDivElement;
+
+  private readonly distanceValue:
+    HTMLDivElement;
+
+  private readonly getDistance:
+    () => RaceHUDDistance;
+
+  // =========================================================
   // Nitro
   // =========================================================
 
@@ -135,7 +160,7 @@ export class RaceHUD {
       () => void =
         () => undefined,
 
-    getProgress:
+        getProgress:
       () => RaceHUDProgress =
         () => ({
 
@@ -156,8 +181,21 @@ export class RaceHUD {
 
           bossUnlocked:
             false
+        }),
+
+    getDistance:
+      () => RaceHUDDistance =
+        () => ({
+
+          distance:
+            0,
+
+          finishDistance:
+            1500,
+
+          raceActive:
+            false
         })
-  ) {
 
     this.playerCar =
       playerCar;
@@ -173,6 +211,9 @@ export class RaceHUD {
 
     this.getProgress =
       getProgress;
+
+    this.getDistance =
+      getDistance;
 
     // =====================================================
     // Root
@@ -598,6 +639,132 @@ export class RaceHUD {
     );
 
     // =====================================================
+    // Race Distance Panel
+    // M8.3
+    // =====================================================
+
+    this.distancePanel =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      this.distancePanel.style,
+      {
+        position:
+          "absolute",
+
+        top:
+          "18px",
+
+        left:
+          "50%",
+
+        transform:
+          "translateX(-50%)",
+
+        minWidth:
+          "150px",
+
+        padding:
+          "7px 14px",
+
+        borderRadius:
+          "14px",
+
+        background:
+          "rgba(0, 0, 0, 0.58)",
+
+        color:
+          "#ffffff",
+
+        textAlign:
+          "center",
+
+        boxSizing:
+          "border-box",
+
+        backdropFilter:
+          "blur(6px)",
+
+        WebkitBackdropFilter:
+          "blur(6px)"
+      }
+    );
+
+    // =====================================================
+    // Distance Label
+    // =====================================================
+
+    this.distanceLabel =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      this.distanceLabel.style,
+      {
+        fontSize:
+          "10px",
+
+        lineHeight:
+          "13px",
+
+        fontWeight:
+          "700",
+
+        letterSpacing:
+          "1.2px",
+
+        opacity:
+          "0.72"
+      }
+    );
+
+    this.distanceLabel.textContent =
+      "DISTANCE";
+
+    // =====================================================
+    // Distance Value
+    // =====================================================
+
+    this.distanceValue =
+      document.createElement(
+        "div"
+      );
+
+    Object.assign(
+      this.distanceValue.style,
+      {
+        marginTop:
+          "2px",
+
+        fontSize:
+          "17px",
+
+        lineHeight:
+          "22px",
+
+        fontWeight:
+          "900",
+
+        letterSpacing:
+          "0.5px"
+      }
+    );
+
+    this.distanceValue.textContent =
+      "0 / 1500 m";
+
+    this.distancePanel.appendChild(
+      this.distanceLabel
+    );
+
+    this.distancePanel.appendChild(
+      this.distanceValue
+    );
+
+    // =====================================================
     // Garage Button
     // =====================================================
 
@@ -842,6 +1009,10 @@ export class RaceHUD {
     );
 
     this.root.appendChild(
+      this.distancePanel
+    );
+
+    this.root.appendChild(
       this.progressionPanel
     );
 
@@ -1003,6 +1174,51 @@ export class RaceHUD {
       Math.floor(
         safeCoins
       ).toString();
+    // =====================================================
+    // Race Distance
+    // M8.3
+    // =====================================================
+
+    const raceDistance =
+      this.getDistance();
+
+    const safeDistance =
+      Number.isFinite(
+        raceDistance.distance
+      )
+        ? Math.max(
+            0,
+            raceDistance.distance
+          )
+        : 0;
+
+    const safeFinishDistance =
+      Number.isFinite(
+        raceDistance.finishDistance
+      )
+        ? Math.max(
+            1,
+            raceDistance.finishDistance
+          )
+        : 1500;
+
+    const displayDistance =
+      Math.min(
+        safeDistance,
+        safeFinishDistance
+      );
+
+    this.distanceValue.textContent =
+      `${Math.floor(
+        displayDistance
+      )} / ${Math.floor(
+        safeFinishDistance
+      )} m`;
+
+    this.distancePanel.style.opacity =
+      raceDistance.raceActive
+        ? "1"
+        : "0.72";
 
     // =====================================================
     // Level / Boss Status
