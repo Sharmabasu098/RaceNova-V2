@@ -1462,6 +1462,93 @@ export class EnvironmentManager {
       fieldOffset;
   }
 
+    // =========================================================
+  // M8.2 — Reset Environment Runtime
+  // =========================================================
+  //
+  // IMPORTANT:
+  // - Environment pool is NOT recreated.
+  // - Existing procedural props are reused.
+  // - Every prop is placed from the fresh race start.
+  // - Player start position is world Z = 0.
+  // =========================================================
+
+  public reset(
+    playerZ: number = 0
+  ): void {
+
+    if (
+      !Number.isFinite(
+        playerZ
+      )
+    ) {
+      playerZ = 0;
+    }
+
+    // -------------------------------------------------------
+    // Store fresh race position
+    // -------------------------------------------------------
+
+    this.lastPlayerZ =
+      playerZ;
+
+    // -------------------------------------------------------
+    // Environment may still be loading.
+    // -------------------------------------------------------
+
+    if (
+      !this.loaded ||
+      this.props.length === 0
+    ) {
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Reset every pooled environment prop.
+    // -------------------------------------------------------
+
+    for (
+      let i = 0;
+      i < this.props.length;
+      i++
+    ) {
+
+      const prop =
+        this.props[i];
+
+      const object =
+        prop.object;
+
+      // -----------------------------------------------------
+      // Force first-time placement again.
+      // -----------------------------------------------------
+
+      object.userData.environmentInitialized =
+        false;
+
+      // -----------------------------------------------------
+      // Clear previous runtime position.
+      // update() will calculate the correct
+      // fresh starting position.
+      // -----------------------------------------------------
+
+      object.position.set(
+        0,
+        0,
+        0
+      );
+    }
+
+    // -------------------------------------------------------
+    // Rebuild the complete starting environment
+    // around the fresh player position.
+    // -------------------------------------------------------
+
+    this.update(
+      playerZ
+    );
+  }
+
   // =========================================================
   // Ready
   // =========================================================
@@ -1469,10 +1556,6 @@ export class EnvironmentManager {
   public isReady(): boolean {
     return this.loaded;
   }
-
-  // =========================================================
-  // Seed
-  // =========================================================
 
     // =========================================================
   // Seed
