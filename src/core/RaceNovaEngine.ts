@@ -2339,6 +2339,17 @@ public resetRaceState(): void {
     0
   );
 
+    // -------------------------------------------------------
+  // M8.2 — Environment
+  //
+  // Reset the roadside environment to the
+  // same starting position as a fresh game.
+  // -------------------------------------------------------
+
+  this.environmentManager.reset(
+    0
+  );
+
   // -------------------------------------------------------
   // Traffic
   // -------------------------------------------------------
