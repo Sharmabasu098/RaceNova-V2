@@ -1869,8 +1869,15 @@ if (
     // =======================================================
     // HUD
     // =======================================================
+    this.raceHUD.setRaceDistance(
+  this.normalRaceDistance,
+  this.normalRaceFinishDistance,
+  this.normalRaceStarted &&
+    !this.normalRaceCompleted
+);
 
     this.raceHUD.update();
+    
 
     // =======================================================
     // Camera
