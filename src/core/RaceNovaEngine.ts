@@ -304,6 +304,9 @@ private handleAudioUnlock = (): void => {
   private normalRaceDistance:
     number = 0;
 
+  private normalRaceStartZ:
+  number = 0;
+
   private normalRaceTime:
     number = 0;
 
@@ -1956,6 +1959,13 @@ if (
 
     this.normalRaceTime =
       0;
+
+    const playerPosition =
+  this.playerCar.getPosition();
+
+this.normalRaceStartZ =
+  playerPosition.z;
+    
   }
 
   // =========================================================
@@ -1982,18 +1992,30 @@ if (
       return;
     }
 
-    const speed =
-      this.playerCar.getSpeed();
+    const playerPosition =
+  this.playerCar.getPosition();
 
-    if (
-      Number.isFinite(speed) &&
-      speed > 0
-    ) {
+const currentZ =
+  playerPosition.z;
 
-      this.normalRaceDistance +=
-        (speed / 3.6) *
-        deltaTime;
-    }
+if (
+  Number.isFinite(currentZ) &&
+  Number.isFinite(this.normalRaceStartZ)
+) {
+
+  const travelledDistance =
+    Math.max(
+      0,
+      this.normalRaceStartZ -
+        currentZ
+    );
+
+  this.normalRaceDistance =
+    Math.min(
+      travelledDistance,
+      this.normalRaceFinishDistance
+    );
+}
 
     this.normalRaceTime +=
       deltaTime;
@@ -2601,6 +2623,9 @@ public resetRaceState(): void {
 
   this.normalRaceDistance =
     0;
+
+  this.normalRaceStartZ =
+  0;
 
   this.normalRaceTime =
     0;
