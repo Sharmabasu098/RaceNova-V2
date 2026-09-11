@@ -307,6 +307,9 @@ private handleAudioUnlock = (): void => {
   private normalRaceStartZ:
   number = 0;
 
+  private normalRaceLastZ:
+  number = 0;
+
   private normalRaceTime:
     number = 0;
 
@@ -1921,51 +1924,58 @@ if (
 
   private startNormalRace(): void {
 
-    const progression =
-      this.playerProgress
-        .raceProgression;
+  const progression =
+    this.playerProgress
+      .raceProgression;
 
-    const selectedRace =
-      progression.races.find(
-        (race) =>
-          race.raceId ===
-          progression.selectedRaceId
-      );
+  const selectedRace =
+    progression.races.find(
+      (race) =>
+        race.raceId ===
+        progression.selectedRaceId
+    );
 
-    if (
-      !selectedRace
-    ) {
-      return;
-    }
+  if (
+    !selectedRace
+  ) {
+    return;
+  }
 
-    if (
-      selectedRace.status ===
-      "locked"
-    ) {
-      return;
-    }
+  if (
+    selectedRace.status ===
+    "locked"
+  ) {
+    return;
+  }
 
-    this.normalRaceId =
-      selectedRace.raceId;
+  this.normalRaceId =
+    selectedRace.raceId;
 
-    this.normalRaceStarted =
-      true;
+  this.normalRaceStarted =
+    true;
 
-    this.normalRaceCompleted =
-      false;
+  this.normalRaceCompleted =
+    false;
 
-    this.normalRaceDistance =
-      0;
+  this.normalRaceDistance =
+    0;
 
-    this.normalRaceTime =
-      0;
+  this.normalRaceTime =
+    0;
 
-    const playerPosition =
-  this.playerCar.getPosition();
+  const playerPosition =
+    this.playerCar.getPosition();
 
-this.normalRaceStartZ =
-  playerPosition.z;
-    
+  const playerZ =
+    playerPosition.z;
+
+  this.normalRaceStartZ =
+    Number.isFinite(playerZ)
+      ? playerZ
+      : 0;
+
+  this.normalRaceLastZ =
+    this.normalRaceStartZ;
   }
 
   // =========================================================
@@ -1973,52 +1983,98 @@ this.normalRaceStartZ =
   // =========================================================
 
   private updateNormalRace(
-    deltaTime: number
-  ): void {
+  deltaTime: number
+): void {
 
-    if (
-      !this.normalRaceStarted ||
-      this.normalRaceCompleted
-    ) {
-      return;
-    }
+  if (
+    !this.normalRaceStarted ||
+    this.normalRaceCompleted
+  ) {
+    return;
+  }
 
-    if (
-      !Number.isFinite(
-        deltaTime
-      ) ||
-      deltaTime <= 0
-    ) {
-      return;
-    }
+  if (
+    !Number.isFinite(
+      deltaTime
+    ) ||
+    deltaTime <= 0
+  ) {
+    return;
+  }
 
-    const playerPosition =
-  this.playerCar.getPosition();
+  const playerPosition =
+    this.playerCar.getPosition();
 
-const currentZ =
-  playerPosition.z;
+  const currentZ =
+    playerPosition.z;
 
-if (
-  Number.isFinite(currentZ) &&
-  Number.isFinite(this.normalRaceStartZ)
-) {
+  if (
+    !Number.isFinite(
+      currentZ
+    )
+  ) {
+    return;
+  }
 
-  const travelledDistance =
-    Math.max(
-      0,
-      this.normalRaceStartZ -
-        currentZ
-    );
+  // =======================================================
+  // M8.3.1 — REAL PLAYER DISTANCE
+  // =======================================================
+
+  const movement =
+    this.normalRaceLastZ -
+    currentZ;
+
+  if (
+    Number.isFinite(
+      movement
+    ) &&
+    movement > 0
+  ) {
+
+    this.normalRaceDistance +=
+      movement;
+  }
+
+  this.normalRaceLastZ =
+    currentZ;
+
+  // =======================================================
+  // Clamp
+  // =======================================================
 
   this.normalRaceDistance =
     Math.min(
-      travelledDistance,
+      Math.max(
+        0,
+        this.normalRaceDistance
+      ),
       this.normalRaceFinishDistance
     );
-}
 
-    this.normalRaceTime +=
-      deltaTime;
+  // =======================================================
+  // Race Time
+  // =======================================================
+
+  this.normalRaceTime +=
+    deltaTime;
+
+  // =======================================================
+  // Virtual 1500m Finish
+  // =======================================================
+
+  if (
+    this.normalRaceDistance >=
+    this.normalRaceFinishDistance
+  ) {
+
+    this.normalRaceDistance =
+      this.normalRaceFinishDistance;
+
+    this.finishNormalRace();
+
+    return;
+  }
+  }
 
     // =======================================================
     // Virtual Race Finish
