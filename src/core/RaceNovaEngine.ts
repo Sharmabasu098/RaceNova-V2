@@ -1,144 +1,37 @@
 // ============================================================
 // RaceNova V2
 // RaceNovaEngine.ts
-// M8.3.2 — PART 1/4
-// CORE + PROPERTIES + CONSTRUCTOR
-// ============================================================
-//
-// IMPORTANT:
-// - This is PART 1/4.
-// - Paste in order.
-// - Do not add/remove braces.
-// - Do not build until Parts 1–4 are complete.
-//
+// M8.3.2 FINAL — PART 1/4
 // ============================================================
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-
-// ============================================================
-// M8.3.2 — WORLD SYSTEM
-// ============================================================
-
 import { World } from "../world/World";
+import { EnvironmentManager } from "../world/EnvironmentManager";
+import { ObstacleManager } from "../obstacles/ObstacleManager";
 
-import {
-  EnvironmentManager
-} from "../world/EnvironmentManager";
+import { PlayerCar } from "../player/PlayerCar";
+import { CarController } from "../player/CarController";
+import { SwipeController } from "../player/SwipeController";
 
+import { TrafficManager } from "../traffic/TrafficManager";
+import { TrafficCollisionSystem } from "../collision/TrafficCollisionSystem";
+import { ObstacleCollisionSystem } from "../collision/ObstacleCollisionSystem";
 
-// ============================================================
-// M7.9 — OBSTACLE SYSTEM
-// ============================================================
+import { RaceHUD } from "../ui/RaceHUD";
+import { RaceResultUI } from "../ui/RaceResult";
+import { Garage } from "../ui/Garage";
+import { UpgradeScreen } from "../ui/UpgradeScreen";
 
-import {
-  ObstacleManager
-} from "../obstacles/ObstacleManager";
+import { EconomyManager } from "../economy/EconomyManager";
+import { CoinSpawner } from "../economy/CoinSpawner";
 
+import { GarageManager } from "../garage/GarageManager";
+import { UpgradeSystem } from "../garage/UpgradeSystem";
 
-// ============================================================
-// M5 — PLAYER SYSTEM
-// ============================================================
-
-import {
-  PlayerCar
-} from "../player/PlayerCar";
-
-import {
-  CarController
-} from "../player/CarController";
-
-import {
-  SwipeController
-} from "../player/SwipeController";
-
-
-// ============================================================
-// M5 — TRAFFIC SYSTEM
-// ============================================================
-
-import {
-  TrafficManager
-} from "../traffic/TrafficManager";
-
-import {
-  TrafficCollisionSystem
-} from "../collision/TrafficCollisionSystem";
-
-import {
-  ObstacleCollisionSystem
-} from "../collision/ObstacleCollisionSystem";
-
-
-// ============================================================
-// M8.3 — UI SYSTEM
-// ============================================================
-
-import {
-  RaceHUD
-} from "../ui/RaceHUD";
-
-import {
-  RaceResultUI
-} from "../ui/RaceResult";
-
-import {
-  Garage
-} from "../ui/Garage";
-
-import {
-  UpgradeScreen
-} from "../ui/UpgradeScreen";
-
-
-// ============================================================
-// M4 — ECONOMY SYSTEM
-// ============================================================
-
-import {
-  EconomyManager
-} from "../economy/EconomyManager";
-
-import {
-  CoinSpawner
-} from "../economy/CoinSpawner";
-
-
-// ============================================================
-// M4.9 — GARAGE / UPGRADE SYSTEM
-// ============================================================
-
-import {
-  GarageManager
-} from "../garage/GarageManager";
-
-import {
-  UpgradeSystem
-} from "../garage/UpgradeSystem";
-
-
-// ============================================================
-// M4.9 — SAVE SYSTEM
-// ============================================================
-
-import {
-  SaveSystem
-} from "../save/SaveSystem";
-
-
-// ============================================================
-// M7.1 — AUDIO SYSTEM
-// ============================================================
-
-import {
-  AudioManager
-} from "../audio/AudioManager";
-
-
-// ============================================================
-// M6.9 — PLAYER PROGRESSION / SAVE DATA
-// ============================================================
+import { SaveSystem } from "../save/SaveSystem";
+import { AudioManager } from "../audio/AudioManager";
 
 import {
   type PlayerSaveData,
@@ -150,28 +43,13 @@ import {
   isValidPlayerSaveData
 } from "../save/PlayerSaveData";
 
-
-// ============================================================
-// M6.9 — RACE DEFINITIONS
-// ============================================================
-
 import {
   RACE_DEFINITIONS
 } from "../race/RaceDefinitions";
 
-
-// ============================================================
-// M8.3 — RACE RESULT
-// ============================================================
-
 import {
   RaceResult
 } from "../race/RaceResult";
-
-
-// ============================================================
-// M6.7 — BOSS SYSTEM
-// ============================================================
 
 import {
   BossManager
@@ -187,32 +65,42 @@ import {
   type BossUnlockConfig
 } from "../bosses/BossUnlockRules";
 
-
 // ============================================================
-// RaceNovaEngine
+// RaceNova V2 — ENGINE
 // ============================================================
 
 export class RaceNovaEngine {
 
   // ==========================================================
-  // M8.3.2 — CORE ENGINE OBJECTS
+  // CORE — RENDERER
   // ==========================================================
 
   private readonly renderer:
     THREE.WebGLRenderer;
 
+  // ==========================================================
+  // CORE — SCENE
+  // ==========================================================
+
   private readonly scene:
     THREE.Scene;
+
+  // ==========================================================
+  // CORE — CAMERA
+  // ==========================================================
 
   private readonly camera:
     THREE.PerspectiveCamera;
 
+  // ==========================================================
+  // CORE — CLOCK
+  // ==========================================================
+
   private readonly clock:
     THREE.Clock;
 
-
   // ==========================================================
-  // M7.1 — AUDIO STATE
+  // AUDIO
   // ==========================================================
 
   private readonly audioManager:
@@ -233,9 +121,8 @@ export class RaceNovaEngine {
   private normalRaceCompleteSoundPlayed =
     false;
 
-
   // ==========================================================
-  // M7.1 — AUDIO UNLOCK
+  // AUDIO — UNLOCK
   // ==========================================================
 
   private handleAudioUnlock = (): void => {
@@ -244,38 +131,30 @@ export class RaceNovaEngine {
       .unlock()
       .then(() => {
 
-        this.audioManager
-          .startMusic();
+        this.audioManager.startMusic();
 
       })
       .catch(() => {
-
-        // Browser audio policy may block
-        // automatic audio playback.
-
       });
 
   };
 
-
   // ==========================================================
-  // M8.2 — WORLD
+  // WORLD
   // ==========================================================
 
   private readonly world:
     World;
 
-
   // ==========================================================
-  // M8.2 — ENVIRONMENT
+  // ENVIRONMENT
   // ==========================================================
 
   private readonly environmentManager:
     EnvironmentManager;
 
-
   // ==========================================================
-  // M7.9 — OBSTACLES
+  // OBSTACLES
   // ==========================================================
 
   private readonly obstacleManager:
@@ -284,9 +163,8 @@ export class RaceNovaEngine {
   private readonly obstacleCollisionSystem:
     ObstacleCollisionSystem;
 
-
   // ==========================================================
-  // M5 — PLAYER
+  // PLAYER
   // ==========================================================
 
   private readonly playerCar:
@@ -298,9 +176,8 @@ export class RaceNovaEngine {
   private readonly swipeController:
     SwipeController;
 
-
   // ==========================================================
-  // M5 — TRAFFIC
+  // TRAFFIC
   // ==========================================================
 
   private readonly trafficManager:
@@ -309,9 +186,8 @@ export class RaceNovaEngine {
   private readonly trafficCollisionSystem:
     TrafficCollisionSystem;
 
-
   // ==========================================================
-  // M4 — ECONOMY
+  // ECONOMY
   // ==========================================================
 
   private readonly economyManager:
@@ -320,33 +196,25 @@ export class RaceNovaEngine {
   private readonly coinSpawner:
     CoinSpawner;
 
-
   // ==========================================================
-  // M4.9 — GARAGE
+  // GARAGE
   // ==========================================================
 
   private readonly garageManager:
     GarageManager;
 
-
-  // ==========================================================
-  // M4.9 — UPGRADE SYSTEM
-  // ==========================================================
-
   private readonly upgradeSystem:
     UpgradeSystem;
 
-
   // ==========================================================
-  // M4.9 — SAVE SYSTEM
+  // SAVE SYSTEM
   // ==========================================================
 
   private readonly saveSystem:
     SaveSystem;
 
-
   // ==========================================================
-  // M6.9 — PLAYER PROGRESS
+  // PLAYER PROGRESS
   // ==========================================================
 
   private playerProgress:
@@ -355,17 +223,15 @@ export class RaceNovaEngine {
         RACE_DEFINITIONS
       );
 
-
   // ==========================================================
-  // M8.3 — RACE HUD
+  // UI — RACE HUD
   // ==========================================================
 
   private readonly raceHUD:
     RaceHUD;
 
-
   // ==========================================================
-  // M8.3 — RACE RESULT SYSTEM
+  // UI — RACE RESULT
   // ==========================================================
 
   private readonly raceResult:
@@ -374,41 +240,32 @@ export class RaceNovaEngine {
   private readonly raceResultUI:
     RaceResultUI;
 
-
   // ==========================================================
-  // M8.3 — GARAGE UI
+  // UI — GARAGE
   // ==========================================================
 
   private readonly garageUI:
     Garage;
 
-
   // ==========================================================
-  // M8.3 — UPGRADE UI
+  // UI — UPGRADE
   // ==========================================================
 
   private readonly upgradeScreen:
     UpgradeScreen;
 
-
   // ==========================================================
-  // M6.7 — BOSS MANAGER
+  // BOSS SYSTEM
   // ==========================================================
 
   private readonly bossManager:
     BossManager;
 
-
-  // ==========================================================
-  // M6.7 — BOSS RACE
-  // ==========================================================
-
   private readonly bossRace:
     BossRace;
 
-
   // ==========================================================
-  // M6.8.3 — BOSS UNLOCK CONFIG
+  // BOSS UNLOCK CONFIG
   // ==========================================================
 
   private readonly bossUnlockConfig:
@@ -428,9 +285,8 @@ export class RaceNovaEngine {
 
     };
 
-
   // ==========================================================
-  // M6.7.4 — BOSS 3D
+  // BOSS 3D MODEL
   // ==========================================================
 
   private readonly bossMesh:
@@ -439,9 +295,8 @@ export class RaceNovaEngine {
   private bossEncounterStarted:
     boolean = false;
 
-
   // ==========================================================
-  // M8.3.2 — NORMAL RACE STATE
+  // NORMAL RACE STATE
   // ==========================================================
 
   private normalRaceStarted:
@@ -459,38 +314,30 @@ export class RaceNovaEngine {
   private normalRaceTime:
     number = 0;
 
-
   // ==========================================================
   // M8.3.2 — NORMAL RACE FINISH DISTANCE
   // ==========================================================
-  //
-  // The road remains endless.
-  // The race has a virtual 1500 metre finish.
-  //
 
   private readonly normalRaceFinishDistance:
     number = 1500;
 
-
   // ==========================================================
-  // M7.9.10 — ENGINE RUNTIME STATE
+  // ENGINE RUNNING STATE
   // ==========================================================
 
   private running:
     boolean = false;
 
-
   // ==========================================================
-  // M8.3.2 — CONSTRUCTOR
+  // CONSTRUCTOR
   // ==========================================================
 
   constructor(
     container: HTMLElement
   ) {
 
-
     // ========================================================
-    // M8.3.2 — SCENE
+    // CORE — SCENE
     // ========================================================
 
     this.scene =
@@ -501,23 +348,17 @@ export class RaceNovaEngine {
         0x87ceeb
       );
 
-
     // ========================================================
-    // M8.3.2 — CAMERA
+    // CORE — CAMERA
     // ========================================================
 
     this.camera =
       new THREE.PerspectiveCamera(
-
         60,
-
         window.innerWidth /
           window.innerHeight,
-
         0.1,
-
         1000
-
       );
 
     this.camera.position.set(
@@ -532,62 +373,45 @@ export class RaceNovaEngine {
       -20
     );
 
-
     // ========================================================
-    // M8.3.2 — RENDERER
+    // CORE — RENDERER
     // ========================================================
 
     this.renderer =
       new THREE.WebGLRenderer({
-
-        antialias:
-          true,
-
+        antialias: true,
         powerPreference:
           "high-performance"
-
       });
 
     this.renderer.setPixelRatio(
-
       Math.min(
-
         window.devicePixelRatio,
-
         2
-
       )
-
     );
 
     this.renderer.setSize(
-
       window.innerWidth,
-
       window.innerHeight
-
     );
 
     this.renderer.shadowMap.enabled =
       true;
 
     container.appendChild(
-
       this.renderer.domElement
-
     );
 
-
     // ========================================================
-    // M8.3.2 — CLOCK
+    // CORE — CLOCK
     // ========================================================
 
     this.clock =
       new THREE.Clock();
 
-
     // ========================================================
-    // M7.1 — AUDIO INITIALIZATION
+    // AUDIO — INITIALIZE
     // ========================================================
 
     this.audioManager =
@@ -595,50 +419,31 @@ export class RaceNovaEngine {
 
     this.audioManager.initialize();
 
-
     // ========================================================
-    // M8.3.2 — LIGHTING
+    // CORE — LIGHTING
     // ========================================================
 
     this.setupLighting();
 
-
     // ========================================================
-    // M8.2 — WORLD INITIALIZATION
+    // WORLD — ROAD
     // ========================================================
 
     this.world =
       new World(
-
         this.scene,
-
         {
-
-          roadWidth:
-            12,
-
-          roadSegmentLength:
-            50,
-
-          roadSegmentCount:
-            24,
-
-          laneCount:
-            3,
-
-          curveStrength:
-            8,
-
-          curveFrequency:
-            0.008
-
+          roadWidth: 12,
+          roadSegmentLength: 50,
+          roadSegmentCount: 24,
+          laneCount: 3,
+          curveStrength: 8,
+          curveFrequency: 0.008
         }
-
       );
 
-
     // ========================================================
-    // M8.2 — ENVIRONMENT INITIALIZATION
+    // ENVIRONMENT MANAGER
     // ========================================================
 
     this.environmentManager =
@@ -652,7 +457,6 @@ export class RaceNovaEngine {
           ),
 
         {
-
           roadWidth:
             this.world.getRoadWidth(),
 
@@ -670,16 +474,14 @@ export class RaceNovaEngine {
 
           visibleBehind:
             100
-
         }
 
       );
 
     void this.environmentManager.load();
 
-
     // ========================================================
-    // M7.9 — OBSTACLE INITIALIZATION
+    // OBSTACLE MANAGER
     // ========================================================
 
     this.obstacleManager =
@@ -693,7 +495,6 @@ export class RaceNovaEngine {
           ),
 
         {
-
           roadWidth:
             this.world.getRoadWidth(),
 
@@ -717,16 +518,14 @@ export class RaceNovaEngine {
 
           playerCollisionDepth:
             2.4
-
         }
 
       );
 
     this.obstacleManager.initialize();
 
-
     // ========================================================
-    // M4 — ECONOMY INITIALIZATION
+    // ECONOMY MANAGER
     // ========================================================
 
     this.economyManager =
@@ -737,49 +536,37 @@ export class RaceNovaEngine {
 
       });
 
-
     // ========================================================
-    // M4.9 — GARAGE MANAGER
+    // GARAGE MANAGER
     // ========================================================
 
     this.garageManager =
       new GarageManager(
-
         this.economyManager
-
       );
 
-
     // ========================================================
-    // M4.9 — UPGRADE SYSTEM
+    // UPGRADE SYSTEM
     // ========================================================
 
     this.upgradeSystem =
       new UpgradeSystem(
-
         this.economyManager
-
       );
 
-
     // ========================================================
-    // M4.9 — SAVE SYSTEM
+    // SAVE SYSTEM
     // ========================================================
 
     this.saveSystem =
       new SaveSystem(
-
         this.economyManager,
-
         this.garageManager,
-
         this.upgradeSystem
-
       );
 
-
     // ========================================================
-    // M4.9 — RESTORE SAVED DATA
+    // LOAD SAVED PLAYER DATA
     // ========================================================
 
     if (
@@ -801,9 +588,8 @@ export class RaceNovaEngine {
 
     }
 
-
     // ========================================================
-    // M4.9 — SELECTED CAR
+    // SELECTED CAR
     // ========================================================
 
     const selectedCar =
@@ -815,25 +601,20 @@ export class RaceNovaEngine {
         selectedCar.id
       );
 
-
     // ========================================================
-    // M5 — PLAYER CAR
+    // PLAYER CAR
     // ========================================================
 
     this.playerCar =
       new PlayerCar({
 
-        x:
-          0,
+        x: 0,
 
-        y:
-          0,
+        y: 0,
 
-        z:
-          0,
+        z: 0,
 
-        scale:
-          1,
+        scale: 1,
 
         maxSpeed:
           selectedCarStats.maxSpeed,
@@ -846,27 +627,18 @@ export class RaceNovaEngine {
 
         hardSpeedCap:
           Math.max(
-
             180,
-
             selectedCarStats.maxSpeed
-
           ),
 
         nitroSpeed:
           Math.min(
-
-            selectedCarStats.maxSpeed +
-              37,
+            selectedCarStats.maxSpeed + 37,
 
             Math.max(
-
               180,
-
               selectedCarStats.maxSpeed
-
             )
-
           ),
 
         nitroDuration:
@@ -878,9 +650,8 @@ export class RaceNovaEngine {
       this.scene
     );
 
-
     // ========================================================
-    // M7.9.6 — OBSTACLE COLLISION
+    // M7.9 — OBSTACLE COLLISION SYSTEM
     // ========================================================
 
     this.obstacleCollisionSystem =
@@ -891,17 +662,14 @@ export class RaceNovaEngine {
         this.obstacleManager,
 
         {
-
           impactStunDuration:
             0.75
-
         }
 
       );
 
-
     // ========================================================
-    // M4 — COIN SPAWNER
+    // M4.9 — COIN SPAWNER
     // ========================================================
 
     this.coinSpawner =
@@ -957,9 +725,8 @@ export class RaceNovaEngine {
 
       );
 
-
     // ========================================================
-    // M8.3 — RACE HUD
+    // RACE HUD
     // ========================================================
 
     this.raceHUD =
@@ -1012,12 +779,16 @@ export class RaceNovaEngine {
 
       );
 
+    // ========================================================
+    // RACE RESULT DATA
+    // ========================================================
+
+    this.raceResult =
+      new RaceResult();
 
     // ========================================================
-    // M8.3 — RACE RESULT
+    // RACE RESULT UI
     // ========================================================
-  this.raceResult =
-      new RaceResult();
 
     this.raceResultUI =
       new RaceResultUI(
@@ -1039,9 +810,7 @@ export class RaceNovaEngine {
               window.dispatchEvent(
 
                 new CustomEvent(
-
                   "racenova:race-result-menu"
-
                 )
 
               );
@@ -1054,9 +823,8 @@ export class RaceNovaEngine {
 
     this.raceResultUI.hide();
 
-
     // ========================================================
-    // M8.3 — GARAGE UI
+    // GARAGE UI
     // ========================================================
 
     this.garageUI =
@@ -1077,9 +845,7 @@ export class RaceNovaEngine {
 
               const upgradedStats =
                 this.upgradeSystem.getStats(
-
                   selectedCarId
-
                 );
 
               this.playerCar.applyCarStats(
@@ -1103,15 +869,13 @@ export class RaceNovaEngine {
 
           onUpgrade:
             (
-              carId
+              carId: string
             ) => {
 
               if (
-
                 this.garageManager
                   .getSelectedCarId() !==
                 carId
-
               ) {
 
                 return;
@@ -1135,9 +899,8 @@ export class RaceNovaEngine {
 
     this.garageUI.hide();
 
-
     // ========================================================
-    // M8.3 — UPGRADE SCREEN
+    // UPGRADE SCREEN
     // ========================================================
 
     this.upgradeScreen =
@@ -1168,9 +931,7 @@ export class RaceNovaEngine {
 
               const stats =
                 this.upgradeSystem.getStats(
-
                   selectedCar.id
-
                 );
 
               this.playerCar.applyCarStats(
@@ -1181,7 +942,7 @@ export class RaceNovaEngine {
 
                 stats.handling
 
-              );
+                );
 
               this.savePlayerData();
 
@@ -1202,8 +963,8 @@ export class RaceNovaEngine {
 
     this.upgradeScreen.hide();
 
-  // ========================================================
-    // M5 — CAR CONTROLLER
+    // ========================================================
+    // CAR CONTROLLER
     // ========================================================
 
     this.carController =
@@ -1227,18 +988,15 @@ export class RaceNovaEngine {
               worldZ: number
             ) =>
               this.world.getRoadCenterX(
-
                 worldZ
-
               )
 
         }
 
       );
 
-
     // ========================================================
-    // M5 — SWIPE CONTROLLER
+    // SWIPE CONTROLLER
     // ========================================================
 
     this.swipeController =
@@ -1258,9 +1016,8 @@ export class RaceNovaEngine {
 
       );
 
-
     // ========================================================
-    // M5 — TRAFFIC MANAGER
+    // TRAFFIC MANAGER
     // ========================================================
 
     this.trafficManager =
@@ -1296,18 +1053,15 @@ export class RaceNovaEngine {
               worldZ: number
             ) =>
               this.world.getRoadCenterX(
-
                 worldZ
-
               )
 
         }
 
       );
 
-
     // ========================================================
-    // M5 — TRAFFIC COLLISION
+    // TRAFFIC COLLISION
     // ========================================================
 
     this.trafficCollisionSystem =
@@ -1327,9 +1081,8 @@ export class RaceNovaEngine {
 
       );
 
-
     // ========================================================
-    // M6.7 — BOSS MANAGER
+    // BOSS MANAGER
     // ========================================================
 
     this.bossManager =
@@ -1371,9 +1124,8 @@ export class RaceNovaEngine {
 
       });
 
-
     // ========================================================
-    // M6.7 — BOSS RACE
+    // BOSS RACE
     // ========================================================
 
     this.bossRace =
@@ -1396,9 +1148,8 @@ export class RaceNovaEngine {
 
       );
 
-
     // ========================================================
-    // M6.7.4 — BOSS 3D MESH
+    // BOSS 3D MESH
     // ========================================================
 
     this.bossMesh =
@@ -1411,16 +1162,14 @@ export class RaceNovaEngine {
       this.bossMesh
     );
 
-
     // ========================================================
-    // M6.7.4 — LOAD BOSS MODEL
+    // BOSS GLB LOAD
     // ========================================================
 
     void this.loadBossModel();
 
-
     // ========================================================
-    // M7.1 — AUDIO UNLOCK EVENT
+    // AUDIO UNLOCK EVENT
     // ========================================================
 
     window.addEventListener(
@@ -1430,15 +1179,13 @@ export class RaceNovaEngine {
       this.handleAudioUnlock,
 
       {
-        once:
-          true
+        once: true
       }
 
     );
 
-
     // ========================================================
-    // M7.1 — NITRO KEY EVENT
+    // NITRO KEY EVENT
     // ========================================================
 
     window.addEventListener(
@@ -1449,8 +1196,8 @@ export class RaceNovaEngine {
 
     );
 
-          // ========================================================
-    // M8.3.2 — RESIZE EVENT
+    // ========================================================
+    // RESIZE EVENT
     // ========================================================
 
     window.addEventListener(
@@ -1461,25 +1208,22 @@ export class RaceNovaEngine {
 
     );
 
-
     // ========================================================
-    // M8.3 — INITIAL HUD UPDATE
+    // INITIAL HUD
     // ========================================================
 
     this.raceHUD.update();
 
   }
 
-   // ============================================================
-// RaceNova V2
-// RaceNovaEngine.ts
-// M8.3.2 — PART 2/4
-// BOSS + NITRO + START + UPDATE
+  // ============================================================
+// RaceNovaEngine.ts — PART 2/4
+// M8.3.2 — BOSS + NITRO + GAME LOOP
 // ============================================================
 
 
 // ============================================================
-// M8.1 — BOSS 3D MODEL CREATION
+// M8.1 — BOSS 3D MESH CREATION
 // ============================================================
 
 private createBossMesh(): THREE.Group {
@@ -1487,348 +1231,12 @@ private createBossMesh(): THREE.Group {
   const group =
     new THREE.Group();
 
-
-  // ==========================================================
-  // M8.1 — BOSS BODY
-  // ==========================================================
-
-  const bodyGeometry =
-    new THREE.BoxGeometry(
-
-      2.2,
-      0.8,
-      4.4
-
-    );
-
-  const bodyMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:
-        0x8b0000,
-
-      roughness:
-        0.55,
-
-      metalness:
-        0.25
-
-    });
-
-  const body =
-    new THREE.Mesh(
-
-      bodyGeometry,
-
-      bodyMaterial
-
-    );
-
-  body.position.y =
-    0.65;
-
-  body.castShadow =
-    true;
-
-  body.receiveShadow =
-    true;
-
-  group.add(
-    body
-  );
-
-
-  // ==========================================================
-  // M8.1 — BOSS CABIN
-  // ==========================================================
-
-  const cabinGeometry =
-    new THREE.BoxGeometry(
-
-      1.65,
-      0.65,
-      1.8
-
-    );
-
-  const cabinMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:
-        0x202020,
-
-      roughness:
-        0.35,
-
-      metalness:
-        0.15
-
-    });
-
-  const cabin =
-    new THREE.Mesh(
-
-      cabinGeometry,
-
-      cabinMaterial
-
-    );
-
-  cabin.position.set(
-
-    0,
-    1.2,
-    -0.15
-
-  );
-
-  cabin.castShadow =
-    true;
-
-  group.add(
-    cabin
-  );
-
-
-  // ==========================================================
-  // M8.1 — BOSS FRONT LIGHTS
-  // ==========================================================
-
-  const lightGeometry =
-    new THREE.BoxGeometry(
-
-      0.42,
-      0.18,
-      0.12
-
-    );
-
-  const lightMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:
-        0xffffff,
-
-      emissive:
-        0xffffff,
-
-      emissiveIntensity:
-        1.5
-
-    });
-
-
-  const leftLight =
-    new THREE.Mesh(
-
-      lightGeometry,
-
-      lightMaterial
-
-    );
-
-  leftLight.position.set(
-
-    -0.7,
-    0.75,
-    -2.15
-
-  );
-
-  group.add(
-    leftLight
-  );
-
-
-  const rightLight =
-    new THREE.Mesh(
-
-      lightGeometry,
-
-      lightMaterial
-
-    );
-
-  rightLight.position.set(
-
-    0.7,
-    0.75,
-    -2.15
-
-  );
-
-  group.add(
-    rightLight
-  );
-
-
-  // ==========================================================
-  // M8.1 — BOSS REAR LIGHTS
-  // ==========================================================
-
-  const rearLightMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:
-        0xff0000,
-
-      emissive:
-        0xff0000,
-
-      emissiveIntensity:
-        1.2
-
-    });
-
-
-  const rearLightGeometry =
-    new THREE.BoxGeometry(
-
-      0.4,
-      0.18,
-      0.12
-
-    );
-
-
-  const rearLeft =
-    new THREE.Mesh(
-
-      rearLightGeometry,
-
-      rearLightMaterial
-
-    );
-
-  rearLeft.position.set(
-
-    -0.7,
-    0.75,
-    2.15
-
-  );
-
-  group.add(
-    rearLeft
-  );
-
-
-  const rearRight =
-    new THREE.Mesh(
-
-      rearLightGeometry,
-
-      rearLightMaterial
-
-    );
-
-  rearRight.position.set(
-
-    0.7,
-    0.75,
-    2.15
-
-  );
-
-  group.add(
-    rearRight
-  );
-
-
-  // ==========================================================
-  // M8.1 — BOSS WHEELS
-  // ==========================================================
-
-  const wheelGeometry =
-    new THREE.CylinderGeometry(
-
-      0.42,
-      0.42,
-      0.3,
-      20
-
-    );
-
-  const wheelMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:
-        0x111111,
-
-      roughness:
-        0.8
-
-    });
-
-
-  const wheelPositions: Array<
-    [number, number, number]
-  > = [
-
-    [-1.15, 0.42, -1.35],
-    [ 1.15, 0.42, -1.35],
-    [-1.15, 0.42,  1.35],
-    [ 1.15, 0.42,  1.35]
-
-  ];
-
-
-  for (
-    const position of wheelPositions
-  ) {
-
-    const wheel =
-      new THREE.Mesh(
-
-        wheelGeometry,
-
-        wheelMaterial
-
-      );
-
-    wheel.rotation.z =
-      Math.PI / 2;
-
-    wheel.position.set(
-
-      position[0],
-      position[1],
-      position[2]
-
-    );
-
-    wheel.castShadow =
-      true;
-
-    group.add(
-      wheel
-    );
-
-  }
-
-
-  // ==========================================================
-  // M8.1 — BOSS INITIAL TRANSFORM
-  // ==========================================================
-
-  group.position.set(
-
-    0,
-    0,
-    -80
-
-  );
-
-  group.rotation.y =
-    Math.PI;
-
-
   return group;
 }
 
 
 // ============================================================
-// M8.1 — LOAD BOSS MODEL
+// M8.1 — BOSS MODEL LOADER
 // ============================================================
 
 private async loadBossModel(): Promise<void> {
@@ -1836,99 +1244,140 @@ private async loadBossModel(): Promise<void> {
   const loader =
     new GLTFLoader();
 
+  const modelUrl =
+    "/RaceNova-V2/assets/cars/bosscar.glb";
 
   try {
 
     const gltf =
-      await loader.loadAsync(
+      await loader.loadAsync(modelUrl);
 
-        "/assets/models/boss.glb"
-
-      );
-
-
-    if (
-      !gltf.scene
-    ) {
-
-      return;
-
-    }
-
-
-    // ========================================================
-    // M8.1 — REPLACE PLACEHOLDER BOSS
-    // ========================================================
-
-    const loadedBoss =
+    const model =
       gltf.scene;
 
-
-    loadedBoss.traverse(
-
-      (
-        object
-      ) => {
+    model.traverse(
+      (object) => {
 
         if (
           object instanceof THREE.Mesh
         ) {
 
-          object.castShadow =
-            true;
+          object.castShadow = true;
+          object.receiveShadow = true;
 
-          object.receiveShadow =
-            true;
+          if (
+            object.material
+          ) {
+
+            if (
+              Array.isArray(
+                object.material
+              )
+            ) {
+
+              object.material.forEach(
+                (material) => {
+
+                  material.needsUpdate =
+                    true;
+
+                }
+              );
+
+            } else {
+
+              object.material.needsUpdate =
+                true;
+
+            }
+
+          }
 
         }
 
       }
-
-    );
-
-
-    loadedBoss.scale.set(
-
-      1,
-      1,
-      1
-
     );
 
 
     // ========================================================
-    // M8.1 — SAFE BOSS MODEL REPLACEMENT
+    // M8.1 — BOSS MODEL SCALE
     // ========================================================
 
-    this.bossMesh.clear();
+    const box =
+      new THREE.Box3()
+        .setFromObject(model);
+
+    const size =
+      new THREE.Vector3();
+
+    box.getSize(size);
+
+    const currentLength =
+      Math.max(
+        size.x,
+        size.z,
+        0.001
+      );
+
+    const targetLength =
+      5.2;
+
+    const scale =
+      targetLength /
+      currentLength;
+
+    model.scale.setScalar(
+      scale
+    );
+
+
+    // ========================================================
+    // M8.1 — BOSS MODEL CENTERING
+    // ========================================================
+
+    const scaledBox =
+      new THREE.Box3()
+        .setFromObject(model);
+
+    const center =
+      new THREE.Vector3();
+
+    scaledBox.getCenter(center);
+
+    model.position.x -=
+      center.x;
+
+    model.position.z -=
+      center.z;
+
+
+    // ========================================================
+    // M8.1 — BOSS MODEL FLOOR ALIGNMENT
+    // ========================================================
+
+    const finalBox =
+      new THREE.Box3()
+        .setFromObject(model);
+
+    model.position.y -=
+      finalBox.min.y;
+
 
     this.bossMesh.add(
-      loadedBoss
+      model
     );
-
-    this.bossMesh.position.set(
-
-      0,
-      0,
-      -80
-
-    );
-
-    this.bossMesh.rotation.y =
-      Math.PI;
 
     this.bossMesh.visible =
-      false;
+      this.bossManager.isActive();
 
-  } catch {
+  } catch (
+    error
+  ) {
 
-    // ========================================================
-    // M8.1 — PLACEHOLDER FALLBACK
-    // ========================================================
-    //
-    // If boss.glb is not available,
-    // the procedural Boss mesh remains active.
-    //
+    console.error(
+      "RaceNovaEngine: Boss model load failed",
+      error
+    );
 
   }
 
@@ -1936,13 +1385,13 @@ private async loadBossModel(): Promise<void> {
 
 
 // ============================================================
-// M8.1 — UPDATE BOSS 3D
+// M8.1 — UPDATE BOSS 3D POSITION
 // ============================================================
 
 private updateBoss3D(): void {
 
   if (
-    !this.bossEncounterStarted
+    !this.bossManager.isActive()
   ) {
 
     this.bossMesh.visible =
@@ -1952,13 +1401,11 @@ private updateBoss3D(): void {
 
   }
 
-
-  const bossState =
-    this.bossRace.getState();
-
+  const bossPosition =
+    this.bossManager.getPosition();
 
   if (
-    !bossState.active
+    !bossPosition
   ) {
 
     this.bossMesh.visible =
@@ -1967,37 +1414,28 @@ private updateBoss3D(): void {
     return;
 
   }
+
+
+  // ==========================================================
+  // M8.1 — ROAD CENTER ALIGNMENT
+  // ==========================================================
+
+  const roadCenterX =
+    this.world.getRoadCenterX(
+      bossPosition.z
+    );
+
+
+  this.bossMesh.position.set(
+    roadCenterX +
+      bossPosition.x,
+    0,
+    bossPosition.z
+  );
 
 
   this.bossMesh.visible =
     true;
-
-
-  // ==========================================================
-  // M8.1 — BOSS POSITION
-  // ==========================================================
-
-  const bossZ =
-    bossState.bossDistance -
-    this.normalRaceDistance;
-
-
-  this.bossMesh.position.x =
-    bossState.bossLane *
-      4;
-
-
-  this.bossMesh.position.y =
-    0;
-
-
-  this.bossMesh.position.z =
-    -bossZ;
-
-
-  // ==========================================================
-  // M8.1 — BOSS ROTATION
-  // ==========================================================
 
   this.bossMesh.rotation.y =
     Math.PI;
@@ -2011,10 +1449,15 @@ private updateBoss3D(): void {
 
 private isBossUnlocked(): boolean {
 
-  const progress:
+  const progression =
+    this.playerProgress
+      .raceProgression;
+
+
+  const unlockProgress:
     BossUnlockProgress = {
 
-      level:
+      unlockedLevel:
         this.playerProgress
           .unlockedLevel,
 
@@ -2028,39 +1471,51 @@ private isBossUnlocked(): boolean {
 
       bossesDefeated:
         this.playerProgress
-          .bossesDefeated
+          .bossesDefeated,
+
+      races:
+        progression.races
 
     };
 
 
   return BossUnlockRules.isUnlocked(
-
-    progress,
-
+    unlockProgress,
     this.bossUnlockConfig
-
   );
 
 }
 
 
 // ============================================================
-// M8.1 — BOSS ENCOUNTER
-// ============================================================
-//
-// IMPORTANT:
-// Boss encounter is allowed ONLY when the selected campaign
-// race is a Boss race.
-//
-// This prevents Boss from appearing during normal races.
+// M8.1 — BOSS ENCOUNTER RESTRICTION
+// Boss can start ONLY on a Boss campaign race.
 // ============================================================
 
 private startBossEncounter(
   playerZ: number
 ): void {
 
+  if (
+    this.bossEncounterStarted
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    !Number.isFinite(playerZ)
+  ) {
+
+    return;
+
+  }
+
+
   // ==========================================================
-  // M8.1 — SELECTED RACE
+  // M8.1 — GET SELECTED RACE
   // ==========================================================
 
   const progression =
@@ -2070,11 +1525,9 @@ private startBossEncounter(
 
   const selectedRace =
     progression.races.find(
-
       (race) =>
         race.raceId ===
         progression.selectedRaceId
-
     );
 
 
@@ -2088,16 +1541,14 @@ private startBossEncounter(
 
 
   // ==========================================================
-  // M8.1 — FIND RACE DEFINITION
+  // M8.1 — GET RACE DEFINITION
   // ==========================================================
 
   const selectedRaceDefinition =
     RACE_DEFINITIONS.find(
-
       (race) =>
         race.id ===
         selectedRace.raceId
-
     );
 
 
@@ -2111,7 +1562,9 @@ private startBossEncounter(
 
 
   // ==========================================================
-  // M8.1 — BOSS RACE ONLY
+  // M8.1 — IMPORTANT
+  // RaceProgress DOES NOT contain isBoss.
+  // isBoss comes from RaceDefinition.
   // ==========================================================
 
   if (
@@ -2124,7 +1577,7 @@ private startBossEncounter(
 
 
   // ==========================================================
-  // M8.1 — UNLOCK CHECK
+  // M8.1 — BOSS UNLOCK REQUIREMENT
   // ==========================================================
 
   if (
@@ -2142,11 +1595,8 @@ private startBossEncounter(
 
   const result =
     this.bossRace.start(
-
       this.bossUnlockConfig.bossId,
-
       playerZ
-
     );
 
 
@@ -2171,7 +1621,8 @@ private startBossEncounter(
 private activateNitro(): void {
 
   if (
-    !this.running
+    this.trafficCollisionSystem
+      .hasCrashed()
   ) {
 
     return;
@@ -2179,45 +1630,55 @@ private activateNitro(): void {
   }
 
 
-  // ==========================================================
-  // M7.1 — NITRO
-  // ==========================================================
+  if (
+    this.playerCar.isNitroActive()
+  ) {
+
+    return;
+
+  }
+
 
   this.playerCar.activateNitro();
 
-
-  // ==========================================================
-  // M7.1 — NITRO SFX ONLY
-  // ==========================================================
-  //
-  // IMPORTANT:
-  // Nitro must NOT restart music.
-  //
 
   this.audioManager.playSFX(
     "nitro"
   );
 
+
+  this.raceHUD.update();
+
 }
 
 
 // ============================================================
-// M7.1 — NITRO KEYBOARD INPUT
+// M7.1 — NITRO KEY HANDLER
 // ============================================================
 
 private handleNitroKeyDown =
   (event: KeyboardEvent): void => {
 
     if (
-      event.code ===
-      "Space"
+      event.key.toLowerCase() !==
+      "n"
     ) {
 
-      event.preventDefault();
-
-      this.activateNitro();
+      return;
 
     }
+
+
+    if (
+      event.repeat
+    ) {
+
+      return;
+
+    }
+
+
+    this.activateNitro();
 
   };
 
@@ -2228,70 +1689,43 @@ private handleNitroKeyDown =
 
 private setupLighting(): void {
 
-  // ==========================================================
-  // CORE — AMBIENT LIGHT
-  // ==========================================================
-
-  const ambient =
+  const ambientLight =
     new THREE.AmbientLight(
-
       0xffffff,
-
-      1.2
-
+      1.5
     );
 
   this.scene.add(
-    ambient
+    ambientLight
   );
 
 
-  // ==========================================================
-  // CORE — SUN LIGHT
-  // ==========================================================
-
-  const sun =
+  const directionalLight =
     new THREE.DirectionalLight(
-
       0xffffff,
-
-      2.0
-
+      2
     );
 
-  sun.position.set(
-
+  directionalLight.position.set(
+    10,
     20,
-    40,
-    20
-
+    10
   );
 
-  sun.castShadow =
+
+  directionalLight.castShadow =
     true;
 
 
-  sun.shadow.mapSize.width =
-    2048;
-
-  sun.shadow.mapSize.height =
-    2048;
-
-
   this.scene.add(
-    sun
+    directionalLight
   );
 
 }
 
 
 // ============================================================
-// M8.3.2 — START ENGINE
-// ============================================================
-//
-// IMPORTANT:
-// start() resets the previous race and explicitly starts
-// the selected NORMAL campaign race before the render loop.
+// CORE — START GAME
 // ============================================================
 
 public start(): void {
@@ -2306,7 +1740,7 @@ public start(): void {
 
 
   // ==========================================================
-  // M8.2 — RESET RACE STATE
+  // M8.2 — RESET ALL RACE STATE
   // ==========================================================
 
   this.resetRaceState();
@@ -2314,275 +1748,20 @@ public start(): void {
 
   // ==========================================================
   // M8.3.2 — START NORMAL RACE
+  // This initializes the 1500m race distance.
   // ==========================================================
 
   this.startNormalRace();
 
 
-  // ==========================================================
-  // CORE — ENGINE RUNNING
-  // ==========================================================
-
   this.running =
     true;
 
 
-  // ==========================================================
-  // CORE — CLOCK
-  // ==========================================================
-
   this.clock.start();
 
 
-  // ==========================================================
-  // M7.1 — START MUSIC
-  // ==========================================================
-
-  this.audioManager.startMusic();
-
-
-  // ==========================================================
-  // CORE — ANIMATION LOOP
-  // ==========================================================
-
   this.animate();
-
-}
-
-
-// ============================================================
-// M8.3.2 — START NORMAL RACE
-// ============================================================
-//
-// The race distance is virtual gameplay distance.
-// It is NOT based on endless road segment count.
-//
-// Finish distance:
-// 1500 metres
-// ============================================================
-
-private startNormalRace(): void {
-
-  // ==========================================================
-  // M8.3.2 — FIND SELECTED RACE
-  // ==========================================================
-
-  const progression =
-    this.playerProgress
-      .raceProgression;
-
-
-  let selectedRace =
-    progression.races.find(
-
-      (race) =>
-        race.raceId ===
-        progression.selectedRaceId
-
-    );
-
-
-  // ==========================================================
-  // M8.3.2 — FIND DEFINITION
-  // ==========================================================
-
-  let selectedDefinition =
-    selectedRace
-      ? RACE_DEFINITIONS.find(
-
-          (race) =>
-            race.id ===
-            selectedRace!.raceId
-
-        )
-      : undefined;
-
-
-  // ==========================================================
-  // M8.3.2 — BOSS RACE CANNOT USE NORMAL FLOW
-  // ==========================================================
-
-  if (
-    selectedDefinition?.isBoss
-  ) {
-
-    selectedRace =
-      progression.races.find(
-
-        (race) => {
-
-          const definition =
-            RACE_DEFINITIONS.find(
-
-              (item) =>
-                item.id ===
-                race.raceId
-
-            );
-
-          return (
-            !definition?.isBoss &&
-            race.status !==
-              "locked"
-          );
-
-        }
-
-      );
-
-
-    selectedDefinition =
-      selectedRace
-        ? RACE_DEFINITIONS.find(
-
-            (race) =>
-              race.id ===
-              selectedRace!.raceId
-
-          )
-        : undefined;
-
-  }
-
-
-  // ==========================================================
-  // M8.3.2 — FALLBACK RACE
-  // ==========================================================
-
-  if (
-    !selectedRace ||
-    !selectedDefinition
-  ) {
-
-    const fallback =
-      progression.races.find(
-
-        (race) => {
-
-          const definition =
-            RACE_DEFINITIONS.find(
-
-              (item) =>
-                item.id ===
-                race.raceId
-
-            );
-
-          return (
-            Boolean(definition) &&
-            !definition!.isBoss &&
-            race.status !==
-              "locked"
-          );
-
-        }
-
-      );
-
-
-    if (
-      !fallback
-    ) {
-
-      this.normalRaceStarted =
-        false;
-
-      return;
-
-    }
-
-
-    selectedRace =
-      fallback;
-
-
-    selectedDefinition =
-      RACE_DEFINITIONS.find(
-
-        (race) =>
-          race.id ===
-          selectedRace!.raceId
-
-      );
-
-  }
-
-
-  // ==========================================================
-  // M8.3.2 — FINAL SAFETY CHECK
-  // ==========================================================
-
-  if (
-    !selectedRace ||
-    !selectedDefinition ||
-    selectedDefinition.isBoss
-  ) {
-
-    this.normalRaceStarted =
-      false;
-
-    return;
-
-  }
-
-
-  // ==========================================================
-  // M8.3.2 — INITIALIZE RACE STATE
-  // ==========================================================
-
-  this.normalRaceId =
-    selectedRace.raceId;
-
-  this.normalRaceDistance =
-    0;
-
-  this.normalRaceTime =
-    0;
-
-  this.normalRaceStarted =
-    true;
-
-  this.normalRaceCompleted =
-    false;
-
-
-  // ==========================================================
-  // M8.3.2 — RESET PLAYER POSITION
-  // ==========================================================
-
-  this.playerCar.setX(
-    0
-  );
-
-  this.playerCar.setZ(
-    0
-  );
-
-
-  // ==========================================================
-  // M8.3.2 — RESET RACE AUDIO FLAGS
-  // ==========================================================
-
-  this.crashSoundPlayed =
-    false;
-
-  this.normalRaceCompleteSoundPlayed =
-    false;
-
-
-  // ==========================================================
-  // M8.3.2 — HUD DISTANCE
-  // ==========================================================
-
-  this.raceHUD.setRaceDistance(
-
-    0,
-
-    this.normalRaceFinishDistance,
-
-    true
-
-  );
 
 }
 
@@ -2608,13 +1787,7 @@ private animate = (): void => {
 
 
   const deltaTime =
-    Math.min(
-
-      this.clock.getDelta(),
-
-      0.05
-
-    );
+    this.clock.getDelta();
 
 
   this.update(
@@ -2623,55 +1796,61 @@ private animate = (): void => {
 
 
   this.renderer.render(
-
     this.scene,
-
     this.camera
-
   );
 
 };
 
 
 // ============================================================
-// M8.3.2 — MAIN UPDATE LOOP
+// CORE — MAIN UPDATE LOOP
 // ============================================================
 
 private update(
   deltaTime: number
 ): void {
 
-  // ==========================================================
-  // CORE — WORLD UPDATE
-  // ==========================================================
+  if (
+    !Number.isFinite(
+      deltaTime
+    ) ||
+    deltaTime <= 0
+  ) {
 
-  this.world.update(
-    this.playerCar.getPosition().z
-  );
+    return;
 
-
-  // ==========================================================
-  // M8.2 — ENVIRONMENT UPDATE
-  // ==========================================================
-
-  this.environmentManager.update(
-
-    this.playerCar.getPosition().z
-
-  );
+  }
 
 
   // ==========================================================
-  // M5 — PLAYER UPDATE
+  // TRAFFIC CRASH STATE
   // ==========================================================
 
-  this.playerCar.update(
-    deltaTime
-  );
+  const trafficCrashed =
+    this.trafficCollisionSystem
+      .hasCrashed();
 
 
   // ==========================================================
-  // M5 — CAR CONTROLLER UPDATE
+  // PLAYER MOVEMENT
+  // ==========================================================
+
+  if (
+    !trafficCrashed &&
+    !this.obstacleCollisionSystem
+      .isFrozen()
+  ) {
+
+    this.playerCar.update(
+      deltaTime
+    );
+
+  }
+
+
+  // ==========================================================
+  // PLAYER LANE CONTROL
   // ==========================================================
 
   this.carController.update(
@@ -2680,27 +1859,45 @@ private update(
 
 
   // ==========================================================
-  // M5 — SWIPE CONTROLLER UPDATE
+  // PLAYER POSITION
   // ==========================================================
 
-  this.swipeController.update();
+  const playerPosition =
+    this.playerCar.getPosition();
+
+  const playerZ =
+    playerPosition.z;
 
 
   // ==========================================================
-  // M7.9 — OBSTACLE UPDATE
+  // WORLD UPDATE
   // ==========================================================
 
-  this.obstacleManager.update(
-
-    this.playerCar.getPosition().z,
-
-    deltaTime
-
+  this.world.update(
+    playerZ
   );
 
 
   // ==========================================================
-  // M7.9 — OBSTACLE COLLISION
+  // ENVIRONMENT UPDATE
+  // ==========================================================
+
+  this.environmentManager.update(
+    playerZ
+  );
+
+
+  // ==========================================================
+  // OBSTACLE UPDATE
+  // ==========================================================
+
+  this.obstacleManager.update(
+    playerZ
+  );
+
+
+  // ==========================================================
+  // OBSTACLE COLLISION
   // ==========================================================
 
   this.obstacleCollisionSystem.update(
@@ -2709,157 +1906,496 @@ private update(
 
 
   // ==========================================================
-  // M5 — TRAFFIC UPDATE
+  // TRAFFIC UPDATE
   // ==========================================================
 
   this.trafficManager.update(
-
-    this.playerCar.getPosition().z,
-
-    deltaTime
-
+    deltaTime,
+    playerZ
   );
 
 
   // ==========================================================
-  // M5 — TRAFFIC COLLISION
+  // TRAFFIC COLLISION
+  // IMPORTANT:
+  // TrafficCollisionSystem.update() takes ONE argument.
   // ==========================================================
 
   this.trafficCollisionSystem.update(
-    deltaTime
+    this.trafficManager.getTrafficCars()
   );
 
 
   // ==========================================================
-  // M4 — COIN UPDATE
+  // TRAFFIC CRASH DETECTION
   // ==========================================================
 
-  this.coinSpawner.update(
+  const nowTrafficCrashed =
+    this.trafficCollisionSystem
+      .hasCrashed();
 
-    this.playerCar.getPosition().z,
 
-    deltaTime
+  if (
+    nowTrafficCrashed &&
+    !this.crashSoundPlayed
+  ) {
 
-  );
+    this.crashSoundPlayed =
+      true;
+
+
+    this.audioManager.playSFX(
+      "crash"
+    );
+
+  }
+
+
+  // ==========================================================
+  // TRAFFIC CRASH → STOP GAME
+  // ==========================================================
+
+  if (
+    nowTrafficCrashed &&
+    !trafficCrashed
+  ) {
+
+    this.running =
+      false;
+
+    this.clock.stop();
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "racenova:traffic-crash"
+      )
+    );
+
+
+    return;
+
+  }
+
+
+  // ==========================================================
+  // COIN UPDATE
+  // ==========================================================
+
+  if (
+    !nowTrafficCrashed
+  ) {
+
+    this.coinSpawner.update(
+      deltaTime,
+      playerPosition
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — START BOSS ENCOUNTER
+  // ==========================================================
+
+  if (
+    !this.bossEncounterStarted
+  ) {
+
+    this.startBossEncounter(
+      playerZ
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — BOSS RACE UPDATE
+  // ==========================================================
+
+  if (
+    this.bossRace.isActive() &&
+    !nowTrafficCrashed
+  ) {
+
+    this.bossRace.update(
+      deltaTime,
+      playerPosition.x,
+      playerZ,
+      this.playerCar.getSpeed()
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — BOSS DEFEAT SOUND
+  // ==========================================================
+
+  if (
+    this.bossRace.isBossDefeated() &&
+    !this.bossDefeatSoundPlayed
+  ) {
+
+    this.bossDefeatSoundPlayed =
+      true;
+
+
+    this.audioManager.playSFX(
+      "bossDefeat"
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — BOSS COMPLETE SOUND
+  // ==========================================================
+
+  if (
+    this.bossRace.isCompleted() &&
+    !this.bossCompleteSoundPlayed
+  ) {
+
+    this.bossCompleteSoundPlayed =
+      true;
+
+
+    this.audioManager.playSFX(
+      "bossComplete"
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — BOSS FAIL SOUND
+  // ==========================================================
+
+  if (
+    this.bossRace.isFailed() &&
+    !this.bossFailSoundPlayed
+  ) {
+
+    this.bossFailSoundPlayed =
+      true;
+
+
+    this.audioManager.playSFX(
+      "bossFail"
+    );
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — RECORD BOSS DEFEAT
+  // ==========================================================
+
+  if (
+    this.bossRace.isBossDefeated()
+  ) {
+
+    this.recordBossDefeat();
+
+  }
+
+
+  // ==========================================================
+  // M8.1 — UPDATE BOSS 3D
+  // ==========================================================
+
+  this.updateBoss3D();
+
+
+  // ==========================================================
+  // CORE — TOTAL DISTANCE
+  // ==========================================================
+
+  const currentSpeed =
+    this.playerCar.getSpeed();
+
+
+  if (
+    Number.isFinite(
+      currentSpeed
+    ) &&
+    currentSpeed > 0
+  ) {
+
+    this.playerProgress
+      .totalDistance +=
+        (currentSpeed / 3.6) *
+        deltaTime;
+
+  }
 
 
   // ==========================================================
   // M8.3.2 — NORMAL RACE DISTANCE
   // ==========================================================
-  //
-  // Distance is calculated from actual gameplay speed.
-  //
-  // speed is km/h.
-  //
-  // metres per second =
-  // km/h ÷ 3.6
-  //
-  // distance += metresPerSecond × deltaTime
-  //
-  // ==========================================================
 
   if (
     this.normalRaceStarted &&
-    !this.normalRaceCompleted
+    !this.normalRaceCompleted &&
+    !nowTrafficCrashed
   ) {
 
-    const speed =
-      Math.max(
+    this.updateNormalRace(
+      deltaTime
+    );
 
-        0,
-
-        this.playerCar
-          .getSpeed()
-
-      );
+  }
 
 
-    const metresPerSecond =
-      speed / 3.6;
+  // ==========================================================
+  // HUD — DISTANCE
+  // ==========================================================
+
+  this.raceHUD.setRaceDistance(
+    this.normalRaceDistance,
+    this.normalRaceFinishDistance,
+    this.normalRaceStarted &&
+      !this.normalRaceCompleted
+  );
 
 
-    this.normalRaceDistance +=
+  // ==========================================================
+  // HUD — UPDATE
+  // ==========================================================
 
-      metresPerSecond *
-      deltaTime;
-
-
-    this.normalRaceTime +=
-      deltaTime;
+  this.raceHUD.update();
 
 
-    // ========================================================
-    // M8.3.2 — CLAMP DISTANCE
-    // ========================================================
+  // ==========================================================
+  // CAMERA FOLLOW
+  // ==========================================================
 
-    this.normalRaceDistance =
-      Math.min(
-
-        this.normalRaceDistance,
-
-        this.normalRaceFinishDistance
-
-      );
+  const targetCameraX =
+    playerPosition.x;
 
 
-    // ========================================================
-    // M8.3.2 — UPDATE HUD
-    // ========================================================
+  const targetCameraZ =
+    playerZ + 10;
 
-    this.raceHUD.setRaceDistance(
 
-      this.normalRaceDistance,
-
-      this.normalRaceFinishDistance,
-
-      true
-
+  this.camera.position.x +=
+    (
+      targetCameraX -
+      this.camera.position.x
+    ) *
+    Math.min(
+      1,
+      deltaTime * 8
     );
 
 
+  this.camera.position.z +=
+    (
+      targetCameraZ -
+      this.camera.position.z
+    ) *
+    Math.min(
+      1,
+      deltaTime * 8
+    );
+
+
+  this.camera.lookAt(
+    playerPosition.x,
+    0.5,
+    playerZ - 20
+  );
+
+}
+
+  // ============================================================
+// RaceNovaEngine.ts — PART 3/4
+// M8.3.2 — NORMAL RACE + 1500m FINISH
+// M8.3 — RACE RESULT + NEXT RACE
+// ============================================================
+
+
+// ============================================================
+// M8.3.2 — START NORMAL RACE
+// ============================================================
+
+private startNormalRace(): void {
+
+  const progression =
+    this.playerProgress
+      .raceProgression;
+
+
+  // ==========================================================
+  // M8.3.2 — FIND SELECTED RACE
+  // ==========================================================
+
+  let selectedRace =
+    progression.races.find(
+      (race) =>
+        race.raceId ===
+        progression.selectedRaceId
+    );
+
+
+  let selectedRaceDefinition =
+    selectedRace
+      ? RACE_DEFINITIONS.find(
+          (race) =>
+            race.id ===
+            selectedRace!.raceId
+        )
+      : undefined;
+
+
+  // ==========================================================
+  // M8.1 — BOSS RACE CANNOT START AS NORMAL RACE
+  // ==========================================================
+
+  if (
+    !selectedRace ||
+    !selectedRaceDefinition ||
+    selectedRaceDefinition.isBoss ||
+    selectedRace.status === "locked"
+  ) {
+
     // ========================================================
-    // M8.3.2 — 1500m FINISH CHECK
+    // M8.3.2 — FALLBACK TO FIRST AVAILABLE NON-BOSS RACE
     // ========================================================
+
+    const fallback =
+      progression.races.find(
+        (race) => {
+
+          if (
+            race.status !==
+              "available" &&
+            race.status !==
+              "completed"
+          ) {
+
+            return false;
+
+          }
+
+
+          const definition =
+            RACE_DEFINITIONS.find(
+              (item) =>
+                item.id ===
+                race.raceId
+            );
+
+
+          return Boolean(
+            definition &&
+            !definition.isBoss
+          );
+
+        }
+      );
+
 
     if (
-      this.normalRaceDistance >=
-      this.normalRaceFinishDistance
+      !fallback
     ) {
-
-      this.finishNormalRace();
 
       return;
 
     }
 
+
+    selectedRace =
+      fallback;
+
+
+    selectedRaceDefinition =
+      RACE_DEFINITIONS.find(
+        (race) =>
+          race.id ===
+          fallback!.raceId
+      );
+
+
+    progression.selectedRaceId =
+      fallback.raceId;
+
+
+    this.playerProgress
+      .selectedRaceId =
+        fallback.raceId;
+
   }
 
 
   // ==========================================================
-  // M6.7 — BOSS UPDATE
+  // M8.3.2 — FINAL VALIDATION
   // ==========================================================
 
   if (
-    this.bossEncounterStarted
+    !selectedRace ||
+    !selectedRaceDefinition
   ) {
 
-    this.bossRace.update(
+    return;
 
-      deltaTime,
-
-      this.playerCar.getPosition().z
-
-    );
+  }
 
 
-    this.updateBoss3D();
+  if (
+    selectedRaceDefinition.isBoss
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    selectedRace.status ===
+    "locked"
+  ) {
+
+    return;
 
   }
 
 
   // ==========================================================
-  // M8.3 — HUD UPDATE
+  // M8.3.2 — INITIALIZE NORMAL RACE
   // ==========================================================
+
+  this.normalRaceId =
+    selectedRace.raceId;
+
+
+  this.normalRaceStarted =
+    true;
+
+
+  this.normalRaceCompleted =
+    false;
+
+
+  this.normalRaceDistance =
+    0;
+
+
+  this.normalRaceTime =
+    0;
+
+
+  // ==========================================================
+  // M8.3.2 — RESET HUD DISTANCE
+  // ==========================================================
+
+  this.raceHUD.setRaceDistance(
+    0,
+    this.normalRaceFinishDistance,
+    true
+  );
+
 
   this.raceHUD.update();
 
@@ -2867,37 +2403,127 @@ private update(
 
 
 // ============================================================
-// END OF PART 2/4
+// M8.3.2 — UPDATE NORMAL RACE
+// ============================================================
+//
+// Distance is calculated from the player's real gameplay speed.
+//
+// PlayerCar speed is km/h.
+// Convert km/h → metres/second:
+// km/h ÷ 3.6
+//
+// Finish distance = 1500 metres.
 // ============================================================
 
-// ============================================================
-// RaceNova V2
-// RaceNovaEngine.ts
-// M8.3.2 — PART 3/4
-// RACE FINISH + RESULT + RESIZE + PUBLIC API
-// ============================================================
+private updateNormalRace(
+  deltaTime: number
+): void {
+
+  if (
+    !this.normalRaceStarted ||
+    this.normalRaceCompleted
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    !Number.isFinite(
+      deltaTime
+    ) ||
+    deltaTime <= 0
+  ) {
+
+    return;
+
+  }
+
+
+  // ==========================================================
+  // M8.3.2 — GET REAL PLAYER SPEED
+  // ==========================================================
+
+  const speed =
+    this.playerCar.getSpeed();
+
+
+  if (
+    Number.isFinite(speed) &&
+    speed > 0
+  ) {
+
+    const metresPerSecond =
+      speed / 3.6;
+
+
+    this.normalRaceDistance +=
+      metresPerSecond *
+      deltaTime;
+
+  }
+
+
+  // ==========================================================
+  // M8.3.2 — RACE TIMER
+  // ==========================================================
+
+  this.normalRaceTime +=
+    deltaTime;
+
+
+  // ==========================================================
+  // M8.3.2 — CLAMP DISTANCE
+  // ==========================================================
+
+  if (
+    this.normalRaceDistance <
+    0
+  ) {
+
+    this.normalRaceDistance =
+      0;
+
+  }
+
+
+  if (
+    this.normalRaceDistance >
+    this.normalRaceFinishDistance
+  ) {
+
+    this.normalRaceDistance =
+      this.normalRaceFinishDistance;
+
+  }
+
+
+  // ==========================================================
+  // M8.3.2 — 1500m FINISH CHECK
+  // ==========================================================
+
+  if (
+    this.normalRaceDistance >=
+    this.normalRaceFinishDistance
+  ) {
+
+    this.normalRaceDistance =
+      this.normalRaceFinishDistance;
+
+
+    this.finishNormalRace();
+
+  }
+
+}
 
 
 // ============================================================
 // M8.3 — NORMAL RACE FINISH
 // ============================================================
-//
-// Normal campaign race finishes when the virtual race distance
-// reaches 1500 metres.
-//
-// Result:
-// - WIN
-// - Position 1
-// - Reward currently 0
-// - Boss flag false
-//
-// ============================================================
 
 private finishNormalRace(): void {
-
-  // ==========================================================
-  // M8.3 — FINISH GUARD
-  // ==========================================================
 
   if (
     !this.normalRaceStarted ||
@@ -2910,74 +2536,73 @@ private finishNormalRace(): void {
 
 
   // ==========================================================
-  // M8.3 — CAPTURE RACE DATA
+  // M8.3 — CAPTURE RESULT DATA
   // ==========================================================
 
   const completedRaceId =
     this.normalRaceId;
 
+
   const completedRaceTime =
     this.normalRaceTime;
+
 
   const completedDistance =
     this.normalRaceDistance;
 
 
   // ==========================================================
-  // M8.3 — MARK RACE COMPLETE
+  // M8.3 — MARK RACE COMPLETED
   // ==========================================================
 
   this.normalRaceCompleted =
     true;
 
-  this.normalRaceStarted =
-    false;
-
 
   // ==========================================================
-  // M8.3 — STOP PLAYER
-  // ==========================================================
-
-  this.playerCar.stop();
-
-
-  // ==========================================================
-  // M8.3 — RACE COMPLETE SFX
+  // M8.3 — RACE COMPLETE SOUND
   // ==========================================================
 
   if (
     !this.normalRaceCompleteSoundPlayed
   ) {
 
+    this.normalRaceCompleteSoundPlayed =
+      true;
+
+
     this.audioManager.playSFX(
       "raceComplete"
     );
-
-    this.normalRaceCompleteSoundPlayed =
-      true;
 
   }
 
 
   // ==========================================================
-  // M8.3 — COMPLETE CAMPAIGN RACE
+  // M8.3 — SAVE RACE PROGRESS
   // ==========================================================
 
   this.completeRace(
-
     completedRaceId,
-
     true,
-
     1,
-
     completedRaceTime
-
   );
 
 
   // ==========================================================
-  // M8.3 — FIND NEXT RACE
+  // M8.3 — ADVANCE PROGRESSION
+  // ==========================================================
+
+  this.advanceToNextRace();
+
+
+  this.normalRaceStarted =
+    false;
+
+
+  // ==========================================================
+  // M8.3 — GET NEXT RACE
   // ==========================================================
 
   const nextRaceId =
@@ -2987,17 +2612,10 @@ private finishNormalRace(): void {
 
 
   // ==========================================================
-  // M8.3 — ADVANCE CAMPAIGN
+  // M8.3 — CREATE RACE RESULT
   // ==========================================================
 
-  this.advanceToNextRace();
-
-
-  // ==========================================================
-  // M8.3 — CREATE RESULT
-  // ==========================================================
-
-  this.raceResult.setResult({
+  this.raceResult.set({
 
     raceId:
       completedRaceId,
@@ -3033,77 +2651,23 @@ private finishNormalRace(): void {
 
 
   // ==========================================================
-  // M8.3 — STOP ENGINE LOOP
+  // M8.3 — STOP GAME LOOP
   // ==========================================================
 
   this.running =
     false;
 
+
   this.clock.stop();
 
 
   // ==========================================================
-  // M8.3 — SHOW RESULT UI
+  // M8.3 — SHOW RESULT SCREEN
   // ==========================================================
 
   this.raceResultUI.show(
-    this.raceResult.getResult()
+    this.raceResult.get()
   );
-
-}
-
-
-// ============================================================
-// M8.3 — GET NEXT RACE ID
-// ============================================================
-
-private getNextRaceId(
-  currentRaceId: string
-): string | null {
-
-  // ==========================================================
-  // M8.3 — FIND CURRENT RACE INDEX
-  // ==========================================================
-
-  const currentIndex =
-    RACE_DEFINITIONS.findIndex(
-
-      (race) =>
-        race.id ===
-        currentRaceId
-
-    );
-
-
-  if (
-    currentIndex < 0
-  ) {
-
-    return null;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — FIND NEXT RACE
-  // ==========================================================
-
-  const nextRace =
-    RACE_DEFINITIONS[
-      currentIndex + 1
-    ];
-
-
-  if (
-    !nextRace
-  ) {
-
-    return null;
-
-  }
-
-
-  return nextRace.id;
 
 }
 
@@ -3111,63 +2675,40 @@ private getNextRaceId(
 // ============================================================
 // M8.3 — ADVANCE TO NEXT RACE
 // ============================================================
-//
-// Unlocks and selects the next campaign race when available.
-//
-// ============================================================
 
 private advanceToNextRace(): void {
 
-  // ==========================================================
-  // M8.3 — CURRENT RACE
-  // ==========================================================
-
-  const currentRaceId =
-    this.normalRaceId;
+  const progression =
+    this.playerProgress
+      .raceProgression;
 
 
-  // ==========================================================
-  // M8.3 — NEXT RACE
-  // ==========================================================
-
-  const nextRaceId =
-    this.getNextRaceId(
-      currentRaceId
+  const currentIndex =
+    progression.races.findIndex(
+      (race) =>
+        race.raceId ===
+        this.normalRaceId
     );
 
 
   if (
-    !nextRaceId
+    currentIndex < 0
   ) {
-
-    this.savePlayerData();
 
     return;
 
   }
 
 
-  // ==========================================================
-  // M8.3 — FIND NEXT PROGRESS
-  // ==========================================================
-
   const nextRace =
-    this.playerProgress
-      .raceProgression
-      .races.find(
-
-        (race) =>
-          race.raceId ===
-          nextRaceId
-
-      );
+    progression.races[
+      currentIndex + 1
+    ];
 
 
   if (
     !nextRace
   ) {
-
-    this.savePlayerData();
 
     return;
 
@@ -3184,19 +2725,18 @@ private advanceToNextRace(): void {
   ) {
 
     nextRace.status =
-      "unlocked";
+      "available";
 
   }
 
 
-  // ==========================================================
-  // M8.3 — SELECT NEXT RACE
-  // ==========================================================
+  progression.selectedRaceId =
+    nextRace.raceId;
+
 
   this.playerProgress
-    .raceProgression
     .selectedRaceId =
-      nextRaceId;
+      nextRace.raceId;
 
 
   // ==========================================================
@@ -3209,230 +2749,78 @@ private advanceToNextRace(): void {
 
 
 // ============================================================
-// M8.3 — COMPLETE RACE
-// ============================================================
-//
-// Updates:
-// - completion count
-// - win count
-// - best position
-// - best time
-// - race status
-// - player level
-// - legacy progression fields
-//
+// M8.3 — GET NEXT RACE ID
 // ============================================================
 
-private completeRace(
+private getNextRaceId(
+  raceId: string
+): string | null {
 
-  raceId: string,
-
-  won: boolean,
-
-  position: number,
-
-  time: number
-
-): void {
-
-  // ==========================================================
-  // M8.3 — FIND RACE PROGRESS
-  // ==========================================================
-
-  const raceProgress =
+  const progression =
     this.playerProgress
-      .raceProgression
-      .races.find(
-
-        (race) =>
-          race.raceId ===
-          raceId
-
-      );
+      .raceProgression;
 
 
-  if (
-    !raceProgress
-  ) {
-
-    return;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — COMPLETION COUNT
-  // ==========================================================
-
-  raceProgress.completionCount +=
-    1;
-
-
-  // ==========================================================
-  // M8.3 — WIN COUNT
-  // ==========================================================
-
-  if (
-    won
-  ) {
-
-    raceProgress.winCount +=
-      1;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — BEST POSITION
-  // ==========================================================
-
-  if (
-    raceProgress.bestPosition <= 0 ||
-    position <
-      raceProgress.bestPosition
-  ) {
-
-    raceProgress.bestPosition =
-      position;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — BEST TIME
-  // ==========================================================
-
-  if (
-    time > 0 &&
-    (
-      raceProgress.bestTime <= 0 ||
-      time <
-        raceProgress.bestTime
-    )
-  ) {
-
-    raceProgress.bestTime =
-      time;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — RACE STATUS
-  // ==========================================================
-
-  raceProgress.status =
-    "completed";
-
-
-  // ==========================================================
-  // M6.9 — GLOBAL COMPLETION
-  // ==========================================================
-
-  this.playerProgress.racesCompleted +=
-    1;
-
-
-  // ==========================================================
-  // M6.9 — GLOBAL WINS
-  // ==========================================================
-
-  if (
-    won
-  ) {
-
-    this.playerProgress.racesWon +=
-      1;
-
-  }
-
-
-  // ==========================================================
-  // M6.9 — LEVEL PROGRESSION
-  // ==========================================================
-
-  const completedDefinition =
-    RACE_DEFINITIONS.find(
-
+  const currentIndex =
+    progression.races.findIndex(
       (race) =>
-        race.id ===
+        race.raceId ===
         raceId
-
     );
 
 
   if (
-    completedDefinition
+    currentIndex < 0
   ) {
 
-    this.playerProgress.unlockedLevel =
-      Math.max(
-
-        this.playerProgress
-          .unlockedLevel,
-
-        completedDefinition.level
-
-      );
+    return null;
 
   }
 
 
-  // ==========================================================
-  // M6.9 — UNLOCK FIRST LOCKED RACE
-  // ==========================================================
-
-  const nextLockedRace =
-    this.playerProgress
-      .raceProgression
-      .races.find(
-
-        (race) =>
-          race.status ===
-          "locked"
-
-      );
+  const nextRace =
+    progression.races[
+      currentIndex + 1
+    ];
 
 
   if (
-    nextLockedRace
+    !nextRace
   ) {
 
-    nextLockedRace.status =
-      "unlocked";
+    return null;
 
   }
 
 
-  // ==========================================================
-  // M6.9 — SAVE
-  // ==========================================================
+  if (
+    nextRace.status ===
+    "locked"
+  ) {
 
-  this.savePlayerData();
+    return null;
+
+  }
+
+
+  return nextRace.raceId;
 
 }
 
 
 // ============================================================
-// CORE — RESIZE
+// CORE — RESIZE HANDLER
 // ============================================================
 
 private handleResize = (): void => {
 
-  // ==========================================================
-  // CORE — VIEWPORT
-  // ==========================================================
-
   const width =
     window.innerWidth;
+
 
   const height =
     window.innerHeight;
 
-
-  // ==========================================================
-  // CORE — INVALID HEIGHT GUARD
-  // ==========================================================
 
   if (
     height <= 0
@@ -3448,8 +2836,7 @@ private handleResize = (): void => {
   // ==========================================================
 
   this.camera.aspect =
-    width /
-    height;
+    width / height;
 
 
   this.camera.updateProjectionMatrix();
@@ -3460,66 +2847,23 @@ private handleResize = (): void => {
   // ==========================================================
 
   this.renderer.setSize(
-
     width,
-
     height
+  );
 
+
+  this.renderer.setPixelRatio(
+    Math.min(
+      window.devicePixelRatio || 1,
+      2
+    )
   );
 
 };
 
 
 // ============================================================
-// PUBLIC API — GET SCENE
-// ============================================================
-
-public getScene():
-  THREE.Scene {
-
-  return this.scene;
-
-}
-
-
-// ============================================================
-// PUBLIC API — GET CAMERA
-// ============================================================
-
-public getCamera():
-  THREE.PerspectiveCamera {
-
-  return this.camera;
-
-}
-
-
-// ============================================================
-// PUBLIC API — GET RENDERER
-// ============================================================
-
-public getRenderer():
-  THREE.WebGLRenderer {
-
-  return this.renderer;
-
-}
-
-
-// ============================================================
-// PUBLIC API — GET PLAYER
-// ============================================================
-
-public getPlayerCar():
-  PlayerCar {
-
-  return this.playerCar;
-
-}
-
-
-// ============================================================
-// PUBLIC API — GET ECONOMY
+// PUBLIC API — ECONOMY
 // ============================================================
 
 public getEconomyManager():
@@ -3531,7 +2875,7 @@ public getEconomyManager():
 
 
 // ============================================================
-// PUBLIC API — GET GARAGE
+// PUBLIC API — GARAGE
 // ============================================================
 
 public getGarageManager():
@@ -3543,7 +2887,85 @@ public getGarageManager():
 
 
 // ============================================================
-// PUBLIC API — GET UPGRADE SYSTEM
+// PUBLIC API — OPEN GARAGE
+// ============================================================
+
+public openGarage(): void {
+
+  this.garageUI.open();
+
+}
+
+
+// ============================================================
+// PUBLIC API — CLOSE GARAGE
+// ============================================================
+
+public closeGarage(): void {
+
+  this.garageUI.hide();
+
+}
+
+
+// ============================================================
+// PUBLIC API — GARAGE STATE
+// ============================================================
+
+public isGarageOpen(): boolean {
+
+  return this.garageUI.isVisible();
+
+}
+
+
+// ============================================================
+// PUBLIC API — OPEN UPGRADES
+// ============================================================
+
+public openUpgrades(): void {
+
+  this.upgradeScreen.open();
+
+}
+
+
+// ============================================================
+// PUBLIC API — CLOSE UPGRADES
+// ============================================================
+
+public closeUpgrades(): void {
+
+  this.upgradeScreen.hide();
+
+}
+
+
+// ============================================================
+// PUBLIC API — UPGRADE SCREEN STATE
+// ============================================================
+
+public isUpgradeScreenOpen(): boolean {
+
+  return this.upgradeScreen.isVisible();
+
+}
+
+
+// ============================================================
+// PUBLIC API — SELECTED CAR
+// ============================================================
+
+public getSelectedCarId(): string {
+
+  return this.garageManager
+    .getSelectedCarId();
+
+}
+
+
+// ============================================================
+// PUBLIC API — UPGRADE SYSTEM
 // ============================================================
 
 public getUpgradeSystem():
@@ -3555,82 +2977,39 @@ public getUpgradeSystem():
 
 
 // ============================================================
-// PUBLIC API — GET PLAYER PROGRESS
+// PUBLIC API — SAVE SYSTEM
 // ============================================================
 
-public getPlayerProgress():
-  PlayerProgress {
+public getSaveSystem():
+  SaveSystem {
 
-  return this.playerProgress;
+  return this.saveSystem;
+
+}
+
+  // ============================================================
+// RaceNovaEngine.ts — PART 4/4
+// M8.2 — RESET
+// M8.3 — SAVE + PROGRESSION
+// CORE — PUBLIC STATE
+// DISPOSE
+// ============================================================
+
+
+// ============================================================
+// PUBLIC API — BOSS MANAGER
+// ============================================================
+
+public getBossManager():
+  BossManager {
+
+  return this.bossManager;
 
 }
 
 
 // ============================================================
-// M8.3.2 — GET NORMAL RACE DISTANCE
-// ============================================================
-
-public getNormalRaceDistance():
-  number {
-
-  return this.normalRaceDistance;
-
-}
-
-
-// ============================================================
-// M8.3.2 — GET NORMAL RACE FINISH DISTANCE
-// ============================================================
-
-public getNormalRaceFinishDistance():
-  number {
-
-  return this.normalRaceFinishDistance;
-
-}
-
-
-// ============================================================
-// M8.3.2 — GET NORMAL RACE ID
-// ============================================================
-
-public getNormalRaceId():
-  string {
-
-  return this.normalRaceId;
-
-}
-
-
-// ============================================================
-// M8.3.2 — IS NORMAL RACE ACTIVE
-// ============================================================
-
-public isNormalRaceActive():
-  boolean {
-
-  return (
-    this.normalRaceStarted &&
-    !this.normalRaceCompleted
-  );
-
-}
-
-
-// ============================================================
-// M8.3 — GET RACE RESULT
-// ============================================================
-
-public getRaceResult():
-  RaceResult {
-
-  return this.raceResult;
-
-}
-
-
-// ============================================================
-// M6.7 — GET BOSS RACE
+// PUBLIC API — BOSS RACE
 // ============================================================
 
 public getBossRace():
@@ -3642,90 +3021,159 @@ public getBossRace():
 
 
 // ============================================================
-// M8.3.2 — IS ENGINE RUNNING
+// PUBLIC API — BOSS ACTIVE STATE
 // ============================================================
 
-public isRunning():
-  boolean {
+public isBossActive(): boolean {
 
-  return this.running;
+  return this.bossManager.isActive();
 
 }
 
 
 // ============================================================
-// END OF PART 3/4
+// PUBLIC API — BOSS POSITION
 // ============================================================
 
+public getBossPosition():
+  { x: number; z: number } | null {
+
+  return this.bossManager.getPosition();
+
+}
+
+
 // ============================================================
-// RaceNova V2
-// RaceNovaEngine.ts
-// M8.3.2 — PART 4/4 — FINAL
-// RESET + SAVE + BOSS + DISPOSE
+// PUBLIC API — GET PLAYER PROGRESS
 // ============================================================
+
+public getPlayerProgress():
+  PlayerProgress {
+
+  return {
+
+    ...this.playerProgress,
+
+    raceProgression: {
+
+      ...this.playerProgress
+        .raceProgression,
+
+      races:
+        this.playerProgress
+          .raceProgression
+          .races
+          .map(
+            (race) => ({
+              ...race
+            })
+          )
+
+    }
+
+  };
+
+}
+
+
+// ============================================================
+// PUBLIC API — SET PLAYER PROGRESS
+// ============================================================
+
+public setPlayerProgress(
+  progress: PlayerProgress
+): void {
+
+  if (
+    !progress ||
+    typeof progress !== "object"
+  ) {
+
+    return;
+
+  }
+
+
+  const normalized =
+    normalizePlayerProgress(
+      progress,
+      RACE_DEFINITIONS
+    );
+
+
+  this.playerProgress = {
+
+    ...normalized,
+
+    raceProgression: {
+
+      ...normalized
+        .raceProgression,
+
+      races:
+        normalized
+          .raceProgression
+          .races
+          .map(
+            (race) => ({
+              ...race
+            })
+          )
+
+    }
+
+  };
+
+
+  // ==========================================================
+  // M8.3 — REFRESH HUD AFTER PROGRESS CHANGE
+  // ==========================================================
+
+  this.raceHUD.update();
+
+}
 
 
 // ============================================================
 // M8.2 — RESET RACE STATE
 // ============================================================
 //
-// This method is the central race reset.
-//
-// It is called when:
-// - START RACE is pressed again
-// - Traffic crash returns to Main Menu
-// - Race Result returns to Main Menu
-// - A new race starts
-//
 // IMPORTANT:
-// Environment reset is included here so environment props
-// correctly return after restart.
+// This resets the CURRENT RACE state only.
 //
+// Persistent player data such as:
+// - coins
+// - unlocked cars
+// - upgrades
+// - campaign progress
+//
+// is NOT deleted here.
 // ============================================================
 
 public resetRaceState(): void {
 
   // ==========================================================
-  // M8.2 — STOP CURRENT RACE
+  // CORE — STOP GAME LOOP
   // ==========================================================
 
   this.running =
     false;
 
+
   this.clock.stop();
 
 
   // ==========================================================
-  // M8.2 — RESET NORMAL RACE
+  // M8.3 — RESET RESULT SCREEN
   // ==========================================================
-
-  this.normalRaceStarted =
-    false;
-
-  this.normalRaceCompleted =
-    false;
-
-  this.normalRaceId =
-    "";
-
-  this.normalRaceDistance =
-    0;
-
-  this.normalRaceTime =
-    0;
-
-
-  // ==========================================================
-  // M8.2 — RESET RACE RESULT
-  // ==========================================================
-
-  this.raceResult.reset();
 
   this.raceResultUI.hide();
 
+  this.raceResult.reset();
+
 
   // ==========================================================
-  // M8.2 — RESET PLAYER
+  // PLAYER — RESET POSITION
   // ==========================================================
 
   this.playerCar.stop();
@@ -3740,82 +3188,6 @@ public resetRaceState(): void {
 
 
   // ==========================================================
-  // M8.2 — RESET PLAYER CONTROLLER
-  // ==========================================================
-
-  this.carController.reset();
-
-
-  // ==========================================================
-  // M8.2 — RESET OBSTACLE COLLISION
-  // ==========================================================
-
-  this.obstacleCollisionSystem.reset();
-
-
-  // ==========================================================
-  // M8.2 — RESET TRAFFIC COLLISION
-  // ==========================================================
-
-  this.trafficCollisionSystem.reset();
-
-
-  // ==========================================================
-  // M8.2 — CLEAR TRAFFIC
-  // ==========================================================
-
-  this.trafficManager.clear();
-
-
-  // ==========================================================
-  // M8.2 — RESET OBSTACLES
-  // ==========================================================
-
-  this.obstacleManager.reset();
-
-
-  // ==========================================================
-  // M8.2 — RESET COINS
-  // ==========================================================
-
-  this.coinSpawner.reset();
-
-
-  // ==========================================================
-  // M8.2 — RESET BOSS RACE
-  // ==========================================================
-
-  this.bossRace.reset();
-
-
-  // ==========================================================
-  // M8.2 — RESET BOSS ENCOUNTER
-  // ==========================================================
-
-  this.bossEncounterStarted =
-    false;
-
-
-  // ==========================================================
-  // M8.2 — RESET BOSS 3D
-  // ==========================================================
-
-  this.bossMesh.visible =
-    false;
-
-  this.bossMesh.position.set(
-
-    0,
-    0,
-    -80
-
-  );
-
-  this.bossMesh.rotation.y =
-    Math.PI;
-
-
-  // ==========================================================
   // M8.2 — RESET ENVIRONMENT
   // ==========================================================
 
@@ -3825,7 +3197,98 @@ public resetRaceState(): void {
 
 
   // ==========================================================
-  // M7.1 — RESET AUDIO FLAGS
+  // TRAFFIC COLLISION RESET
+  // ==========================================================
+
+  this.trafficCollisionSystem.reset();
+
+
+  // ==========================================================
+  // TRAFFIC RESET
+  // ==========================================================
+
+  this.trafficManager.clear();
+
+
+  // ==========================================================
+  // OBSTACLE COLLISION RESET
+  // ==========================================================
+
+  this.obstacleCollisionSystem.reset();
+
+
+  // ==========================================================
+  // OBSTACLE RESET
+  // ==========================================================
+
+  this.obstacleManager.reset(
+    0
+  );
+
+
+  // ==========================================================
+  // COIN RESET
+  // ==========================================================
+
+  this.coinSpawner.clear();
+
+
+  // ==========================================================
+  // BOSS RACE RESET
+  // ==========================================================
+
+  this.bossRace.reset();
+
+
+  this.bossEncounterStarted =
+    false;
+
+
+  // ==========================================================
+  // BOSS 3D RESET
+  // ==========================================================
+
+  this.bossMesh.visible =
+    false;
+
+
+  this.bossMesh.position.set(
+    0,
+    0,
+    -80
+  );
+
+
+  this.bossMesh.rotation.y =
+    Math.PI;
+
+
+  // ==========================================================
+  // M8.3.2 — NORMAL RACE RESET
+  // ==========================================================
+
+  this.normalRaceStarted =
+    false;
+
+
+  this.normalRaceCompleted =
+    false;
+
+
+  this.normalRaceId =
+    "";
+
+
+  this.normalRaceDistance =
+    0;
+
+
+  this.normalRaceTime =
+    0;
+
+
+  // ==========================================================
+  // AUDIO FLAGS RESET
   // ==========================================================
 
   this.crashSoundPlayed =
@@ -3845,23 +3308,286 @@ public resetRaceState(): void {
 
 
   // ==========================================================
-  // M8.3 — RESET HUD DISTANCE
+  // CAMERA RESET
   // ==========================================================
 
-  this.raceHUD.setRaceDistance(
-
+  this.camera.position.set(
     0,
+    5,
+    10
+  );
 
-    this.normalRaceFinishDistance,
 
-    false
-
+  this.camera.lookAt(
+    0,
+    0.5,
+    -20
   );
 
 
   // ==========================================================
-  // M8.3 — RESET HUD
+  // HUD RESET
   // ==========================================================
+
+  this.raceHUD.setRaceDistance(
+    0,
+    this.normalRaceFinishDistance,
+    false
+  );
+
+
+  this.raceHUD.update();
+
+
+  // ==========================================================
+  // RENDER RESET STATE
+  // ==========================================================
+
+  this.renderer.render(
+    this.scene,
+    this.camera
+  );
+
+}
+
+
+// ============================================================
+// M8.3 — CREATE PLAYER SAVE DATA
+// ============================================================
+
+public getPlayerSaveData():
+  PlayerSaveData {
+
+  const saveData =
+    createDefaultPlayerSaveData(
+      this.economyManager,
+      this.garageManager,
+      this.upgradeSystem,
+      RACE_DEFINITIONS
+    );
+
+
+  return {
+
+    ...saveData,
+
+    version:
+      PLAYER_SAVE_VERSION,
+
+    progress:
+      this.getPlayerProgress(),
+
+    updatedAt:
+      Date.now()
+
+  };
+
+}
+
+
+// ============================================================
+// M8.3 — COMPLETE RACE
+// ============================================================
+
+private completeRace(
+  raceId: string,
+  won: boolean,
+  position: number = 1,
+  time: number = 0
+): void {
+
+  const progression =
+    this.playerProgress
+      .raceProgression;
+
+
+  const race =
+    progression.races.find(
+      (item) =>
+        item.raceId ===
+        raceId
+    );
+
+
+  if (
+    !race
+  ) {
+
+    return;
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — COMPLETION COUNT
+  // ==========================================================
+
+  race.completionCount +=
+    1;
+
+
+  // ==========================================================
+  // M8.3 — WIN COUNT
+  // ==========================================================
+
+  if (
+    won
+  ) {
+
+    race.winCount +=
+      1;
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — BEST POSITION
+  // ==========================================================
+
+  if (
+    Number.isFinite(position) &&
+    position > 0
+  ) {
+
+    if (
+      race.bestPosition <= 0 ||
+      position <
+        race.bestPosition
+    ) {
+
+      race.bestPosition =
+        position;
+
+    }
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — BEST TIME
+  // ==========================================================
+
+  if (
+    Number.isFinite(time) &&
+    time > 0
+  ) {
+
+    if (
+      race.bestTime <= 0 ||
+      time <
+        race.bestTime
+    ) {
+
+      race.bestTime =
+        time;
+
+    }
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — MARK RACE COMPLETED
+  // ==========================================================
+
+  if (
+    won
+  ) {
+
+    race.status =
+      "completed";
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — UNLOCK FIRST LOCKED RACE
+  // ==========================================================
+
+  const nextLockedRace =
+    progression.races.find(
+      (item) =>
+        item.status ===
+        "locked"
+    );
+
+
+  if (
+    nextLockedRace &&
+    won
+  ) {
+
+    nextLockedRace.status =
+      "available";
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — LEVEL 2 UNLOCK
+  // ==========================================================
+
+  if (
+    this.playerProgress
+      .racesCompleted >= 3 &&
+    this.playerProgress
+      .racesWon >= 2
+  ) {
+
+    if (
+      this.playerProgress
+        .unlockedLevel < 2
+    ) {
+
+      this.playerProgress
+        .unlockedLevel = 2;
+
+    }
+
+  }
+
+
+  // ==========================================================
+  // M8.3 — RECALCULATE LEGACY PROGRESS
+  // ==========================================================
+
+  let racesCompleted =
+    0;
+
+  let racesWon =
+    0;
+
+
+  for (
+    const item
+    of progression.races
+  ) {
+
+    racesCompleted +=
+      item.completionCount;
+
+    racesWon +=
+      item.winCount;
+
+  }
+
+
+  this.playerProgress
+    .racesCompleted =
+      racesCompleted;
+
+
+  this.playerProgress
+    .racesWon =
+      racesWon;
+
+
+  // ==========================================================
+  // M8.3 — SAVE
+  // ==========================================================
+
+  this.savePlayerData();
+
 
   this.raceHUD.update();
 
@@ -3869,85 +3595,76 @@ public resetRaceState(): void {
 
 
 // ============================================================
-// M8.3 — CREATE SAVE SNAPSHOT
-// ============================================================
-//
-// SaveSystem remains the ONLY layer that communicates with
-// browser storage.
-//
-// RaceNovaEngine only creates the current game state.
-//
+// M8.1 / M8.3 — RECORD BOSS DEFEAT
 // ============================================================
 
-private createSaveSnapshot():
-  PlayerSaveData {
+private recordBossDefeat(): void {
 
-  // ==========================================================
-  // M8.3 — DEFAULT SAVE STRUCTURE
-  // ==========================================================
-
-  const saveData =
-    createDefaultPlayerSaveData();
+  const raceId =
+    this.bossRace.getRaceId();
 
 
-  // ==========================================================
-  // M8.3 — SAVE VERSION
-  // ==========================================================
+  if (
+    !raceId
+  ) {
 
-  saveData.version =
-    PLAYER_SAVE_VERSION;
+    return;
 
-
-  // ==========================================================
-  // M8.3 — SAVE TIMESTAMP
-  // ==========================================================
-
-  saveData.timestamp =
-    Date.now();
+  }
 
 
-  // ==========================================================
-  // M8.3 — ECONOMY
-  // ==========================================================
-
-  saveData.economy =
-    this.economyManager
-      .getSaveData();
+  const progression =
+    this.playerProgress
+      .raceProgression;
 
 
-  // ==========================================================
-  // M8.3 — GARAGE
-  // ==========================================================
-
-  saveData.garage =
-    this.garageManager
-      .getSaveData();
-
-
-  // ==========================================================
-  // M8.3 — UPGRADES
-  // ==========================================================
-
-  saveData.upgrades =
-    this.upgradeSystem
-      .getSaveData();
-
-
-  // ==========================================================
-  // M6.9 — PLAYER PROGRESS
-  // ==========================================================
-
-  saveData.progress =
-    normalizePlayerProgress(
-
-      this.playerProgress,
-
-      RACE_DEFINITIONS
-
+  const race =
+    progression.races.find(
+      (item) =>
+        item.raceId ===
+        raceId
     );
 
 
-  return saveData;
+  if (
+    !race
+  ) {
+
+    return;
+
+  }
+
+
+  // ==========================================================
+  // PREVENT DUPLICATE BOSS REWARDS/COUNTS
+  // ==========================================================
+
+  if (
+    race.bossDefeated
+  ) {
+
+    return;
+
+  }
+
+
+  race.bossDefeated =
+    true;
+
+
+  this.playerProgress
+    .bossesDefeated +=
+      1;
+
+
+  // ==========================================================
+  // SAVE BOSS PROGRESS
+  // ==========================================================
+
+  this.savePlayerData();
+
+
+  this.raceHUD.update();
 
 }
 
@@ -3956,73 +3673,48 @@ private createSaveSnapshot():
 // M8.3 — SAVE PLAYER DATA
 // ============================================================
 
-private savePlayerData(): void {
+public savePlayerData(): boolean {
 
-  // ==========================================================
-  // M8.3 — CREATE SNAPSHOT
-  // ==========================================================
+  try {
 
-  const snapshot =
-    this.createSaveSnapshot();
+    const progress =
+      this.getPlayerProgress();
 
 
-  // ==========================================================
-  // M8.3 — SAVE
-  // ==========================================================
+    return this.saveSystem.save({
 
-  this.saveSystem.save(
-    snapshot
-  );
+      ...progress,
 
-}
+      raceProgression: {
 
+        ...progress
+          .raceProgression,
 
-// ============================================================
-// M6.9 — SET PLAYER PROGRESS
-// ============================================================
+        races:
+          progress
+            .raceProgression
+            .races
+            .map(
+              (race) => ({
+                ...race
+              })
+            )
 
-private setPlayerProgress(
-  progress: PlayerProgress
-): void {
+      }
 
-  // ==========================================================
-  // M6.9 — VALIDATE
-  // ==========================================================
+    });
 
-  this.playerProgress =
-    normalizePlayerProgress(
+  } catch (
+    error
+  ) {
 
-      progress,
-
-      RACE_DEFINITIONS
-
+    console.error(
+      "RaceNovaEngine: save failed",
+      error
     );
 
 
-  // ==========================================================
-  // M6.9 — SELECT DEFAULT RACE
-  // ==========================================================
-
-  if (
-    !this.playerProgress
-      .raceProgression
-      .selectedRaceId
-  ) {
-
-    const firstRace =
-      RACE_DEFINITIONS[0];
-
-
-    if (
-      firstRace
-    ) {
-
-      this.playerProgress
-        .raceProgression
-        .selectedRaceId =
-          firstRace.id;
-
-    }
+    return false;
 
   }
 
@@ -4030,119 +3722,150 @@ private setPlayerProgress(
 
 
 // ============================================================
-// M6.9 — RECORD BOSS DEFEAT
-// ============================================================
-//
-// Boss defeat is saved independently so the achievement
-// survives reload.
-//
+// M8.3 — LOAD PLAYER SAVE DATA
 // ============================================================
 
-private recordBossDefeat(): void {
-
-  // ==========================================================
-  // M6.9 — FIND BOSS RACE PROGRESS
-  // ==========================================================
-
-  const bossRaceProgress =
-    this.playerProgress
-      .raceProgression
-      .races.find(
-
-        (race) =>
-          race.raceId ===
-          this.bossUnlockConfig.bossId
-
-      );
-
-
-  // ==========================================================
-  // M6.9 — MARK BOSS DEFEATED
-  // ==========================================================
-
-  if (
-    bossRaceProgress
-  ) {
-
-    bossRaceProgress.bossDefeated =
-      true;
-
-  }
-
-
-  // ==========================================================
-  // M6.9 — GLOBAL BOSS COUNT
-  // ==========================================================
-
-  this.playerProgress.bossesDefeated +=
-    1;
-
-
-  // ==========================================================
-  // M6.9 — SAVE
-  // ==========================================================
-
-  this.savePlayerData();
-
-}
-
-
-// ============================================================
-// M8.3 — LOAD PLAYER SAVE
-// ============================================================
-//
-// Safe restore helper.
-//
-// ============================================================
-
-private loadPlayerData(): void {
-
-  // ==========================================================
-  // M8.3 — READ SAVE
-  // ==========================================================
-
-  const loaded =
-    this.saveSystem.readSave();
-
-
-  if (
-    !loaded
-  ) {
-
-    return;
-
-  }
-
-
-  // ==========================================================
-  // M8.3 — VALIDATE SAVE
-  // ==========================================================
+public loadPlayerSaveData(
+  save: PlayerSaveData
+): boolean {
 
   if (
     !isValidPlayerSaveData(
-      loaded
+      save
     )
   ) {
 
-    return;
+    return false;
 
   }
 
 
-  // ==========================================================
-  // M8.3 — RESTORE PROGRESS
-  // ==========================================================
+  try {
 
-  this.setPlayerProgress(
-
-    loaded.progress
-
-  );
+    this.economyManager
+      .loadState(
+        save.economy
+      );
 
 
-  // ==========================================================
-  // M8.3 — UPDATE HUD
-  // ==========================================================
+    this.garageManager
+      .loadState(
+        save.garage
+      );
+
+
+    this.upgradeSystem
+      .loadState(
+        save.upgrades
+      );
+
+
+    this.setPlayerProgress(
+      save.progress
+    );
+
+
+    return true;
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "RaceNovaEngine: load save failed",
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+// ============================================================
+// M8.3 — LOAD PLAYER DATA FROM SAVE SYSTEM
+// ============================================================
+
+public loadPlayerData(): boolean {
+
+  try {
+
+    const loaded =
+      this.saveSystem.load();
+
+
+    if (
+      !loaded
+    ) {
+
+      return false;
+
+    }
+
+
+    const saveData =
+      this.saveSystem.readSave();
+
+
+    if (
+      !saveData
+    ) {
+
+      return false;
+
+    }
+
+
+    return this.loadPlayerSaveData(
+      saveData
+    );
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "RaceNovaEngine: loadPlayerData failed",
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+// ============================================================
+// M8.3 — RESET PLAYER DATA
+// ============================================================
+//
+// WARNING:
+// This is different from resetRaceState().
+//
+// resetRaceState():
+//     resets only current race.
+//
+// resetPlayerData():
+//     resets persistent player progress.
+// ============================================================
+
+public resetPlayerData(): void {
+
+  this.saveSystem.resetProgress();
+
+
+  this.playerProgress =
+    createDefaultPlayerProgress(
+      RACE_DEFINITIONS
+    );
+
+
+  this.resetRaceState();
+
 
   this.raceHUD.update();
 
@@ -4150,192 +3873,101 @@ private loadPlayerData(): void {
 
 
 // ============================================================
-// M8.3 — PUBLIC SAVE
-// ============================================================
-
-public save(): void {
-
-  this.savePlayerData();
-
-}
-
-
-// ============================================================
-// M8.3 — PUBLIC LOAD
-// ============================================================
-
-public load(): void {
-
-  this.loadPlayerData();
-
-}
-
-
-// ============================================================
-// M8.3 — PUBLIC RESET
-// ============================================================
-//
-// Resets gameplay state but does NOT erase permanent player
-// progression or economy data.
-//
-// ============================================================
-
-public reset(): void {
-
-  this.resetRaceState();
-
-}
-
-
-// ============================================================
 // CORE — DISPOSE
-// ============================================================
-//
-// Completely releases runtime resources.
-//
 // ============================================================
 
 public dispose(): void {
 
   // ==========================================================
-  // CORE — STOP ENGINE
+  // CORE — STOP LOOP
   // ==========================================================
 
   this.running =
     false;
 
+
   this.clock.stop();
 
 
   // ==========================================================
-  // M7.1 — REMOVE AUDIO EVENTS
+  // CORE — REMOVE EVENT LISTENERS
   // ==========================================================
 
   window.removeEventListener(
-
-    "pointerdown",
-
-    this.handleAudioUnlock
-
-  );
-
-
-  window.removeEventListener(
-
-    "keydown",
-
-    this.handleNitroKeyDown
-
-  );
-
-
-  // ==========================================================
-  // CORE — REMOVE RESIZE EVENT
-  // ==========================================================
-
-  window.removeEventListener(
-
     "resize",
-
     this.handleResize
+  );
 
+
+  window.removeEventListener(
+    "keydown",
+    this.handleNitroKeyDown
+  );
+
+
+  window.removeEventListener(
+    "pointerdown",
+    this.handleAudioUnlock
   );
 
 
   // ==========================================================
-  // M5 — DISPOSE SWIPE
-  // ==========================================================
-
-  this.swipeController.dispose();
-
-
-  // ==========================================================
-  // M5 — DISPOSE TRAFFIC COLLISION
-  // ==========================================================
-
-  this.trafficCollisionSystem.dispose();
-
-
-  // ==========================================================
-  // M7.9 — DISPOSE OBSTACLE COLLISION
-  // ==========================================================
-
-  this.obstacleCollisionSystem.dispose();
-
-
-  // ==========================================================
-  // M8.3 — DISPOSE RESULT UI
-  // ==========================================================
-
-  this.raceResultUI.dispose();
-
-
-  // ==========================================================
-  // M8.3 — HIDE GARAGE
-  // ==========================================================
-
-  this.garageUI.hide();
-
-
-  // ==========================================================
-  // M8.3 — HIDE UPGRADES
-  // ==========================================================
-
-  this.upgradeScreen.hide();
-
-
-  // ==========================================================
-  // M8.3 — DISPOSE HUD
-  // ==========================================================
-
-  this.raceHUD.dispose();
-
-
-  // ==========================================================
-  // M4 — DISPOSE COINS
-  // ==========================================================
-
-  this.coinSpawner.dispose();
-
-
-  // ==========================================================
-  // M5 — DISPOSE TRAFFIC
-  // ==========================================================
-
-  this.trafficManager.dispose();
-
-
-  // ==========================================================
-  // M7.9 — DISPOSE OBSTACLES
-  // ==========================================================
-
-  this.obstacleManager.dispose();
-
-
-  // ==========================================================
-  // M8.2 — DISPOSE ENVIRONMENT
-  // ==========================================================
-
-  this.environmentManager.dispose();
-
-
-  // ==========================================================
-  // M8.2 — DISPOSE WORLD
-  // ==========================================================
-
-  this.world.dispose();
-
-
-  // ==========================================================
-  // M7.1 — DISPOSE AUDIO
+  // AUDIO
   // ==========================================================
 
   this.audioManager.dispose();
 
 
   // ==========================================================
-  // CORE — REMOVE BOSS
+  // BOSS
   // ==========================================================
+
+  this.bossRace.reset();
+
+  this.bossRace.dispose();
+
+  this.bossManager.dispose();
+
+
+  // ==========================================================
+  // BOSS MESH DISPOSAL
+  // ==========================================================
+
+  this.bossMesh.traverse(
+    (object) => {
+
+      if (
+        object instanceof THREE.Mesh
+      ) {
+
+        object.geometry.dispose();
+
+
+        if (
+          Array.isArray(
+            object.material
+          )
+        ) {
+
+          object.material.forEach(
+            (material) => {
+
+              material.dispose();
+
+            }
+          );
+
+        } else {
+
+          object.material.dispose();
+
+        }
+
+      }
+
+    }
+  );
+
 
   this.scene.remove(
     this.bossMesh
@@ -4343,60 +3975,106 @@ public dispose(): void {
 
 
   // ==========================================================
-  // CORE — REMOVE PLAYER
+  // PLAYER / CONTROL
   // ==========================================================
 
-  this.scene.remove(
+  this.swipeController.dispose();
 
-    this.playerCar.getGroup()
-
-  );
+  this.carController.dispose();
 
 
   // ==========================================================
-  // CORE — DISPOSE RENDERER
+  // TRAFFIC
+  // ==========================================================
+
+  this.trafficManager.dispose();
+
+  this.trafficCollisionSystem.dispose();
+
+
+  // ==========================================================
+  // ECONOMY / COINS
+  // ==========================================================
+
+  this.coinSpawner.dispose();
+
+  this.economyManager.dispose();
+
+
+  // ==========================================================
+  // GARAGE / UPGRADES
+  // ==========================================================
+
+  this.garageManager.reset();
+
+  this.upgradeSystem.reset();
+
+
+  // ==========================================================
+  // SAVE SYSTEM
+  // ==========================================================
+
+  this.saveSystem.dispose();
+
+
+  // ==========================================================
+  // PLAYER
+  // ==========================================================
+
+  this.playerCar.dispose();
+
+
+  // ==========================================================
+  // WORLD
+  // ==========================================================
+
+  this.world.dispose();
+
+  this.environmentManager.dispose();
+
+  this.obstacleManager.dispose();
+
+
+  // ==========================================================
+  // UI
+  // ==========================================================
+
+  this.raceHUD.dispose();
+
+  this.garageUI.dispose();
+
+  this.upgradeScreen.dispose();
+
+  this.raceResultUI.dispose();
+
+
+  // ==========================================================
+  // RENDERER
   // ==========================================================
 
   this.renderer.dispose();
 
 
   // ==========================================================
-  // CORE — REMOVE CANVAS
+  // REMOVE CANVAS
   // ==========================================================
 
-  const canvas =
-    this.renderer.domElement;
+  const parent =
+    this.renderer
+      .domElement
+      .parentElement;
 
 
   if (
-    canvas.parentElement
+    parent
   ) {
 
-    canvas.parentElement
-      .removeChild(
-        canvas
-      );
+    parent.removeChild(
+      this.renderer.domElement
+    );
 
   }
 
-
-  // ==========================================================
-  // CORE — CLEAR SCENE
-  // ==========================================================
-
-    this.scene.clear();
-
 }
 
-
-// ============================================================
-// CORE — CLOSE RACENOVA ENGINE CLASS
-// ============================================================
-
-}
-
-
-// ============================================================
-// RaceNovaEngine.ts
-// M8.3.2 — ALL 4 PARTS COMPLETE
-// ============================================================
+     
