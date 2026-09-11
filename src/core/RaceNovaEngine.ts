@@ -1919,33 +1919,73 @@ if (
   };
 
   // =========================================================
-  // M6.8.8 — Start Normal Race
-  // =========================================================
+// M6.8.8 — Start Normal Race
+// =========================================================
 
-  private startNormalRace(): void {
+private startNormalRace(): void {
 
   const progression =
     this.playerProgress
       .raceProgression;
 
-  const selectedRace =
+  let selectedRace =
     progression.races.find(
       (race) =>
         race.raceId ===
         progression.selectedRaceId
     );
 
-  if (
-    !selectedRace
-  ) {
-    return;
-  }
+  // -------------------------------------------------------
+  // M8.3.2 — Recover invalid/locked race selection
+  // -------------------------------------------------------
 
   if (
+    !selectedRace ||
     selectedRace.status ===
-    "locked"
+      "locked"
   ) {
-    return;
+
+    const fallbackRace =
+      progression.races.find(
+        (race) => {
+
+          if (
+            race.status !==
+              "available" &&
+            race.status !==
+              "completed"
+          ) {
+            return false;
+          }
+
+          const definition =
+            RACE_DEFINITIONS.find(
+              (entry) =>
+                entry.id ===
+                race.raceId
+            );
+
+          return (
+            definition !== undefined &&
+            definition.isBoss !== true
+          );
+        }
+      );
+
+    if (
+      !fallbackRace
+    ) {
+      return;
+    }
+
+    selectedRace =
+      fallbackRace;
+
+    progression.selectedRaceId =
+      fallbackRace.raceId;
+
+    this.playerProgress.selectedRaceId =
+      fallbackRace.raceId;
   }
 
   this.normalRaceId =
@@ -1976,7 +2016,7 @@ if (
 
   this.normalRaceLastZ =
     this.normalRaceStartZ;
-  }
+}
 
   // =========================================================
   // M6.8.8 — Update Normal Race
@@ -2656,16 +2696,18 @@ public resetRaceState(): void {
 
   this.normalRaceId =
     "";
-
   this.normalRaceDistance =
-    0;
-
-  this.normalRaceStartZ =
   0;
 
-  this.normalRaceTime =
-    0;
+this.normalRaceStartZ =
+  0;
 
+this.normalRaceLastZ =
+  0;
+
+this.normalRaceTime =
+  0;
+  
   // -------------------------------------------------------
   // Audio flags
   // -------------------------------------------------------
