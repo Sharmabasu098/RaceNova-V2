@@ -2076,26 +2076,6 @@ if (
   }
   }
 
-    // =======================================================
-    // Virtual Race Finish
-    // =======================================================
-    //
-    // The world/road remains endless.
-    // Only the current race has a
-    // virtual 1500m finish line.
-    // =======================================================
-
-    if (
-      this.normalRaceDistance >=
-      this.normalRaceFinishDistance
-    ) {
-
-      this.finishNormalRace();
-
-      return;
-    }
-  }
-
     // =========================================================
   // M8.3 — Finish Normal Race
   // =========================================================
