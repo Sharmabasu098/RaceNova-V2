@@ -2751,54 +2751,16 @@ export class RaceNovaEngine {
     this.savePlayerData();
   }
 
-  // =========================================================
-  // Save Player Data
-  // =========================================================
+    // =========================================================
+    // Save Player Data
+    // =========================================================
 
-  private savePlayerData(): void {
+    private savePlayerData(): void {
 
     try {
 
-      const data:
-        PlayerSaveData = {
-
-        version:
-          PLAYER_SAVE_VERSION,
-
-        progress:
-          this.playerProgress,
-
-        economy:
-          this.economyManager
-            .getSaveData(),
-
-        garage:
-          this.garageManager
-            .getSaveData(),
-
-        upgrades:
-          this.upgradeSystem
-            .getSaveData(),
-
-        timestamp:
-          Date.now()
-      };
-
-      if (
-        !isValidPlayerSaveData(
-          data
-        )
-      ) {
-
-        console.error(
-          "[RaceNova] Invalid save data."
-        );
-
-        return;
-      }
-
       this.saveSystem.save(
-        data
+        this.playerProgress
       );
 
     } catch (
@@ -2809,6 +2771,7 @@ export class RaceNovaEngine {
         "[RaceNova] Save failed:",
         error
       );
+
     }
   }
 
@@ -2877,7 +2840,9 @@ export class RaceNovaEngine {
     // Traffic
     // =======================================================
 
-    this.trafficManager.clear();
+    this.obstacleManager.reset(
+  0
+);
 
     this.trafficCollisionSystem.reset();
 
