@@ -69,6 +69,15 @@ export class PlayerCar {
   private modelLoadFailed =
     false;
 
+  /**
+   * Identifies the latest model-loading request.
+   *
+   * This prevents an older GLB request from
+   * replacing a newer selected car.
+   */
+  private modelLoadRequestId =
+    0;
+
   // =========================================================
   // Gameplay Stats
   // =========================================================
@@ -113,16 +122,13 @@ export class PlayerCar {
   // =========================================================
 
   private modelPath:
-  string;
+    string;
 
   private readonly modelScale:
-  number = 1;
+    number = 1;
 
-private readonly modelRotationY:
-  number;
-
-private modelLoadRequestId =
-  0;
+  private readonly modelRotationY:
+    number;
 
   // =========================================================
   // Constructor
@@ -240,8 +246,8 @@ private modelLoadRequestId =
     // =======================================================
 
     this.modelPath =
-  config.modelPath ??
-  "/assets/cars/playercar.glb";
+      config.modelPath ??
+      "/assets/cars/playercar.glb";
 
     /*
      * RaceNova world forward direction:
@@ -286,270 +292,85 @@ private modelLoadRequestId =
   }
 
   // =========================================================
-// Load Player GLB
-// =========================================================
+  // Load Player GLB
+  // =========================================================
 
-private loadPlayerCar(): void {
+  private loadPlayerCar(): void {
 
-  const requestId =
-    ++this.modelLoadRequestId;
+    const requestId =
+      ++this.modelLoadRequestId;
 
-  const requestedPath =
-    this.modelPath;
+    const requestedPath =
+      this.modelPath;
 
-  this.modelLoaded =
-    false;
+    this.modelLoaded =
+      false;
 
-  this.modelLoadFailed =
-    false;
+    this.modelLoadFailed =
+      false;
 
-  this.gltfLoader.load(
+    this.gltfLoader.load(
 
-    requestedPath,
+      requestedPath,
 
-    (gltf) => {
+      (gltf) => {
 
-      /*
-       * Ignore an old GLB load if the player
-       * selected another car while this model
-       * was still loading.
-       */
-      if (
-        requestId !==
-        this.modelLoadRequestId
-      ) {
+        /*
+         * Ignore an old GLB load if the player
+         * selected another car while this model
+         * was still loading.
+         */
+        if (
+          requestId !==
+          this.modelLoadRequestId
+        ) {
 
-        gltf.scene.traverse(
+          this.disposeLoadedObject(
+            gltf.scene
+          );
+
+          return;
+        }
+
+        const model =
+          gltf.scene;
+
+        model.name =
+          "PlayerCarGLB";
+
+        // ---------------------------------------------------
+        // Basic transform
+        // ---------------------------------------------------
+
+        model.rotation.y =
+          this.modelRotationY;
+
+        model.scale.setScalar(
+          this.modelScale
+        );
+
+        // ---------------------------------------------------
+        // Shadows
+        // ---------------------------------------------------
+
+        model.traverse(
           (object) => {
 
             if (
               object instanceof THREE.Mesh
             ) {
 
-              object.geometry.dispose();
+              object.castShadow =
+                true;
 
-              if (
-                Array.isArray(
-                  object.material
-                )
-              ) {
-
-                object.material.forEach(
-                  (material) => {
-                    material.dispose();
-                  }
-                );
-
-              } else {
-
-                object.material.dispose();
-              }
+              object.receiveShadow =
+                true;
             }
           }
         );
 
-        return;
-      }
-
-      const model =
-        gltf.scene;
-
-      model.name =
-        "PlayerCarGLB";
-
-      // -----------------------------------------------------
-      // Basic transform
-      // -----------------------------------------------------
-
-      model.rotation.y =
-        this.modelRotationY;
-
-      model.scale.setScalar(
-        this.modelScale
-      );
-
-      // -----------------------------------------------------
-      // Shadows
-      // -----------------------------------------------------
-
-      model.traverse(
-        (object) => {
-
-          if (
-            object instanceof THREE.Mesh
-          ) {
-
-            object.castShadow =
-              true;
-
-            object.receiveShadow =
-              true;
-          }
-        }
-      );
-
-      // -----------------------------------------------------
-      // Normalize model
-      // -----------------------------------------------------
-
-      this.normalizeModel(
-        model
-      );
-
-      // -----------------------------------------------------
-      // Add current model
-      // -----------------------------------------------------
-
-      this.modelGroup.add(
-        model
-      );
-
-      this.modelLoaded =
-        true;
-
-      this.modelLoadFailed =
-        false;
-
-      console.info(
-        `[RaceNova] Player car model loaded: ${requestedPath}`
-      );
-    },
-
-    undefined,
-
-    (error) => {
-
-      /*
-       * Ignore errors from an obsolete
-       * model request.
-       */
-      if (
-        requestId !==
-        this.modelLoadRequestId
-      ) {
-        return;
-      }
-
-      this.modelLoaded =
-        false;
-
-      this.modelLoadFailed =
-        true;
-
-      console.error(
-        `[RaceNova] Failed to load player car model: ${requestedPath}`,
-        error
-      );
-    }
-  );
-}
-
-        // =========================================================
-// Runtime Model Switching
-// =========================================================
-
-public setModelPath(
-  modelPath: string
-): void {
-
-  if (
-    typeof modelPath !== "string" ||
-    modelPath.trim().length === 0
-  ) {
-    return;
-  }
-
-  const normalizedPath =
-    modelPath.trim();
-
-  /*
-   * No reload when the same model
-   * is already requested.
-   */
-  if (
-    normalizedPath ===
-    this.modelPath
-  ) {
-    return;
-  }
-
-  this.modelPath =
-    normalizedPath;
-
-  // -------------------------------------------------------
-  // Remove currently displayed model
-  // -------------------------------------------------------
-
-  this.disposeCurrentModel();
-
-  // -------------------------------------------------------
-  // Load selected model
-  // -------------------------------------------------------
-
-  this.loadPlayerCar();
-}
-
-public getModelPath():
-  string {
-
-  return this.modelPath;
-}
-
-private disposeCurrentModel():
-  void {
-
-  const models =
-    [...this.modelGroup.children];
-
-  for (
-    const child
-    of models
-  ) {
-
-    this.modelGroup.remove(
-      child
-    );
-
-    child.traverse(
-      (object) => {
-
-        if (
-          !(object instanceof THREE.Mesh)
-        ) {
-          return;
-        }
-
-        object.geometry.dispose();
-
-        if (
-          Array.isArray(
-            object.material
-          )
-        ) {
-
-          object.material.forEach(
-            (material) => {
-              material.dispose();
-            }
-          );
-
-        } else {
-
-          object.material.dispose();
-        }
-      }
-    );
-  }
-
-  this.modelLoaded =
-    false;
-
-  this.modelLoadFailed =
-    false;
-}
-
         // ---------------------------------------------------
-        // Normalize model size
+        // Normalize model
         // ---------------------------------------------------
 
         this.normalizeModel(
@@ -569,11 +390,26 @@ private disposeCurrentModel():
 
         this.modelLoadFailed =
           false;
+
+        console.info(
+          `[RaceNova] Player car model loaded: ${requestedPath}`
+        );
       },
 
       undefined,
 
       (error) => {
+
+        /*
+         * Ignore errors from an obsolete
+         * model request.
+         */
+        if (
+          requestId !==
+          this.modelLoadRequestId
+        ) {
+          return;
+        }
 
         this.modelLoaded =
           false;
@@ -582,7 +418,7 @@ private disposeCurrentModel():
           true;
 
         console.error(
-          "[RaceNova] Failed to load playercar.glb:",
+          `[RaceNova] Failed to load player car model: ${requestedPath}`,
           error
         );
       }
@@ -698,6 +534,134 @@ private disposeCurrentModel():
   public hasModelLoadFailed(): boolean {
 
     return this.modelLoadFailed;
+  }
+
+  // =========================================================
+  // Runtime Model Switching
+  // =========================================================
+
+  public setModelPath(
+    modelPath: string
+  ): void {
+
+    if (
+      typeof modelPath !== "string" ||
+      modelPath.trim().length === 0
+    ) {
+      return;
+    }
+
+    const normalizedPath =
+      modelPath.trim();
+
+    /*
+     * No reload when the same model
+     * is already requested.
+     */
+    if (
+      normalizedPath ===
+      this.modelPath
+    ) {
+      return;
+    }
+
+    this.modelPath =
+      normalizedPath;
+
+    // -------------------------------------------------------
+    // Remove current model
+    // -------------------------------------------------------
+
+    this.disposeCurrentModel();
+
+    // -------------------------------------------------------
+    // Load selected model
+    // -------------------------------------------------------
+
+    this.loadPlayerCar();
+  }
+
+  public getModelPath():
+    string {
+
+    return this.modelPath;
+  }
+
+  // =========================================================
+  // Dispose Current GLB Model
+  // =========================================================
+
+  private disposeCurrentModel():
+    void {
+
+    /*
+     * Invalidate any older asynchronous
+     * GLB request before removing the
+     * currently displayed model.
+     */
+    this.modelLoadRequestId++;
+
+    const models =
+      [...this.modelGroup.children];
+
+    for (
+      const child
+      of models
+    ) {
+
+      this.modelGroup.remove(
+        child
+      );
+
+      this.disposeLoadedObject(
+        child
+      );
+    }
+
+    this.modelLoaded =
+      false;
+
+    this.modelLoadFailed =
+      false;
+  }
+
+  // =========================================================
+  // Dispose Loaded GLB Object
+  // =========================================================
+
+  private disposeLoadedObject(
+    object: THREE.Object3D
+  ): void {
+
+    object.traverse(
+      (child) => {
+
+        if (
+          !(child instanceof THREE.Mesh)
+        ) {
+          return;
+        }
+
+        child.geometry.dispose();
+
+        if (
+          Array.isArray(
+            child.material
+          )
+        ) {
+
+          child.material.forEach(
+            (material) => {
+              material.dispose();
+            }
+          );
+
+        } else {
+
+          child.material.dispose();
+        }
+      }
+    );
   }
 
   // =========================================================
@@ -1073,7 +1037,7 @@ private disposeCurrentModel():
     // Normal Acceleration
     // =======================================================
 
-    this.speed +=
+        this.speed +=
       this.acceleration *
       deltaTime;
 
@@ -1363,41 +1327,39 @@ private disposeCurrentModel():
     );
   }
 
-  // =========================================================
+    // =========================================================
   // Dispose
   // =========================================================
 
   public dispose(): void {
 
-    this.group.traverse(
-      (object) => {
+    /*
+     * Invalidate pending GLB loads.
+     */
+    this.modelLoadRequestId++;
 
-        if (
-          !(object instanceof THREE.Mesh)
-        ) {
-          return;
-        }
+    this.disposeCurrentModel();
 
-        object.geometry.dispose();
+    this.nitroFlames.length =
+      0;
 
-        if (
-          Array.isArray(
-            object.material
-          )
-        ) {
+    if (
+      this.nitroLight
+    ) {
 
-          object.material.forEach(
-            (material) => {
-              material.dispose();
-            }
-          );
+      this.nitroLight =
+        null;
+    }
 
-        } else {
+    this.nitroEffectGroup.clear();
 
-          object.material.dispose();
-        }
-      }
-    );
+    this.group.clear();
+
+    this.modelLoaded =
+      false;
+
+    this.modelLoadFailed =
+      false;
   }
 }
   
