@@ -2844,12 +2844,14 @@ export class RaceNovaEngine {
   0
 );
 
-    this.trafficCollisionSystem.reset();
+this.trafficCollisionSystem.reset();
 
-    // =======================================================
-    // Obstacles
-    // =======================================================
+// =======================================================
+// Obstacles
+// =======================================================
 
+// ObstacleManager reset is already handled above.
+    
     this.obstacleManager.clear();
 
     this.obstacleCollisionSystem.reset();
