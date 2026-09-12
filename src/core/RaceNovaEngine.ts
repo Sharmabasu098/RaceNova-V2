@@ -2700,14 +2700,31 @@ export class RaceNovaEngine {
     // =======================================================
 
     const nextLockedRace =
-      progression.races.find(
-        (item) =>
-          item.status ===
-          "locked" &&
-          item.level <=
-            this.playerProgress
-              .unlockedLevel
+  progression.races.find(
+    (item) => {
+
+      if (
+        item.status !==
+        "locked"
+      ) {
+        return false;
+      }
+
+      const definition =
+        RACE_DEFINITIONS.find(
+          (race) =>
+            race.id ===
+            item.raceId
+        );
+
+      return Boolean(
+        definition &&
+        definition.level <=
+          this.playerProgress
+            .unlockedLevel
       );
+    }
+  );
 
     if (
       nextLockedRace
