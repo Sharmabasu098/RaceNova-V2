@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Car Data
- * M4.4
+ * M8.4.2
  * ============================================================
  *
  * Static definitions for all RaceNova cars.
@@ -14,7 +14,7 @@
  * - No gameplay movement logic
  * - No upgrade state
  *
- * UpgradeSystem will use these base stats later.
+ * Model paths are static asset references only.
  * ============================================================
  */
 
@@ -52,6 +52,8 @@ export interface CarDefinition {
 
   unlockCost: number;
 
+  modelPath: string;
+
   stats: CarStats;
 }
 
@@ -75,6 +77,9 @@ export const CAR_DATA: readonly CarDefinition[] = [
 
     unlockCost: 0,
 
+    modelPath:
+      "/assets/cars/playercar.glb",
+
     stats: {
       maxSpeed: 128,
       acceleration: 35,
@@ -95,6 +100,9 @@ export const CAR_DATA: readonly CarDefinition[] = [
       "A faster and more responsive sports car.",
 
     unlockCost: 2500,
+
+    modelPath:
+      "/assets/cars/sportcar.glb",
 
     stats: {
       maxSpeed: 145,
@@ -117,6 +125,9 @@ export const CAR_DATA: readonly CarDefinition[] = [
 
     unlockCost: 5000,
 
+    modelPath:
+      "/assets/cars/musclecar.glb",
+
     stats: {
       maxSpeed: 155,
       acceleration: 48,
@@ -138,6 +149,9 @@ export const CAR_DATA: readonly CarDefinition[] = [
 
     unlockCost: 10000,
 
+    modelPath:
+      "/assets/cars/supercar.glb",
+
     stats: {
       maxSpeed: 175,
       acceleration: 55,
@@ -158,6 +172,9 @@ export const CAR_DATA: readonly CarDefinition[] = [
       "The ultimate RaceNova performance machine.",
 
     unlockCost: 20000,
+
+    modelPath:
+      "/assets/cars/hypercar.glb",
 
     stats: {
       maxSpeed: 195,
