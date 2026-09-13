@@ -378,29 +378,42 @@ export class PlayerCar {
             .toLowerCase();
 
         if (
-          normalizedPath.endsWith(
-            "/sportcar.glb"
-          ) ||
-          normalizedPath.endsWith(
-            "/musclecar.glb"
-          ) ||
-          normalizedPath.endsWith(
-            "/supercar.glb"
-          ) ||
-          normalizedPath.endsWith(
-            "/hypercar.glb"
-          )
-        ) {
+  normalizedPath.endsWith(
+    "/sportcar.glb"
+  ) ||
+  normalizedPath.endsWith(
+    "/musclecar.glb"
+  ) ||
+  normalizedPath.endsWith(
+    "/supercar.glb"
+  ) ||
+  normalizedPath.endsWith(
+    "/hypercar.glb"
+  )
+) {
 
-          model.rotation.x =
-            -Math.PI / 2;
+  /*
+   * These Garage GLBs use -Y as their
+   * local forward direction.
+   *
+   * +90° X rotation converts:
+   *
+   * -Y -> -Z
+   *
+   * which matches RaceNova forward.
+   */
+  model.rotation.x =
+    Math.PI / 2;
 
-        } else {
+} else {
 
-          model.rotation.x =
-            0;
+  /*
+   * Nova GT / playercar.glb remains
+   * completely unchanged.
+   */
+  model.rotation.x =
+    0;
         }
-
         model.scale.setScalar(
           this.modelScale
         );
