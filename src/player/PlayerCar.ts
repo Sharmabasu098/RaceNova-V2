@@ -246,9 +246,9 @@ export class PlayerCar {
     // =======================================================
 
     this.modelPath =
-  config.modelPath ??
-  "/RaceNova-V2/assets/cars/playercar.glb";
-    
+      config.modelPath ??
+      "/RaceNova-V2/assets/cars/playercar.glb";
+
     /*
      * RaceNova world forward direction:
      *
@@ -256,9 +256,11 @@ export class PlayerCar {
      *         ↑
      *       PLAYER
      *
-     * Many downloaded GLB cars face +Z.
+     * Nova GT already uses the existing
+     * Y-axis rotation.
      *
-     * Default rotation fixes that.
+     * Newly added Garage cars receive their
+     * own X-axis correction during loading.
      */
     this.modelRotationY =
       Number.isFinite(
@@ -339,43 +341,69 @@ export class PlayerCar {
           "PlayerCarGLB";
 
         // ---------------------------------------------------
-// Basic transform
-// ---------------------------------------------------
+        // Basic transform
+        // ---------------------------------------------------
 
-/*
- * RaceNova forward direction:
- * -Z
- *
- * Nova GT / playercar.glb:
- * - Existing orientation is already correct.
- * - Keep X rotation at 0.
- * - Existing Y rotation remains Math.PI.
- *
- * Newly added Garage cars:
- * - sportcar.glb
- * - musclecar.glb
- * - supercar.glb
- * - hypercar.glb
- *
- * These imported models use a different local forward axis.
- * Their local -Y direction must be converted before the
- * existing RaceNova Y rotation is applied.
- */
+        /*
+         * Existing Nova GT rotation.
+         *
+         * DO NOT change this.
+         */
+        model.rotation.y =
+          this.modelRotationY;
 
-const modelRotationX =
-  this.getModelRotationX(
-    requestedPath
-  );
+        /*
+         * The four newly-added Garage GLBs
+         * use a different local forward axis.
+         *
+         * Their local front is -Y.
+         *
+         * X = -90° converts:
+         *
+         * -Y -> +Z
+         *
+         * Then the existing Y = 180°
+         * converts:
+         *
+         * +Z -> -Z
+         *
+         * which matches RaceNova forward.
+         *
+         * Nova GT / playercar.glb remains
+         * completely unchanged.
+         */
+        const normalizedPath =
+          requestedPath
+            .trim()
+            .toLowerCase();
 
-model.rotation.x =
-  modelRotationX;
+        if (
+          normalizedPath.endsWith(
+            "/sportcar.glb"
+          ) ||
+          normalizedPath.endsWith(
+            "/musclecar.glb"
+          ) ||
+          normalizedPath.endsWith(
+            "/supercar.glb"
+          ) ||
+          normalizedPath.endsWith(
+            "/hypercar.glb"
+          )
+        ) {
 
-model.rotation.y =
-  this.modelRotationY;
+          model.rotation.x =
+            -Math.PI / 2;
 
-model.scale.setScalar(
-  this.modelScale
-);
+        } else {
+
+          model.rotation.x =
+            0;
+        }
+
+        model.scale.setScalar(
+          this.modelScale
+        );
 
         // ---------------------------------------------------
         // Shadows
@@ -454,71 +482,64 @@ model.scale.setScalar(
   }
 
   // =========================================================
-// Model Orientation
-// =========================================================
+  // Normalize GLB Model
+  // =========================================================
 
-private getModelRotationX(
-  modelPath: string
-): number {
+  private normalizeModel(
+    model: THREE.Object3D
+  ): void {
 
-  const normalizedPath =
-    modelPath
-      .trim()
-      .toLowerCase();
+    const box =
+      new THREE.Box3().setFromObject(
+        model
+      );
 
-  /*
-   * Original RaceNova PlayerCar.
-   *
-   * DO NOT rotate Nova GT on X-axis.
-   */
-  if (
-    normalizedPath.endsWith(
-      "/playercar.glb"
-    )
-  ) {
-    return 0;
-  }
+    if (
+      box.isEmpty()
+    ) {
+      return;
+    }
 
-  /*
-   * Newly added Garage cars.
-   *
-   * Their local front is -Y.
-   *
-   * X = -90 degrees converts:
-   *
-   * -Y -> +Z
-   *
-   * Existing Y = 180 degrees then converts:
-   *
-   * +Z -> -Z
-   *
-   * RaceNova forward direction = -Z
-   */
-  if (
-    normalizedPath.endsWith(
-      "/sportcar.glb"
-    ) ||
-    normalizedPath.endsWith(
-      "/musclecar.glb"
-    ) ||
-    normalizedPath.endsWith(
-      "/supercar.glb"
-    ) ||
-    normalizedPath.endsWith(
-      "/hypercar.glb"
-    )
-  ) {
-    return -Math.PI / 2;
-  }
+    const size =
+      new THREE.Vector3();
 
-  /*
-   * Safe default.
-   *
-   * Unknown models keep the existing
-   * RaceNova orientation.
-   */
-  return 0;
-}
+    box.getSize(
+      size
+    );
+
+    const maxDimension =
+      Math.max(
+        size.x,
+        size.y,
+        size.z
+      );
+
+    if (
+      !Number.isFinite(
+        maxDimension
+      ) ||
+      maxDimension <= 0
+    ) {
+      return;
+    }
+
+    /*
+     * RaceNova cars are roughly
+     * 4 world units long.
+     *
+     * This prevents a downloaded
+     * GLB from appearing huge/tiny.
+     */
+    const targetLength =
+      4.2;
+
+    const normalizationScale =
+      targetLength /
+      maxDimension;
+
+    model.scale.multiplyScalar(
+      normalizationScale
+    );
 
     // -------------------------------------------------------
     // Recalculate bounding box
@@ -572,50 +593,50 @@ private getModelRotationX(
   }
 
   // =========================================================
-// Runtime Model Switching
-// =========================================================
+  // Runtime Model Switching
+  // =========================================================
 
-public setModelPath(
-  modelPath: string
-): void {
+  public setModelPath(
+    modelPath: string
+  ): void {
 
-  if (
-    typeof modelPath !== "string" ||
-    modelPath.trim().length === 0
-  ) {
-    return;
+    if (
+      typeof modelPath !== "string" ||
+      modelPath.trim().length === 0
+    ) {
+      return;
+    }
+
+    const normalizedPath =
+      modelPath.trim();
+
+    // Same model already active/requested
+    if (
+      normalizedPath ===
+      this.modelPath
+    ) {
+      return;
+    }
+
+    this.modelPath =
+      normalizedPath;
+
+    // Remove old model
+    this.disposeCurrentModel();
+
+    // Load new selected model
+    this.loadPlayerCar();
   }
 
-  const normalizedPath =
-    modelPath.trim();
+  // =========================================================
+  // Get Current Model Path
+  // =========================================================
 
-  // Same model already active/requested
-  if (
-    normalizedPath ===
-    this.modelPath
-  ) {
-    return;
+  public getModelPath():
+    string {
+
+    return this.modelPath;
   }
-
-  this.modelPath =
-    normalizedPath;
-
-  // Remove old model
-  this.disposeCurrentModel();
-
-  // Load new selected model
-  this.loadPlayerCar();
-}
-
-// =========================================================
-// Get Current Model Path
-// =========================================================
-
-public getModelPath():
-  string {
-
-  return this.modelPath;
-}
 
   // =========================================================
   // Dispose Current GLB Model
@@ -810,8 +831,8 @@ public getModelPath():
   }
 
   // =========================================================
-  // Nitro Visual Creation
-  // =========================================================
+// Nitro Visual Creation
+// =========================================================
 
   private createNitroEffect(): void {
 
@@ -1067,7 +1088,7 @@ public getModelPath():
     // Normal Acceleration
     // =======================================================
 
-        this.speed +=
+    this.speed +=
       this.acceleration *
       deltaTime;
 
@@ -1282,9 +1303,9 @@ public getModelPath():
     );
   }
 
-  // =========================================================
-  // Position
-  // =========================================================
+   // =========================================================
+// Position
+// =========================================================
 
   public getPosition():
     THREE.Vector3 {
@@ -1357,7 +1378,7 @@ public getModelPath():
     );
   }
 
-    // =========================================================
+  // =========================================================
   // Dispose
   // =========================================================
 
@@ -1392,4 +1413,3 @@ public getModelPath():
       false;
   }
 }
-  
