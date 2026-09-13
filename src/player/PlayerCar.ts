@@ -344,80 +344,15 @@ export class PlayerCar {
         // Basic transform
         // ---------------------------------------------------
 
-        /*
-         * Existing Nova GT rotation.
-         *
-         * DO NOT change this.
-         */
         model.rotation.y =
-          this.modelRotationY;
+  this.modelRotationY;
 
-        /*
-         * The four newly-added Garage GLBs
-         * use a different local forward axis.
-         *
-         * Their local front is -Y.
-         *
-         * X = -90° converts:
-         *
-         * -Y -> +Z
-         *
-         * Then the existing Y = 180°
-         * converts:
-         *
-         * +Z -> -Z
-         *
-         * which matches RaceNova forward.
-         *
-         * Nova GT / playercar.glb remains
-         * completely unchanged.
-         */
-        const normalizedPath =
-          requestedPath
-            .trim()
-            .toLowerCase();
+model.rotation.x =
+  0;
 
-        if (
-  normalizedPath.endsWith(
-    "/sportcar.glb"
-  ) ||
-  normalizedPath.endsWith(
-    "/musclecar.glb"
-  ) ||
-  normalizedPath.endsWith(
-    "/supercar.glb"
-  ) ||
-  normalizedPath.endsWith(
-    "/hypercar.glb"
-  )
-) {
-
-  /*
-   * These Garage GLBs use -Y as their
-   * local forward direction.
-   *
-   * +90° X rotation converts:
-   *
-   * -Y -> -Z
-   *
-   * which matches RaceNova forward.
-   */
-  model.rotation.x =
-    Math.PI / 2;
-
-} else {
-
-  /*
-   * Nova GT / playercar.glb remains
-   * completely unchanged.
-   */
-  model.rotation.x =
-    0;
-        }
-        model.scale.setScalar(
-          this.modelScale
-        );
-
+model.scale.setScalar(
+  this.modelScale
+);
         // ---------------------------------------------------
         // Shadows
         // ---------------------------------------------------
