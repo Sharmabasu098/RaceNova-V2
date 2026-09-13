@@ -5,7 +5,7 @@
  * M8.4.2
  * ============================================================
  *
- * Static definitions for all RaceNova cars.
+ * Static definitions for all RaceNova Garage cars.
  *
  * IMPORTANT:
  * - No UI logic
@@ -44,6 +44,7 @@ export interface CarStats {
 // ============================================================
 
 export interface CarDefinition {
+
   id: CarId;
 
   name: string;
@@ -52,16 +53,34 @@ export interface CarDefinition {
 
   unlockCost: number;
 
+  /**
+   * GitHub Pages compatible GLB asset path.
+   */
   modelPath: string;
 
   stats: CarStats;
 }
 
 // ============================================================
+// Asset Root
+// ============================================================
+//
+// RaceNova V2 is deployed at:
+//
+// /RaceNova-V2/
+//
+// Therefore all Garage GLB paths use this root.
+//
+
+const CAR_ASSET_ROOT =
+  "/RaceNova-V2/assets/cars";
+
+// ============================================================
 // Car Database
 // ============================================================
 
-export const CAR_DATA: readonly CarDefinition[] = [
+export const CAR_DATA:
+  readonly CarDefinition[] = [
 
   // ==========================================================
   // Starter Car
@@ -78,12 +97,18 @@ export const CAR_DATA: readonly CarDefinition[] = [
     unlockCost: 0,
 
     modelPath:
-      "/assets/cars/playercar.glb",
+      `${CAR_ASSET_ROOT}/playercar.glb`,
 
     stats: {
-      maxSpeed: 128,
-      acceleration: 35,
-      handling: 7
+
+      maxSpeed:
+        128,
+
+      acceleration:
+        35,
+
+      handling:
+        7
     }
   },
 
@@ -102,12 +127,18 @@ export const CAR_DATA: readonly CarDefinition[] = [
     unlockCost: 2500,
 
     modelPath:
-      "/assets/cars/sportcar.glb",
+      `${CAR_ASSET_ROOT}/sportcar.glb`,
 
     stats: {
-      maxSpeed: 145,
-      acceleration: 40,
-      handling: 8
+
+      maxSpeed:
+        145,
+
+      acceleration:
+        40,
+
+      handling:
+        8
     }
   },
 
@@ -126,12 +157,18 @@ export const CAR_DATA: readonly CarDefinition[] = [
     unlockCost: 5000,
 
     modelPath:
-      "/assets/cars/musclecar.glb",
+      `${CAR_ASSET_ROOT}/musclecar.glb`,
 
     stats: {
-      maxSpeed: 155,
-      acceleration: 48,
-      handling: 7
+
+      maxSpeed:
+        155,
+
+      acceleration:
+        48,
+
+      handling:
+        7
     }
   },
 
@@ -150,12 +187,18 @@ export const CAR_DATA: readonly CarDefinition[] = [
     unlockCost: 10000,
 
     modelPath:
-      "/assets/cars/supercar.glb",
+      `${CAR_ASSET_ROOT}/supercar.glb`,
 
     stats: {
-      maxSpeed: 175,
-      acceleration: 55,
-      handling: 9
+
+      maxSpeed:
+        175,
+
+      acceleration:
+        55,
+
+      handling:
+        9
     }
   },
 
@@ -174,12 +217,18 @@ export const CAR_DATA: readonly CarDefinition[] = [
     unlockCost: 20000,
 
     modelPath:
-      "/assets/cars/hypercar.glb",
+      `${CAR_ASSET_ROOT}/hypercar.glb`,
 
     stats: {
-      maxSpeed: 195,
-      acceleration: 65,
-      handling: 10
+
+      maxSpeed:
+        195,
+
+      acceleration:
+        65,
+
+      handling:
+        10
     }
   }
 ];
@@ -217,6 +266,7 @@ export function getStarterCar():
    */
 
   if (starter) {
+
     return starter;
   }
 
