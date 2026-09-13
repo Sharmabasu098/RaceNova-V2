@@ -339,15 +339,43 @@ export class PlayerCar {
           "PlayerCarGLB";
 
         // ---------------------------------------------------
-        // Basic transform
-        // ---------------------------------------------------
+// Basic transform
+// ---------------------------------------------------
 
-        model.rotation.y =
-          this.modelRotationY;
+/*
+ * RaceNova forward direction:
+ * -Z
+ *
+ * Nova GT / playercar.glb:
+ * - Existing orientation is already correct.
+ * - Keep X rotation at 0.
+ * - Existing Y rotation remains Math.PI.
+ *
+ * Newly added Garage cars:
+ * - sportcar.glb
+ * - musclecar.glb
+ * - supercar.glb
+ * - hypercar.glb
+ *
+ * These imported models use a different local forward axis.
+ * Their local -Y direction must be converted before the
+ * existing RaceNova Y rotation is applied.
+ */
 
-        model.scale.setScalar(
-          this.modelScale
-        );
+const modelRotationX =
+  this.getModelRotationX(
+    requestedPath
+  );
+
+model.rotation.x =
+  modelRotationX;
+
+model.rotation.y =
+  this.modelRotationY;
+
+model.scale.setScalar(
+  this.modelScale
+);
 
         // ---------------------------------------------------
         // Shadows
@@ -426,64 +454,71 @@ export class PlayerCar {
   }
 
   // =========================================================
-  // Normalize GLB Model
-  // =========================================================
+// Model Orientation
+// =========================================================
 
-  private normalizeModel(
-    model: THREE.Object3D
-  ): void {
+private getModelRotationX(
+  modelPath: string
+): number {
 
-    const box =
-      new THREE.Box3().setFromObject(
-        model
-      );
+  const normalizedPath =
+    modelPath
+      .trim()
+      .toLowerCase();
 
-    if (
-      box.isEmpty()
-    ) {
-      return;
-    }
+  /*
+   * Original RaceNova PlayerCar.
+   *
+   * DO NOT rotate Nova GT on X-axis.
+   */
+  if (
+    normalizedPath.endsWith(
+      "/playercar.glb"
+    )
+  ) {
+    return 0;
+  }
 
-    const size =
-      new THREE.Vector3();
+  /*
+   * Newly added Garage cars.
+   *
+   * Their local front is -Y.
+   *
+   * X = -90 degrees converts:
+   *
+   * -Y -> +Z
+   *
+   * Existing Y = 180 degrees then converts:
+   *
+   * +Z -> -Z
+   *
+   * RaceNova forward direction = -Z
+   */
+  if (
+    normalizedPath.endsWith(
+      "/sportcar.glb"
+    ) ||
+    normalizedPath.endsWith(
+      "/musclecar.glb"
+    ) ||
+    normalizedPath.endsWith(
+      "/supercar.glb"
+    ) ||
+    normalizedPath.endsWith(
+      "/hypercar.glb"
+    )
+  ) {
+    return -Math.PI / 2;
+  }
 
-    box.getSize(
-      size
-    );
-
-    const maxDimension =
-      Math.max(
-        size.x,
-        size.y,
-        size.z
-      );
-
-    if (
-      !Number.isFinite(
-        maxDimension
-      ) ||
-      maxDimension <= 0
-    ) {
-      return;
-    }
-
-    /*
-     * RaceNova cars are roughly
-     * 4 world units long.
-     *
-     * This prevents a downloaded
-     * GLB from appearing huge/tiny.
-     */
-    const targetLength =
-      4.2;
-
-    const normalizationScale =
-      targetLength /
-      maxDimension;
-
-    model.scale.multiplyScalar(
-      normalizationScale
-    );
+  /*
+   * Safe default.
+   *
+   * Unknown models keep the existing
+   * RaceNova orientation.
+   */
+  return 0;
+}
 
     // -------------------------------------------------------
     // Recalculate bounding box
