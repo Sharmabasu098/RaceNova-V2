@@ -5,7 +5,7 @@
  * M8.4.2
  * ============================================================
  *
- * Static definitions for all RaceNova Garage cars.
+ * Static definitions for all RaceNova cars.
  *
  * IMPORTANT:
  * - No UI logic
@@ -44,7 +44,6 @@ export interface CarStats {
 // ============================================================
 
 export interface CarDefinition {
-
   id: CarId;
 
   name: string;
@@ -53,27 +52,17 @@ export interface CarDefinition {
 
   unlockCost: number;
 
-  /**
-   * GitHub Pages compatible GLB asset path.
-   */
   modelPath: string;
 
   stats: CarStats;
 }
 
 // ============================================================
-// Asset Root
+// RaceNova GitHub Pages Asset Root
 // ============================================================
-//
-// RaceNova V2 is deployed at:
-//
-// /RaceNova-V2/
-//
-// Therefore all Garage GLB paths use this root.
-//
 
 const CAR_ASSET_ROOT =
-  "/RaceNova-V2/assets/cars";
+  "/RaceNova-V2/assets/cars/";
 
 // ============================================================
 // Car Database
@@ -97,18 +86,12 @@ export const CAR_DATA:
     unlockCost: 0,
 
     modelPath:
-      `${CAR_ASSET_ROOT}/playercar.glb`,
+      `${CAR_ASSET_ROOT}playercar.glb`,
 
     stats: {
-
-      maxSpeed:
-        128,
-
-      acceleration:
-        35,
-
-      handling:
-        7
+      maxSpeed: 128,
+      acceleration: 35,
+      handling: 7
     }
   },
 
@@ -127,18 +110,12 @@ export const CAR_DATA:
     unlockCost: 2500,
 
     modelPath:
-      `${CAR_ASSET_ROOT}/sportcar.glb`,
+      `${CAR_ASSET_ROOT}sportcar.glb`,
 
     stats: {
-
-      maxSpeed:
-        145,
-
-      acceleration:
-        40,
-
-      handling:
-        8
+      maxSpeed: 145,
+      acceleration: 40,
+      handling: 8
     }
   },
 
@@ -157,18 +134,12 @@ export const CAR_DATA:
     unlockCost: 5000,
 
     modelPath:
-      `${CAR_ASSET_ROOT}/musclecar.glb`,
+      `${CAR_ASSET_ROOT}musclecar.glb`,
 
     stats: {
-
-      maxSpeed:
-        155,
-
-      acceleration:
-        48,
-
-      handling:
-        7
+      maxSpeed: 155,
+      acceleration: 48,
+      handling: 7
     }
   },
 
@@ -187,18 +158,12 @@ export const CAR_DATA:
     unlockCost: 10000,
 
     modelPath:
-      `${CAR_ASSET_ROOT}/supercar.glb`,
+      `${CAR_ASSET_ROOT}supercar.glb`,
 
     stats: {
-
-      maxSpeed:
-        175,
-
-      acceleration:
-        55,
-
-      handling:
-        9
+      maxSpeed: 175,
+      acceleration: 55,
+      handling: 9
     }
   },
 
@@ -217,18 +182,12 @@ export const CAR_DATA:
     unlockCost: 20000,
 
     modelPath:
-      `${CAR_ASSET_ROOT}/hypercar.glb`,
+      `${CAR_ASSET_ROOT}hypercar.glb`,
 
     stats: {
-
-      maxSpeed:
-        195,
-
-      acceleration:
-        65,
-
-      handling:
-        10
+      maxSpeed: 195,
+      acceleration: 65,
+      handling: 10
     }
   }
 ];
@@ -266,7 +225,6 @@ export function getStarterCar():
    */
 
   if (starter) {
-
     return starter;
   }
 
