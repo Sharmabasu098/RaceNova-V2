@@ -246,9 +246,9 @@ export class PlayerCar {
     // =======================================================
 
     this.modelPath =
-      config.modelPath ??
-      "/assets/cars/playercar.glb";
-
+  config.modelPath ??
+  "/RaceNova-V2/assets/cars/playercar.glb";
+    
     /*
      * RaceNova world forward direction:
      *
@@ -537,55 +537,50 @@ export class PlayerCar {
   }
 
   // =========================================================
-  // Runtime Model Switching
-  // =========================================================
+// Runtime Model Switching
+// =========================================================
 
-  public setModelPath(
-    modelPath: string
-  ): void {
+public setModelPath(
+  modelPath: string
+): void {
 
-    if (
-      typeof modelPath !== "string" ||
-      modelPath.trim().length === 0
-    ) {
-      return;
-    }
-
-    const normalizedPath =
-      modelPath.trim();
-
-    /*
-     * No reload when the same model
-     * is already requested.
-     */
-    if (
-      normalizedPath ===
-      this.modelPath
-    ) {
-      return;
-    }
-
-    this.modelPath =
-      normalizedPath;
-
-    // -------------------------------------------------------
-    // Remove current model
-    // -------------------------------------------------------
-
-    this.disposeCurrentModel();
-
-    // -------------------------------------------------------
-    // Load selected model
-    // -------------------------------------------------------
-
-    this.loadPlayerCar();
+  if (
+    typeof modelPath !== "string" ||
+    modelPath.trim().length === 0
+  ) {
+    return;
   }
 
-  public getModelPath():
-    string {
+  const normalizedPath =
+    modelPath.trim();
 
-    return this.modelPath;
+  // Same model already active/requested
+  if (
+    normalizedPath ===
+    this.modelPath
+  ) {
+    return;
   }
+
+  this.modelPath =
+    normalizedPath;
+
+  // Remove old model
+  this.disposeCurrentModel();
+
+  // Load new selected model
+  this.loadPlayerCar();
+}
+
+// =========================================================
+// Get Current Model Path
+// =========================================================
+
+public getModelPath():
+  string {
+
+  return this.modelPath;
+}
 
   // =========================================================
   // Dispose Current GLB Model
