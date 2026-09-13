@@ -597,6 +597,9 @@ export class RaceNovaEngine {
 
         scale: 1,
 
+            modelPath:
+      selectedCar.modelPath,
+
         maxSpeed:
           selectedCarStats.maxSpeed,
 
@@ -770,25 +773,44 @@ export class RaceNovaEngine {
         {
           onChanged: () => {
 
-            const selectedCarId =
-              this.garageManager
-                .getSelectedCarId();
+  const selectedCar =
+    this.garageManager
+      .getSelectedCar();
 
-            const upgradedStats =
-              this.upgradeSystem.getStats(
-                selectedCarId
-              );
+  const selectedCarId =
+    selectedCar.id;
 
-            this.playerCar.applyCarStats(
-              upgradedStats.maxSpeed,
-              upgradedStats.acceleration,
-              upgradedStats.handling
-            );
+  const upgradedStats =
+    this.upgradeSystem.getStats(
+      selectedCarId
+    );
 
-            this.savePlayerData();
+  // =====================================================
+  // Gameplay Stats
+  // =====================================================
 
-            this.raceHUD.update();
-          },
+  this.playerCar.applyCarStats(
+    upgradedStats.maxSpeed,
+    upgradedStats.acceleration,
+    upgradedStats.handling
+  );
+
+  // =====================================================
+  // M8.4.2 — Runtime GLB Model Switching
+  // =====================================================
+
+  this.playerCar.setModelPath(
+    selectedCar.modelPath
+  );
+
+  // =====================================================
+  // Save
+  // =====================================================
+
+  this.savePlayerData();
+
+  this.raceHUD.update();
+},
 
           upgradeSystem:
             this.upgradeSystem,
