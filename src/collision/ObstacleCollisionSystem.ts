@@ -2,24 +2,20 @@
  * ============================================================
  * RaceNova V2
  * Obstacle Collision System
- * M7.9.6
+ * M8.3.x — Step 1
  * ============================================================
  *
  * Behavior:
  * - Detect obstacle collision
  * - Stop player immediately
- * - Hold player briefly
- * - Recover automatically
- * - Allow the race to continue
- * - Prevent the same obstacle from re-triggering instantly
- * - Re-enable collision for later obstacles
+ * - Keep player permanently stopped
+ * - Hold crash state until engine handles race failure
  *
  * IMPORTANT:
- * - Recovery clears the manager latch only when the car is
- *   released from the crash state.
- * - A short post-crash grace window gives the car time to move
- *   completely away from the obstacle before collision checks
- *   resume.
+ * - Automatic recovery has been REMOVED.
+ * - No stun/recovery timer.
+ * - RaceNovaEngine owns the final crash/result flow.
+ * - reset() is still available for a fresh race.
  * ============================================================
  */
 
@@ -42,23 +38,26 @@ export class ObstacleCollisionSystem {
   private readonly obstacleManager:
     ObstacleManager;
 
+  /**
+   * Kept for API compatibility.
+   * M8.3.x no automatic recovery is performed.
+   */
   private readonly impactStunDuration:
     number;
 
+  /**
+   * Kept for API compatibility.
+   * M8.3.x no automatic recovery is performed.
+   */
   private readonly recoveryCooldown:
     number;
 
+  /**
+   * Kept for API compatibility.
+   * M8.3.x no automatic recovery is performed.
+   */
   private readonly postCrashGraceDuration:
     number;
-
-  private stunTimer =
-    0;
-
-  private recoveryTimer =
-    0;
-
-  private postCrashGraceTimer =
-    0;
 
   private crashed =
     false;
@@ -78,6 +77,11 @@ export class ObstacleCollisionSystem {
     this.obstacleManager =
       obstacleManager;
 
+    /*
+     * Preserve the existing constructor contract.
+     * These values are no longer used for automatic
+     * crash recovery.
+     */
     this.impactStunDuration =
       Math.max(
         0.1,
@@ -97,11 +101,9 @@ export class ObstacleCollisionSystem {
       );
   }
 
-  /**
-   * ==========================================================
-   * Update
-   * ==========================================================
-   */
+  // =========================================================
+  // Update
+  // =========================================================
 
   public update(
     deltaTime: number
@@ -114,117 +116,36 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    /**
-     * --------------------------------------------------------
-     * CRASH STATE
-     * --------------------------------------------------------
-     */
+    // =======================================================
+    // PERMANENT CRASH STATE
+    // =======================================================
 
     if (
       this.crashed
     ) {
 
       /*
-       * Keep the player stopped while the crash
-       * stun/recovery sequence is active.
+       * The player remains permanently stopped.
+       *
+       * RaceNovaEngine will later detect this state
+       * and perform:
+       *
+       * Crash
+       *   ↓
+       * Race Failed
+       *   ↓
+       * Race Result
        */
       this.playerCar.setSpeed(
         0
       );
 
-      /**
-       * Impact stun
-       */
-      if (
-        this.stunTimer > 0
-      ) {
-
-        this.stunTimer =
-          Math.max(
-            0,
-            this.stunTimer -
-              deltaTime
-          );
-
-        return;
-      }
-
-      /**
-       * Recovery cooldown
-       */
-      if (
-        this.recoveryTimer > 0
-      ) {
-
-        this.recoveryTimer =
-          Math.max(
-            0,
-            this.recoveryTimer -
-              deltaTime
-          );
-
-        return;
-      }
-
-      /**
-       * ------------------------------------------------------
-       * CRASH COMPLETE
-       * ------------------------------------------------------
-       *
-       * Release player from frozen state.
-       *
-       * IMPORTANT:
-       * Clear ObstacleManager crash latch here so future
-       * obstacles can trigger collisions again.
-       */
-
-      this.crashed =
-        false;
-
-      this.obstacleManager
-        .clearCrashLatch();
-
-      /**
-       * Give the player a short grace period.
-       *
-       * This prevents the exact same obstacle from causing
-       * an immediate second collision if the car is still
-       * overlapping it.
-       */
-
-      this.postCrashGraceTimer =
-        this.postCrashGraceDuration;
-
       return;
     }
 
-    /**
-     * --------------------------------------------------------
-     * POST-CRASH GRACE PERIOD
-     * --------------------------------------------------------
-     *
-     * Collision checks are temporarily disabled.
-     */
-
-    if (
-      this.postCrashGraceTimer > 0
-    ) {
-
-      this.postCrashGraceTimer =
-        Math.max(
-          0,
-          this.postCrashGraceTimer -
-            deltaTime
-        );
-
-      return;
-    }
-
-    /**
-     * --------------------------------------------------------
-     * NORMAL COLLISION CHECK
-     * --------------------------------------------------------
-     */
+    // =======================================================
+    // NORMAL COLLISION CHECK
+    // =======================================================
 
     this.playerPosition.copy(
       this.playerCar.getPosition()
@@ -241,35 +162,33 @@ export class ObstacleCollisionSystem {
       return;
     }
 
-    /**
-     * --------------------------------------------------------
-     * COLLISION DETECTED
-     * --------------------------------------------------------
-     */
+    // =======================================================
+    // COLLISION DETECTED
+    // =======================================================
 
     this.crashed =
       true;
 
-    this.stunTimer =
-      this.impactStunDuration;
-
-    this.recoveryTimer =
-      this.recoveryCooldown;
-
-    this.postCrashGraceTimer =
-      0;
-
-    /**
-     * Immediately stop player.
+    /*
+     * Stop player immediately.
      */
     this.playerCar.stop();
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT clear the crash state.
+     * Do NOT start a recovery timer.
+     * Do NOT release the player.
+     *
+     * The engine will handle the final race
+     * failure flow in the next M8.3.x step.
+     */
   }
 
-  /**
-   * ==========================================================
-   * State
-   * ==========================================================
-   */
+  // =========================================================
+  // State
+  // =========================================================
 
   public isFrozen():
     boolean {
@@ -283,22 +202,11 @@ export class ObstacleCollisionSystem {
     return this.crashed;
   }
 
-  /**
-   * ==========================================================
-   * Reset
-   * ==========================================================
-   */
+  // =========================================================
+  // Reset
+  // =========================================================
 
   public reset(): void {
-
-    this.stunTimer =
-      0;
-
-    this.recoveryTimer =
-      0;
-
-    this.postCrashGraceTimer =
-      0;
 
     this.crashed =
       false;
@@ -307,11 +215,9 @@ export class ObstacleCollisionSystem {
       .clearCrashLatch();
   }
 
-  /**
-   * ==========================================================
-   * Dispose
-   * ==========================================================
-   */
+  // =========================================================
+  // Dispose
+  // =========================================================
 
   public dispose(): void {
 
