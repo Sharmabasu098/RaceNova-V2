@@ -271,16 +271,16 @@ export class ObstacleManager {
       );
 
     this.playerCollisionWidth =
-      Math.max(
-        0.5,
-        config.playerCollisionWidth ?? 1.45
-      );
+  Math.max(
+    0.5,
+    config.playerCollisionWidth ?? 0.90
+  );
 
-    this.playerCollisionDepth =
-      Math.max(
-        0.5,
-        config.playerCollisionDepth ?? 2.4
-      );
+this.playerCollisionDepth =
+  Math.max(
+    0.5,
+    config.playerCollisionDepth ?? 1.40
+  );
 
     // ========================================================
     // Group
@@ -1290,20 +1290,16 @@ export class ObstacleManager {
        * another lane.
        */
       const obstacleHalfWidth =
-        Math.max(
-          0.70,
-          this.laneWidth *
-          0.30
-        );
+  0.70;
 
-      const collisionWidth =
-        obstacleHalfWidth +
-        this.playerCollisionWidth;
+const collisionWidth =
+  obstacleHalfWidth +
+  this.playerCollisionWidth;
 
-      const collisionDepth =
-        1.0 +
-        this.playerCollisionDepth;
-
+const collisionDepth =
+  0.70 +
+  this.playerCollisionDepth;
+      
       if (
         deltaX <=
         collisionWidth &&
