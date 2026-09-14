@@ -1750,47 +1750,21 @@ if (
         .getTrafficCars()
     );
 
-    if (
-      this.trafficCollisionSystem
-        .hasCrashed() &&
-      !this.crashSoundPlayed
-    ) {
+    // =======================================================
+// M8.3.x — Unified Crash Detection
+// =======================================================
 
-      this.crashSoundPlayed =
-        true;
+if (
+  this.trafficCollisionSystem
+    .hasCrashed()
+) {
 
-      // -----------------------------------------------------
-      // Existing crash SFX
-      // -----------------------------------------------------
+  this.handleRaceCrash(
+    "traffic"
+  );
 
-      this.audioManager.playSFX(
-        "crash"
-      );
-
-      // -----------------------------------------------------
-      // Stop engine loop.
-      //
-      // IMPORTANT:
-      // Obstacle collision system is NOT modified.
-      // -----------------------------------------------------
-
-      this.running =
-        false;
-
-      this.clock.stop();
-
-      // -----------------------------------------------------
-      // Notify application UI.
-      // main.ts will return the player
-      // to Main Menu.
-      // -----------------------------------------------------
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "racenova:traffic-crash"
-        )
-      );
-    }
+  return;
+}
 
     // =======================================================
     // Coins
@@ -2157,6 +2131,74 @@ if (
       this.finishNormalRace();
     }
   }
+
+  // =========================================================
+// M8.3.x — Unified Race Crash Handler
+// =========================================================
+
+private handleRaceCrash(
+  source: "traffic" | "obstacle"
+): void {
+
+  // -------------------------------------------------------
+  // Already crashed
+  // -------------------------------------------------------
+
+  if (
+    this.raceCrashed
+  ) {
+    return;
+  }
+
+  // -------------------------------------------------------
+  // Unified crash state
+  // -------------------------------------------------------
+
+  this.raceCrashed =
+    true;
+
+  // -------------------------------------------------------
+  // Permanently stop player
+  // -------------------------------------------------------
+
+  this.playerCar.stop();
+
+  this.playerCar.setSpeed(
+    0
+  );
+
+  // -------------------------------------------------------
+  // Existing crash SFX — ONE TIME
+  // -------------------------------------------------------
+
+  if (
+    !this.crashSoundPlayed
+  ) {
+
+    this.crashSoundPlayed =
+      true;
+
+    this.audioManager.playSFX(
+      "crash"
+    );
+  }
+
+  // -------------------------------------------------------
+  // Stop race loop
+  // -------------------------------------------------------
+
+  this.running =
+    false;
+
+  this.clock.stop();
+
+  // -------------------------------------------------------
+  // Keep source explicit for future result flow.
+  // Step 4 will use the race-level state.
+  // -------------------------------------------------------
+
+  void source;
+}
 
   // =========================================================
   // M8.3 — Finish Normal Race
@@ -2847,6 +2889,9 @@ if (
       false;
 
     this.crashSoundPlayed =
+      false;
+
+    this.raceCrashed =
       false;
 
     this.bossDefeatSoundPlayed =
