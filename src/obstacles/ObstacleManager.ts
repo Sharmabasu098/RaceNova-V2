@@ -1289,24 +1289,19 @@ this.playerCollisionDepth =
        * when the player is clearly in
        * another lane.
        */
-      const obstacleHalfWidth =
-  0.70;
-
-const collisionWidth =
-  obstacleHalfWidth +
-  this.playerCollisionWidth;
+      const collisionWidth =
+  1.15;
 
 const collisionDepth =
-  0.70 +
-  this.playerCollisionDepth;
-      
-      if (
-        deltaX <=
-        collisionWidth &&
-        deltaZ <=
-        collisionDepth
-      ) {
+  1.35;
 
+if (
+  deltaX <=
+  collisionWidth &&
+  deltaZ <=
+  collisionDepth
+) {
+      
         this.crashLatched =
           true;
 
