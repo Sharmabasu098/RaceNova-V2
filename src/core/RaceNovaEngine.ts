@@ -99,6 +99,9 @@ export class RaceNovaEngine {
   private crashSoundPlayed =
     false;
 
+  private raceCrashed =
+  false
+
   private bossDefeatSoundPlayed =
     false;
 
