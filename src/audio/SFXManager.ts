@@ -287,60 +287,132 @@ export class SFXManager {
   }
 
   /**
-   * Crash sound.
-   */
-  private playCrash(): void {
-    if (!this.audioContext) {
-      return;
-    }
+ * ==========================================================
+ * Crash sound
+ * M8.3.x — Mobile-audible crash SFX
+ * ==========================================================
+ */
+private playCrash(): void {
 
-    const oscillator =
-      this.audioContext.createOscillator();
-
-    const gain =
-      this.audioContext.createGain();
-
-    oscillator.type =
-      "square";
-
-    oscillator.frequency.setValueAtTime(
-      120,
-      this.audioContext.currentTime
-    );
-
-    oscillator.frequency.exponentialRampToValueAtTime(
-      45,
-      this.audioContext.currentTime + 0.25
-    );
-
-    gain.gain.setValueAtTime(
-      0.001,
-      this.audioContext.currentTime
-    );
-
-    gain.gain.exponentialRampToValueAtTime(
-      0.22,
-      this.audioContext.currentTime + 0.02
-    );
-
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.audioContext.currentTime + 0.28
-    );
-
-    oscillator.connect(gain);
-
-    gain.connect(
-      this.masterGain!
-    );
-
-    oscillator.start();
-
-    oscillator.stop(
-      this.audioContext.currentTime + 0.28
-    );
+  if (
+    !this.audioContext ||
+    !this.masterGain
+  ) {
+    return;
   }
 
+  const now =
+    this.audioContext.currentTime;
+
+  // --------------------------------------------------------
+  // Main impact tone
+  // --------------------------------------------------------
+
+  const oscillator =
+    this.audioContext.createOscillator();
+
+  const gain =
+    this.audioContext.createGain();
+
+  oscillator.type =
+    "sawtooth";
+
+  oscillator.frequency.setValueAtTime(
+    180,
+    now
+  );
+
+  oscillator.frequency.exponentialRampToValueAtTime(
+    55,
+    now + 0.32
+  );
+
+  gain.gain.setValueAtTime(
+    0.001,
+    now
+  );
+
+  gain.gain.exponentialRampToValueAtTime(
+    0.32,
+    now + 0.015
+  );
+
+  gain.gain.exponentialRampToValueAtTime(
+    0.001,
+    now + 0.34
+  );
+
+  oscillator.connect(
+    gain
+  );
+
+  gain.connect(
+    this.masterGain
+  );
+
+  oscillator.start(
+    now
+  );
+
+  oscillator.stop(
+    now + 0.34
+  );
+
+  // --------------------------------------------------------
+  // Short high-frequency impact
+  // --------------------------------------------------------
+
+  const impactOscillator =
+    this.audioContext.createOscillator();
+
+  const impactGain =
+    this.audioContext.createGain();
+
+  impactOscillator.type =
+    "square";
+
+  impactOscillator.frequency.setValueAtTime(
+    520,
+    now
+  );
+
+  impactOscillator.frequency.exponentialRampToValueAtTime(
+    110,
+    now + 0.12
+  );
+
+  impactGain.gain.setValueAtTime(
+    0.001,
+    now
+  );
+
+  impactGain.gain.exponentialRampToValueAtTime(
+    0.16,
+    now + 0.008
+  );
+
+  impactGain.gain.exponentialRampToValueAtTime(
+    0.001,
+    now + 0.14
+  );
+
+  impactOscillator.connect(
+    impactGain
+  );
+
+  impactGain.connect(
+    this.masterGain
+  );
+
+  impactOscillator.start(
+    now
+  );
+
+  impactOscillator.stop(
+    now + 0.14
+  );
+}
+  
   /**
    * Boss defeated sound.
    */
