@@ -1718,29 +1718,18 @@ export class RaceNovaEngine {
     );
 
     // =======================================================
-// M8.3.x — Obstacle Crash SFX
-// =======================================================
-//
-// Obstacle crash uses the existing crash SFX.
-// The sound is played only once for the current race.
-//
-// IMPORTANT:
-// - No AudioManager changes.
-// - No traffic crash logic changes.
-// - Race failure/result flow comes in later steps.
+// M8.3.x — Unified Crash Detection
 // =======================================================
 
 if (
-  this.obstacleCollisionSystem.hasCrashed() &&
-  !this.crashSoundPlayed
+  this.obstacleCollisionSystem.hasCrashed()
 ) {
 
-  this.crashSoundPlayed =
-    true;
-
-  this.audioManager.playSFX(
-    "crash"
+  this.handleRaceCrash(
+    "obstacle"
   );
+
+  return;
 }
 
     // =======================================================
