@@ -2310,6 +2310,24 @@ private handleRaceCrash(
       completedRaceTime
     );
 
+    // =========================================================
+// M8.4 — WIN Reward
+// =========================================================
+
+const winReward =
+  RaceNovaEngine.NORMAL_RACE_WIN_REWARD;
+
+const rewardGranted =
+  this.economyManager.rewardCoins(
+    winReward,
+    `Normal Race WIN: ${completedRaceId}`
+  );
+
+const actualReward =
+  rewardGranted
+    ? winReward
+    : 0;
+
     // -------------------------------------------------------
     // Unlock/select next campaign race
     // -------------------------------------------------------
@@ -2348,7 +2366,7 @@ private handleRaceCrash(
         this.normalRaceDistance,
 
       reward:
-        0,
+  actualReward,
 
       isBossRace:
         false,
