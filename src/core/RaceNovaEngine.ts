@@ -2184,7 +2184,50 @@ private handleRaceCrash(
   }
 
   // -------------------------------------------------------
-  // Stop race loop
+  // Build M8.3.x CRASH result
+  //
+  // IMPORTANT:
+  // - No reward here
+  // - No progression completion
+  // - No unlock
+  // - M8.4 owns rewards
+  // -------------------------------------------------------
+
+  this.raceResult.set({
+
+    raceId:
+      this.normalRaceId,
+
+    result:
+      "CRASH",
+
+    position:
+      0,
+
+    time:
+      this.normalRaceTime,
+
+    distance:
+      this.normalRaceDistance,
+
+    reward:
+      0,
+
+    isBossRace:
+      false,
+
+    bossDefeated:
+      false,
+
+    nextRaceId:
+      null,
+
+    timestamp:
+      Date.now()
+  });
+
+  // -------------------------------------------------------
+  // Stop gameplay loop
   // -------------------------------------------------------
 
   this.running =
@@ -2193,8 +2236,15 @@ private handleRaceCrash(
   this.clock.stop();
 
   // -------------------------------------------------------
-  // Keep source explicit for future result flow.
-  // Step 4 will use the race-level state.
+  // Show CRASH result screen
+  // -------------------------------------------------------
+
+  this.raceResultUI.show(
+    this.raceResult.get()
+  );
+
+  // -------------------------------------------------------
+  // Keep source available for future analytics/debugging.
   // -------------------------------------------------------
 
   void source;
