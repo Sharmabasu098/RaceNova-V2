@@ -1605,14 +1605,27 @@ private static readonly NORMAL_RACE_WIN_REWARD =
 
     this.resetRaceState();
 
-    // -------------------------------------------------------
-    // M8.3.2 — Start fresh normal race immediately.
-    // -------------------------------------------------------
+// =======================================================
+// M8.1 — Race Type Routing
+// =======================================================
+//
+// Route the selected race through the correct race flow.
+//
+// IMPORTANT:
+// - Normal race  → startNormalRace()
+// - Boss race    → startSelectedRace() → startBossEncounter()
+// - RACE_DEFINITIONS is authoritative for isBoss.
+// - No reward logic here.
+// - No save logic here.
+// - No progression completion here.
+// =======================================================
 
-    this.startNormalRace();
+if (!this.startSelectedRace()) {
+  return;
+}
 
-    this.running =
-      true;
+this.running =
+  true;
 
     this.clock.start();
 
@@ -1961,6 +1974,93 @@ if (
       playerZ - 20
     );
   };
+
+  // =========================================================
+// M8.1 — Race Type Routing
+// =========================================================
+//
+// Responsibilities:
+// - Read selected race
+// - Resolve authoritative RACE_DEFINITIONS entry
+// - Route Boss race to BossRace
+// - Route normal race to normal-race flow
+//
+// IMPORTANT:
+// - RACE_DEFINITIONS is authoritative for isBoss.
+// - RaceProgress does NOT contain isBoss.
+// - No reward logic here.
+// - No save logic here.
+// - No progression completion here.
+// =========================================================
+
+private startSelectedRace(): boolean {
+
+  const progression =
+    this.playerProgress
+      .raceProgression;
+
+  const selectedRace =
+    progression.races.find(
+      (race) =>
+        race.raceId ===
+        progression.selectedRaceId
+    );
+
+  if (
+    !selectedRace
+  ) {
+    return false;
+  }
+
+  const selectedRaceDefinition =
+    RACE_DEFINITIONS.find(
+      (definition) =>
+        definition.id ===
+        selectedRace.raceId
+    );
+
+  if (
+    !selectedRaceDefinition
+  ) {
+    return false;
+  }
+
+  // -------------------------------------------------------
+  // Locked race must never start.
+  // -------------------------------------------------------
+
+  if (
+    selectedRace.status ===
+    "locked"
+  ) {
+    return false;
+  }
+
+  // -------------------------------------------------------
+  // M8.1 — Boss routing
+  // -------------------------------------------------------
+
+  if (
+    selectedRaceDefinition.isBoss
+  ) {
+
+    this.startBossEncounter(
+      this.playerCar
+        .getPosition()
+        .z
+    );
+
+    return this.bossEncounterStarted;
+  }
+
+  // -------------------------------------------------------
+  // M8.1 — Normal race routing
+  // -------------------------------------------------------
+
+  this.startNormalRace();
+
+  return this.normalRaceStarted;
+}
 
   // =========================================================
   // M8.3.2 — Start Normal Race
