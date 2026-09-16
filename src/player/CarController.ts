@@ -342,6 +342,35 @@ export class CarController {
   }
 
   // =========================================================
+// M8.5 — Fresh Race Lane Reset
+// =========================================================
+
+public reset(): void {
+
+  this.currentLane =
+    Math.floor(
+      this.laneCount / 2
+    );
+
+  this.targetX =
+    this.calculateTargetX();
+
+  this.leftPressed =
+    false;
+
+  this.rightPressed =
+    false;
+
+  this.playerCar.setX(
+    this.targetX
+  );
+}
+
+public getCurrentLane(): number {
+  return this.currentLane;
+}
+  
+  // =========================================================
   // Current Lane
   // =========================================================
 
