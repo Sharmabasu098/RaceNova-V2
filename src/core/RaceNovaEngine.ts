@@ -2358,88 +2358,94 @@ private handleRaceCrash(
 }
 
   // =========================================================
-  // M8.3 — Finish Normal Race
-  // =========================================================
-
-  private finishNormalRace(): void {
-
-    if (
-      !this.normalRaceStarted ||
-      this.normalRaceCompleted
-    ) {
-      return;
-    }
-
-    const completedRaceId =
-      this.normalRaceId;
-
-    const completedRaceTime =
-      this.normalRaceTime;
-
-    // -------------------------------------------------------
-    // Mark race completed
-    // -------------------------------------------------------
-
-    this.normalRaceCompleted =
-      true;
-
-    // -------------------------------------------------------
-    // Existing race complete SFX
-    // -------------------------------------------------------
-
-    if (
-      !this.normalRaceCompleteSoundPlayed
-    ) {
-
-      this.normalRaceCompleteSoundPlayed =
-        true;
-
-      this.audioManager.playSFX(
-        "raceComplete"
-      );
-    }
-
-    // -------------------------------------------------------
-    // Existing progression/save logic
-    // -------------------------------------------------------
-
-    this.completeRace(
-      completedRaceId,
-      true,
-      1,
-      completedRaceTime
-    );
-
-    // =========================================================
-// M8.4 — WIN Reward
+// M8.3 — Finish Normal Race
 // =========================================================
 
-const winReward =
-  RaceNovaEngine.NORMAL_RACE_WIN_REWARD;
+private finishNormalRace(): void {
 
-const rewardGranted =
-  this.economyManager.rewardCoins(
-    winReward,
-    `Normal Race WIN: ${completedRaceId}`
+  if (
+    !this.normalRaceStarted ||
+    this.normalRaceCompleted
+  ) {
+    return;
+  }
+
+  const completedRaceId =
+    this.normalRaceId;
+
+  const completedRaceTime =
+    this.normalRaceTime;
+
+  // -------------------------------------------------------
+  // Mark race completed
+  // -------------------------------------------------------
+
+  this.normalRaceCompleted =
+    true;
+
+  // -------------------------------------------------------
+  // Existing race complete SFX
+  // -------------------------------------------------------
+
+  if (
+    !this.normalRaceCompleteSoundPlayed
+  ) {
+
+    this.normalRaceCompleteSoundPlayed =
+      true;
+
+    this.audioManager.playSFX(
+      "raceComplete"
+    );
+  }
+
+  // -------------------------------------------------------
+  // Existing progression/save logic
+  // -------------------------------------------------------
+
+  this.completeRace(
+    completedRaceId,
+    true,
+    1,
+    completedRaceTime
   );
 
-const actualReward =
-  rewardGranted
-    ? winReward
-    : 0;
+  // =======================================================
+  // M8.4 — WIN Reward
+  // =======================================================
 
-    // -------------------------------------------------------
-    // Unlock/select next campaign race
-    // -------------------------------------------------------
+  const winReward =
+    RaceNovaEngine.NORMAL_RACE_WIN_REWARD;
 
-    this.advanceToNextRace();
+  const rewardGranted =
+    this.economyManager.rewardCoins(
+      winReward,
+      `Normal Race WIN: ${completedRaceId}`
+    );
 
-    // -------------------------------------------------------
-    // Race runtime finished
-    // -------------------------------------------------------
+  const actualReward =
+    rewardGranted
+      ? winReward
+      : 0;
 
-    this.normalRaceStarted =
-      false;
+  // =======================================================
+  // M8.4 — Persist WIN reward
+  // =======================================================
+
+  this.savePlayerData();
+
+  // -------------------------------------------------------
+  // Unlock/select next campaign race
+  // -------------------------------------------------------
+
+  this.advanceToNextRace();
+
+  // -------------------------------------------------------
+  // Race runtime finished
+  // -------------------------------------------------------
+
+  this.normalRaceStarted =
+    false;
 
     // -------------------------------------------------------
     // Build M8.3 result
