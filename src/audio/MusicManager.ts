@@ -33,7 +33,9 @@ export class MusicManager {
 
   private playing = false;
 
-  private volume = 0.08;
+private stopTimer: number | null = null;
+
+private volume = 0.08;
 
   /**
    * RaceNova background music asset.
@@ -146,6 +148,27 @@ export class MusicManager {
       return;
     }
 
+    // =========================================================
+// M8.5 — Cancel pending music stop
+// =========================================================
+//
+// A previous race may have scheduled a delayed pause.
+// Cancel it before starting the next race so the old
+// timer cannot stop the new race music.
+// =========================================================
+
+if (
+  this.stopTimer !== null
+) {
+
+  window.clearTimeout(
+    this.stopTimer
+  );
+
+  this.stopTimer =
+    null;
+}
+
     if (
       this.audioContext.state ===
       "suspended"
@@ -221,17 +244,40 @@ export class MusicManager {
     );
 
     const audio =
-      this.audioElement;
+  this.audioElement;
 
-    window.setTimeout(() => {
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-      } catch {
-        // Audio may already be stopped.
-      }
-    }, 550);
+// =========================================================
+// M8.5 — Delayed stop handle
+// =========================================================
 
+if (
+  this.stopTimer !== null
+) {
+
+  window.clearTimeout(
+    this.stopTimer
+  );
+}
+
+this.stopTimer =
+  window.setTimeout(() => {
+
+    try {
+
+      audio.pause();
+
+      audio.currentTime =
+        0;
+
+    } catch {
+      // Audio may already be stopped.
+    }
+
+    this.stopTimer =
+      null;
+
+  }, 550);
+    
     this.playing = false;
   }
 
