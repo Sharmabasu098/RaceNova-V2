@@ -818,6 +818,52 @@ export class TrafficManager {
     );
   }
 
+    // =========================================================
+  // M8.5 — Fresh Race Traffic Reset
+  // =========================================================
+  //
+  // Responsibilities:
+  // - Remove all active traffic from the previous race
+  // - Reset traffic lane assignments
+  // - Reset spawn state
+  // - Keep pooled TrafficCar objects reusable
+  //
+  // IMPORTANT:
+  // - Does not dispose the whole TrafficManager
+  // - Does not affect player progress
+  // - Does not affect economy/save data
+  // =========================================================
+
+  public reset(): void {
+
+    for (
+      const trafficCar
+      of this.trafficCars
+    ) {
+
+      if (
+        trafficCar.isActive()
+      ) {
+
+        trafficCar.setActive(
+          false
+        );
+
+        trafficCar.removeFromScene(
+          this.scene
+        );
+      }
+    }
+
+    this.trafficLanes.clear();
+
+    this.lastSpawnLane =
+      -1;
+
+    this.spawnTimer =
+      0;
+  }
+
   // =========================================================
   // Reusable Car
   // =========================================================
