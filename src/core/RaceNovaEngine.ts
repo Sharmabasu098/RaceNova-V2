@@ -1620,17 +1620,22 @@ private static readonly NORMAL_RACE_WIN_REWARD =
 // - No progression completion here.
 // =======================================================
 
-if (!this.startSelectedRace()) {
-  return;
-}
+        if (!this.startSelectedRace()) {
+      return;
+    }
 
-this.running =
-  true;
+    // =======================================================
+    // M8.5 — Restart Race Music
+    // =======================================================
+
+    this.audioManager.startMusic();
+
+    this.running =
+      true;
 
     this.clock.start();
 
     this.animate();
-  }
 
   // =========================================================
   // Animation
