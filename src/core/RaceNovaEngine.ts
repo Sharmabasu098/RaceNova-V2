@@ -3103,12 +3103,17 @@ private finishNormalRace(): void {
     );
 
     // =======================================================
-    // Traffic
+    // M8.5 — Reset Player Lane Controller
     // =======================================================
 
-    this.obstacleManager.reset(
-      0
-    );
+    this.carController.reset();
+
+        // =======================================================
+    // Traffic
+    // M8.5 — Fresh Race Traffic Reset
+    // =======================================================
+
+    this.trafficManager.reset();
 
     this.trafficCollisionSystem.reset();
 
@@ -3116,7 +3121,9 @@ private finishNormalRace(): void {
     // Obstacles
     // =======================================================
 
-    // ObstacleManager reset is already handled above.
+    this.obstacleManager.reset(
+      0
+    );
 
     this.obstacleCollisionSystem.reset();
     
