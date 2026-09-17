@@ -1937,17 +1937,50 @@ if (
     }
 
     // =======================================================
-    // HUD
-    // =======================================================
+// M8.5 — Unified Race Distance HUD
+// =======================================================
+//
+// Normal Race:
+//   normalRaceDistance
+//
+// Boss Race:
+//   bossRace.getDistance()
+//
+// IMPORTANT:
+// - Normal race logic unchanged.
+// - BossRace distance remains authoritative for Boss race.
+// - No reward logic here.
+// - No save logic here.
+// - No progression logic here.
+// =======================================================
 
-    this.raceHUD.setRaceDistance(
-      this.normalRaceDistance,
-      this.normalRaceFinishDistance,
-      this.normalRaceStarted &&
-        !this.normalRaceCompleted
-    );
+const isBossRaceActive =
+  this.bossRace.isActive();
 
-    this.raceHUD.update();
+const hudDistance =
+  isBossRaceActive
+    ? this.bossRace.getDistance()
+    : this.normalRaceDistance;
+
+const hudFinishDistance =
+  isBossRaceActive
+    ? this.bossRace.getRequiredDistance()
+    : this.normalRaceFinishDistance;
+
+const hudRaceActive =
+  isBossRaceActive ||
+  (
+    this.normalRaceStarted &&
+    !this.normalRaceCompleted
+  );
+
+this.raceHUD.setRaceDistance(
+  hudDistance,
+  hudFinishDistance,
+  hudRaceActive
+);
+
+this.raceHUD.update();
 
     // =======================================================
     // Camera
