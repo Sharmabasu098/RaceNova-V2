@@ -1904,23 +1904,25 @@ if (
     }
 
     // =======================================================
-// M8.6 — Boss Finish → Race Result
+// M8.6 — Boss WIN → Progress + Reward + Save + Result
 // =======================================================
 //
-// BossRace owns the authoritative Boss race state.
+// BossRace remains authoritative for:
+// - Boss completion
+// - Boss race distance
+// - Boss race time
+// - Boss defeated state
 //
-// When Boss race reaches 1500m after Boss defeat:
-// - BossRace becomes completed
-// - Preserve Boss distance/time
-// - Build WIN result
-// - Stop gameplay loop
-// - Show Race Result
+// RaceNovaEngine handles:
+// - Campaign progression
+// - Boss WIN reward
+// - Save
+// - Result Screen
 //
 // IMPORTANT:
-// - BossRace.ts is unchanged.
-// - No normal-race reward logic here.
-// - No normal-race progression logic here.
-// - Boss defeat persistence remains above.
+// - BossRace.ts is NOT changed.
+// - Normal Race flow is NOT changed.
+// - M8.4 normal reward flow is NOT changed.
 // =======================================================
 
 if (
@@ -1935,6 +1937,45 @@ if (
 
   const bossRaceDistance =
     this.bossRace.getDistance();
+
+  // -------------------------------------------------------
+  // M8.6 — Record Boss Race completion
+  // -------------------------------------------------------
+
+  this.completeRace(
+    bossRaceId,
+    true,
+    1,
+    bossRaceTime
+  );
+
+  // -------------------------------------------------------
+  // M8.6 — Boss WIN Reward
+  // -------------------------------------------------------
+
+  const bossReward =
+    RaceNovaEngine.BOSS_WIN_REWARD;
+
+  const rewardGranted =
+    this.economyManager.rewardCoins(
+      bossReward,
+      `Boss Race WIN: ${bossRaceId}`
+    );
+
+  const actualReward =
+    rewardGranted
+      ? bossReward
+      : 0;
+
+  // -------------------------------------------------------
+  // M8.6 — Persist Boss WIN
+  // -------------------------------------------------------
+
+  this.savePlayerData();
+
+  // -------------------------------------------------------
+  // M8.6 — Build Boss WIN Result
+  // -------------------------------------------------------
 
   this.raceResult.set({
 
@@ -1954,7 +1995,7 @@ if (
       bossRaceDistance,
 
     reward:
-      0,
+      actualReward,
 
     isBossRace:
       true,
@@ -1970,7 +2011,7 @@ if (
   });
 
   // -------------------------------------------------------
-  // Stop gameplay loop
+  // Stop gameplay
   // -------------------------------------------------------
 
   this.running =
@@ -1979,8 +2020,7 @@ if (
   this.clock.stop();
 
   // -------------------------------------------------------
-  // Keep final 1500m visible.
-  // Do NOT call HUD with normalRaceDistance here.
+  // Show Result
   // -------------------------------------------------------
 
   this.raceResultUI.show(
