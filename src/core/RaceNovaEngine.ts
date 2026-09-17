@@ -1897,6 +1897,93 @@ if (
     }
 
     // =======================================================
+// M8.6 — Boss Finish → Race Result
+// =======================================================
+//
+// BossRace owns the authoritative Boss race state.
+//
+// When Boss race reaches 1500m after Boss defeat:
+// - BossRace becomes completed
+// - Preserve Boss distance/time
+// - Build WIN result
+// - Stop gameplay loop
+// - Show Race Result
+//
+// IMPORTANT:
+// - BossRace.ts is unchanged.
+// - No normal-race reward logic here.
+// - No normal-race progression logic here.
+// - Boss defeat persistence remains above.
+// =======================================================
+
+if (
+  this.bossRace.isCompleted()
+) {
+
+  const bossRaceId =
+    this.bossRace.getRaceId();
+
+  const bossRaceTime =
+    this.bossRace.getElapsedTime();
+
+  const bossRaceDistance =
+    this.bossRace.getDistance();
+
+  this.raceResult.set({
+
+    raceId:
+      bossRaceId,
+
+    result:
+      "WIN",
+
+    position:
+      1,
+
+    time:
+      bossRaceTime,
+
+    distance:
+      bossRaceDistance,
+
+    reward:
+      0,
+
+    isBossRace:
+      true,
+
+    bossDefeated:
+      true,
+
+    nextRaceId:
+      null,
+
+    timestamp:
+      Date.now()
+  });
+
+  // -------------------------------------------------------
+  // Stop gameplay loop
+  // -------------------------------------------------------
+
+  this.running =
+    false;
+
+  this.clock.stop();
+
+  // -------------------------------------------------------
+  // Keep final 1500m visible.
+  // Do NOT call HUD with normalRaceDistance here.
+  // -------------------------------------------------------
+
+  this.raceResultUI.show(
+    this.raceResult.get()
+  );
+
+  return;
+}
+
+    // =======================================================
     // Boss 3D Update
     // =======================================================
 
