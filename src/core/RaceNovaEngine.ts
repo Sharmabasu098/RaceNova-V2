@@ -184,11 +184,18 @@ export class RaceNovaEngine {
     CoinSpawner;
 
   // =========================================================
-// M8.4 — Normal Race Win Reward
-// =========================================================
+  // M8.4 — Normal Race Win Reward
+  // =========================================================
 
-private static readonly NORMAL_RACE_WIN_REWARD =
-  100;
+  private static readonly NORMAL_RACE_WIN_REWARD =
+    100;
+
+  // =======================================================
+  // M8.6 — Boss WIN Reward
+  // =======================================================
+
+  private static readonly BOSS_WIN_REWARD =
+    500;
 
   // =========================================================
   // Garage
