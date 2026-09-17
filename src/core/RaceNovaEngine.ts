@@ -2330,48 +2330,82 @@ private handleRaceCrash(
     );
   }
 
-  // -------------------------------------------------------
-  // Build M8.3.x CRASH result
-  //
-  // IMPORTANT:
-  // - No reward here
-  // - No progression completion
-  // - No unlock
-  // - M8.4 owns rewards
-  // -------------------------------------------------------
+  // =======================================================
+// M8.5 — Unified Crash Result Data
+// =======================================================
+//
+// Normal Race:
+//   normalRaceDistance / normalRaceTime
+//
+// Boss Race:
+//   bossRace.getDistance() / bossRace.getElapsedTime()
+//
+// IMPORTANT:
+// - BossRace remains authoritative for Boss runtime data.
+// - No reward logic here.
+// - No progression logic here.
+// =======================================================
 
-  this.raceResult.set({
+const isBossCrash =
+  this.bossRace.isActive();
 
-    raceId:
-      this.normalRaceId,
+const crashRaceId =
+  isBossCrash
+    ? this.playerProgress
+        .raceProgression
+        .selectedRaceId
+    : this.normalRaceId;
 
-    result:
-      "CRASH",
+const crashTime =
+  isBossCrash
+    ? this.bossRace.getElapsedTime()
+    : this.normalRaceTime;
 
-    position:
-      0,
+const crashDistance =
+  isBossCrash
+    ? this.bossRace.getDistance()
+    : this.normalRaceDistance;
 
-    time:
-      this.normalRaceTime,
+const crashBossDefeated =
+  isBossCrash &&
+  this.bossRace.isBossDefeated();
 
-    distance:
-      this.normalRaceDistance,
+  // =======================================================
+// M8.5 — Unified CRASH Result
+// =======================================================
 
-    reward:
-      0,
+this.raceResult.set({
 
-    isBossRace:
-      false,
+  raceId:
+    crashRaceId,
 
-    bossDefeated:
-      false,
+  result:
+    "CRASH",
 
-    nextRaceId:
-      null,
+  position:
+    0,
 
-    timestamp:
-      Date.now()
-  });
+  time:
+    crashTime,
+
+  distance:
+    crashDistance,
+
+  reward:
+    0,
+
+  isBossRace:
+    isBossCrash,
+
+  bossDefeated:
+    crashBossDefeated,
+
+  nextRaceId:
+    null,
+
+  timestamp:
+    Date.now()
+});
 
   // -------------------------------------------------------
   // Stop gameplay loop
