@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Application Entry Point
- * M8.3
+ * M8.8.1
  * ============================================================
  *
  * Responsibilities:
@@ -12,6 +12,7 @@
  * - Connect Main Menu navigation
  * - Connect Campaign navigation
  * - Pass selected campaign race to the engine
+ * - Update Main Menu from PlayerProgress
  * - Handle Traffic Crash → Main Menu
  * - Handle Race Result → Main Menu
  *
@@ -22,6 +23,7 @@
  * - MainMenu remains responsible for main-menu UI
  * - CampaignMenu remains responsible for campaign UI
  * - RaceResultUI remains responsible for result UI
+ * - No save logic here
  * ============================================================
  */
 
@@ -129,6 +131,28 @@ const mainMenu =
   );
 
 // ============================================================
+// M8.8 — Main Menu Progress Refresh
+// ============================================================
+//
+// Keeps Main Menu NEXT RACE card synchronized with
+// authoritative PlayerProgress.
+//
+// IMPORTANT:
+// - No gameplay logic.
+// - No save logic.
+// - No progression mutation.
+// - MainMenu only receives progress and displays it.
+// ============================================================
+
+const refreshMainMenuProgress =
+  (): void => {
+
+    mainMenu.setProgress(
+      engine.getPlayerProgress()
+    );
+  };
+
+// ============================================================
 // Campaign Menu
 // ============================================================
 
@@ -144,6 +168,12 @@ campaignMenu =
       onBack: () => {
 
         campaignMenu?.hide();
+
+        // ----------------------------------------------------
+        // M8.8 — Refresh Main Menu Progress
+        // ----------------------------------------------------
+
+        refreshMainMenuProgress();
 
         mainMenu.resetStartState();
 
@@ -274,6 +304,16 @@ const handleTrafficCrash =
     mainMenu.resetStartState();
 
     // --------------------------------------------------------
+    // M8.8 — Refresh Main Menu Progress
+    //
+    // Crash does not modify campaign progress,
+    // but refreshing here guarantees the UI is always
+    // synchronized with the engine state.
+    // --------------------------------------------------------
+
+    refreshMainMenuProgress();
+
+    // --------------------------------------------------------
     // Show Main Menu FIRST
     //
     // This guarantees that the player can see
@@ -318,6 +358,25 @@ const handleRaceResultMenu =
     mainMenu.resetStartState();
 
     // --------------------------------------------------------
+    // IMPORTANT:
+    // Refresh progress BEFORE showing Main Menu.
+    //
+    // This allows:
+    //
+    // WIN
+    // ↓
+    // progression updated
+    // ↓
+    // reward saved
+    // ↓
+    // Main Menu opens
+    // ↓
+    // NEXT RACE shows correctly
+    // --------------------------------------------------------
+
+    refreshMainMenuProgress();
+
+    // --------------------------------------------------------
     // Reset active race runtime
     //
     // IMPORTANT:
@@ -348,5 +407,12 @@ window.addEventListener(
 // ============================================================
 // Initial Main Menu
 // ============================================================
+//
+// M8.8:
+// Always load the saved/current player progress before
+// displaying the Main Menu.
+// ============================================================
+
+refreshMainMenuProgress();
 
 mainMenu.show();
