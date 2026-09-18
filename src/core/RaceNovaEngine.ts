@@ -832,7 +832,7 @@ export class RaceNovaEngine {
           upgradeSystem:
             this.upgradeSystem,
 
-          onUpgrade: (
+                    onUpgrade: (
             carId
           ) => {
 
@@ -847,9 +847,19 @@ export class RaceNovaEngine {
             this.openUpgrades();
           },
 
+          // =====================================================
+          // M8.8 — Garage → Main Menu Navigation
+          // =====================================================
+
           onClose: () => {
 
             this.closeGarage();
+
+            window.dispatchEvent(
+              new CustomEvent(
+                "racenova:garage-close"
+              )
+            );
           }
         }
       );
