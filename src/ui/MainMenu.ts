@@ -1305,6 +1305,167 @@ export class MainMenu {
         }
       }
 
+            /* =====================================================
+         M8.8 — Secondary Menu Buttons
+         ===================================================== */
+
+      .racenova-menu-secondary {
+
+        width:
+          min(
+            100%,
+            720px
+          );
+
+        display:
+          grid;
+
+        grid-template-columns:
+          1fr 1fr;
+
+        gap:
+          24px;
+
+        margin-top:
+          26px;
+      }
+
+      .racenova-secondary-button {
+
+        display:
+          flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          center;
+
+        width:
+          100%;
+
+        min-height:
+          78px;
+
+        box-sizing:
+          border-box;
+
+        padding:
+          0 22px;
+
+        border:
+          1px solid
+          rgba(
+            105,
+            123,
+            157,
+            0.34
+          );
+
+        border-radius:
+          999px;
+
+        background:
+          rgba(
+            16,
+            24,
+            39,
+            0.72
+          );
+
+        color:
+          #f4f7ff;
+
+        font:
+          inherit;
+
+        font-size:
+          clamp(
+            16px,
+            2.2vw,
+            26px
+          );
+
+        font-weight:
+          800;
+
+        letter-spacing:
+          0.16em;
+
+        cursor:
+          pointer;
+
+        touch-action:
+          manipulation;
+
+        -webkit-tap-highlight-color:
+          transparent;
+
+        opacity:
+          0.9;
+
+        box-shadow:
+          0 8px 24px
+          rgba(
+            0,
+            0,
+            0,
+            0.18
+          );
+
+        transition:
+          transform 90ms ease,
+          filter 120ms ease,
+          background 120ms ease,
+          border-color 120ms ease;
+      }
+
+      .racenova-secondary-button:hover {
+
+        filter:
+          brightness(
+            1.08
+          );
+
+        background:
+          rgba(
+            28,
+            39,
+            60,
+            0.82
+          );
+
+        border-color:
+          rgba(
+            228,
+            184,
+            63,
+            0.48
+          );
+      }
+
+      .racenova-secondary-button:active {
+
+        transform:
+          scale(
+            0.985
+          );
+
+        filter:
+          brightness(
+            0.92
+          );
+      }
+
+      .racenova-secondary-button:disabled {
+
+        cursor:
+          default;
+
+        opacity:
+          0.55;
+      }
+
       @media (
         max-height: 720px
       ) {
