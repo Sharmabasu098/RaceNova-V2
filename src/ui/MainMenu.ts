@@ -2,14 +2,14 @@
  * ============================================================
  * RaceNova V2
  * Main Menu
- * M7.9.8
+ * M8.8.1
  * ============================================================
  *
  * Main start screen.
  *
  * Responsibilities:
  * - RaceNova title
- * - Next Race card
+ * - Dynamic Next Race card
  * - START RACE button
  * - CAMPAIGN button
  * - GARAGE button
@@ -18,12 +18,23 @@
  * - Campaign callback
  * - Garage callback
  * - Safe start-state reset for race restart
+ * - Dynamic campaign progress display
  *
  * IMPORTANT:
  * - No Three.js dependency
  * - No gameplay dependency
+ * - No save logic
+ * - RACE_DEFINITIONS is authoritative for race metadata
  * ============================================================
  */
+
+import {
+  type PlayerProgress
+} from "../save/PlayerSaveData";
+
+import {
+  RACE_DEFINITIONS
+} from "../race/RaceDefinitions";
 
 export interface MainMenuConfig {
   onStartRace: () => void;
@@ -44,6 +55,22 @@ export class MainMenu {
 
   private readonly garageButton:
     HTMLButtonElement;
+
+  // =========================================================
+  // M8.8 — Dynamic Next Race UI References
+  // =========================================================
+
+  private readonly raceNameValue:
+    HTMLDivElement;
+
+  private readonly raceClassValue:
+    HTMLDivElement;
+
+  private readonly raceMetaLeft:
+    HTMLSpanElement;
+
+  private readonly raceMetaRight:
+    HTMLSpanElement;
 
   private readonly onStartRace:
     () => void;
@@ -139,7 +166,7 @@ export class MainMenu {
           <div
             class="racenova-race-class"
           >
-            AMATEUR
+            CAMPAIGN
           </div>
 
           <div
@@ -149,12 +176,16 @@ export class MainMenu {
           <div
             class="racenova-race-meta"
           >
-            <span>
-              CAR: NOVA GT
+            <span
+              class="racenova-race-meta-left"
+            >
+              LEVEL 1
             </span>
 
-            <span>
-              1/5 CLEARED
+            <span
+              class="racenova-race-meta-right"
+            >
+              0/8 CLEARED
             </span>
           </div>
 
@@ -204,6 +235,10 @@ export class MainMenu {
       this.root
     );
 
+    // =======================================================
+    // Existing Buttons
+    // =======================================================
+
     const startButton =
       this.root.querySelector<HTMLButtonElement>(
         ".racenova-start-button"
@@ -217,6 +252,30 @@ export class MainMenu {
     const garageButton =
       this.root.querySelector<HTMLButtonElement>(
         ".racenova-secondary-button:nth-child(2)"
+      );
+
+    // =======================================================
+    // M8.8 — Dynamic Race Card Elements
+    // =======================================================
+
+    const raceNameValue =
+      this.root.querySelector<HTMLDivElement>(
+        ".racenova-race-name"
+      );
+
+    const raceClassValue =
+      this.root.querySelector<HTMLDivElement>(
+        ".racenova-race-class"
+      );
+
+    const raceMetaLeft =
+      this.root.querySelector<HTMLSpanElement>(
+        ".racenova-race-meta-left"
+      );
+
+    const raceMetaRight =
+      this.root.querySelector<HTMLSpanElement>(
+        ".racenova-race-meta-right"
       );
 
     if (!startButton) {
@@ -240,6 +299,34 @@ export class MainMenu {
       );
     }
 
+    if (!raceNameValue) {
+
+      throw new Error(
+        "RaceNova: Race name element not found."
+      );
+    }
+
+    if (!raceClassValue) {
+
+      throw new Error(
+        "RaceNova: Race class element not found."
+      );
+    }
+
+    if (!raceMetaLeft) {
+
+      throw new Error(
+        "RaceNova: Race meta left element not found."
+      );
+    }
+
+    if (!raceMetaRight) {
+
+      throw new Error(
+        "RaceNova: Race meta right element not found."
+      );
+    }
+
     this.startButton =
       startButton;
 
@@ -248,6 +335,18 @@ export class MainMenu {
 
     this.garageButton =
       garageButton;
+
+    this.raceNameValue =
+      raceNameValue;
+
+    this.raceClassValue =
+      raceClassValue;
+
+    this.raceMetaLeft =
+      raceMetaLeft;
+
+    this.raceMetaRight =
+      raceMetaRight;
 
     this.injectStyles();
 
@@ -270,6 +369,105 @@ export class MainMenu {
       "aria-hidden",
       "false"
     );
+  }
+
+  // =========================================================
+  // M8.8 — Dynamic Campaign Progress
+  // =========================================================
+  //
+  // Updates the Main Menu NEXT RACE card from
+  // authoritative PlayerProgress.
+  //
+  // IMPORTANT:
+  // - No gameplay logic.
+  // - No save logic.
+  // - RACE_DEFINITIONS remains authoritative
+  //   for race names, levels and Boss state.
+  // =========================================================
+
+  public setProgress(
+    progress: PlayerProgress
+  ): void {
+
+    const progression =
+      progress.raceProgression;
+
+    // -------------------------------------------------------
+    // Count completed races
+    // -------------------------------------------------------
+
+    const completedCount =
+      progression.races.filter(
+        (race) =>
+          race.status ===
+          "completed"
+      ).length;
+
+    const totalRaces =
+      progression.races.length;
+
+    // -------------------------------------------------------
+    // Find next available race
+    // -------------------------------------------------------
+
+    const nextRace =
+      progression.races.find(
+        (race) =>
+          race.status ===
+          "available"
+      );
+
+    // -------------------------------------------------------
+    // Resolve authoritative definition
+    // -------------------------------------------------------
+
+    const nextDefinition =
+      nextRace
+        ? RACE_DEFINITIONS.find(
+            (definition) =>
+              definition.id ===
+              nextRace.raceId
+          )
+        : undefined;
+
+    // -------------------------------------------------------
+    // Campaign complete
+    // -------------------------------------------------------
+
+    if (!nextRace || !nextDefinition) {
+
+      this.raceNameValue.textContent =
+        "CAMPAIGN COMPLETE";
+
+      this.raceClassValue.textContent =
+        "ALL RACES CLEARED";
+
+      this.raceMetaLeft.textContent =
+        "CAMPAIGN COMPLETE";
+
+      this.raceMetaRight.textContent =
+        `${completedCount}/${totalRaces} CLEARED`;
+
+      return;
+    }
+
+    // -------------------------------------------------------
+    // Dynamic race information
+    // -------------------------------------------------------
+
+    this.raceNameValue.textContent =
+      nextDefinition.name;
+
+    this.raceClassValue.textContent =
+      nextDefinition.isBoss
+        ? "BOSS"
+        : "CAMPAIGN";
+
+    this.raceMetaLeft.textContent =
+      `LEVEL ${nextDefinition.level}`;
+
+    this.raceMetaRight.textContent =
+      `${completedCount}/${totalRaces} CLEARED`;
   }
 
   // =========================================================
@@ -953,154 +1151,7 @@ export class MainMenu {
         -webkit-tap-highlight-color:
           transparent;
 
-        box-shadow:
-
-          0 15px 38px
-          rgba(
-            245,
-            47,
-            47,
-            0.35
-          ),
-
-          0 0 42px
-          rgba(
-            245,
-            47,
-            47,
-            0.18
-          );
-
-        transition:
-          transform 90ms ease,
-          filter 120ms ease,
-          box-shadow 120ms ease;
-      }
-
-      .racenova-start-button:hover {
-
-        filter:
-          brightness(
-            1.06
-          );
-
-        box-shadow:
-
-          0 18px 45px
-          rgba(
-            245,
-            47,
-            47,
-            0.42
-          ),
-
-          0 0 55px
-          rgba(
-            245,
-            47,
-            47,
-            0.23
-          );
-      }
-
-      .racenova-start-button:active,
-      .racenova-start-button.is-pressed {
-
-        transform:
-          scale(
-            0.985
-          );
-
-        filter:
-          brightness(
-            0.92
-          );
-      }
-
-      .racenova-start-button:disabled {
-
-        cursor:
-          default;
-
-        opacity:
-          0.72;
-      }
-
-      .racenova-menu-secondary {
-
-        width:
-          min(
-            100%,
-            720px
-          );
-
-        display:
-          grid;
-
-        grid-template-columns:
-          1fr 1fr;
-
-        gap:
-          24px;
-
-        margin-top:
-          26px;
-      }
-
-      .racenova-secondary-button {
-
-        min-height:
-          78px;
-
-        border:
-          1px solid
-          rgba(
-            105,
-            123,
-            157,
-            0.34
-          );
-
-        border-radius:
-          999px;
-
-        background:
-          rgba(
-            16,
-            24,
-            39,
-            0.72
-          );
-
-        color:
-          #f4f7ff;
-
-        font:
-          inherit;
-
-        font-size:
-          clamp(
-            16px,
-            2.2vw,
-            26px
-          );
-
-        font-weight:
-          800;
-
-        letter-spacing:
-          0.16em;
-
-        cursor:
-          pointer;
-
-        touch-action:
-          manipulation;
-
-        -webkit-tap-highlight-color:
-          transparent;
-
-        opacity:
+                opacity:
           0.9;
 
         transition:
