@@ -358,36 +358,13 @@ const handleRaceResultMenu =
     mainMenu.resetStartState();
 
     // --------------------------------------------------------
-    // IMPORTANT:
-    // Refresh progress BEFORE showing Main Menu.
-    //
-    // This allows:
-    //
-    // WIN
-    // ↓
-    // progression updated
-    // ↓
-    // reward saved
-    // ↓
-    // Main Menu opens
-    // ↓
-    // NEXT RACE shows correctly
+    // Refresh Main Menu progress
     // --------------------------------------------------------
 
     refreshMainMenuProgress();
 
     // --------------------------------------------------------
     // Reset active race runtime
-    //
-    // IMPORTANT:
-    // This does NOT delete:
-    // - Coins
-    // - Garage progress
-    // - Upgrade progress
-    // - Campaign progress
-    // - Race unlocks
-    //
-    // It only resets the active gameplay session.
     // --------------------------------------------------------
 
     engine.resetRaceState();
@@ -403,6 +380,39 @@ window.addEventListener(
   "racenova:race-result-menu",
   handleRaceResultMenu
 );
+
+
+// ============================================================
+// M8.8 — Garage → Main Menu
+// ============================================================
+
+const handleGarageClose =
+  (): void => {
+
+    // --------------------------------------------------------
+    // Refresh Main Menu progress
+    // --------------------------------------------------------
+
+    refreshMainMenuProgress();
+
+    // --------------------------------------------------------
+    // Reset Main Menu button state
+    // --------------------------------------------------------
+
+    mainMenu.resetStartState();
+
+    // --------------------------------------------------------
+    // Show Main Menu
+    // --------------------------------------------------------
+
+    mainMenu.show();
+  };
+
+window.addEventListener(
+  "racenova:garage-close",
+  handleGarageClose
+);
+
 
 // ============================================================
 // Initial Main Menu
