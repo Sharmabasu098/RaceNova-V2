@@ -1154,12 +1154,20 @@ export class MainMenu {
                 opacity:
           0.9;
 
+        box-shadow:
+          0 8px 24px
+          rgba(
+            0,
+            0,
+            0,
+            0.18
+          );
+
         transition:
           transform 90ms ease,
           filter 120ms ease,
           background 120ms ease,
           border-color 120ms ease;
-
       }
 
       .racenova-secondary-button:hover {
@@ -1273,6 +1281,12 @@ export class MainMenu {
 
           min-height:
             64px;
+
+          padding:
+            0 14px;
+
+          font-size:
+            14px;
 
           letter-spacing:
             0.08em;
