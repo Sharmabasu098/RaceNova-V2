@@ -1483,6 +1483,12 @@ export class CampaignMenu {
           pointer;
       }
 
+      touch-action:
+  manipulation;
+
+-webkit-tap-highlight-color:
+  transparent;
+
       .racenova-campaign-back {
         background:
           rgba(
