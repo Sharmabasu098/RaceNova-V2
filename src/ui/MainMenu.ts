@@ -1501,7 +1501,29 @@ export class MainMenu {
             68px;
         }
       }
-    `;
+
+      /* =====================================================
+   M8.8 — Mobile Secondary Button Override
+   ===================================================== */
+
+@media (max-width: 600px) {
+
+  .racenova-secondary-button {
+
+    min-height:
+      64px;
+
+    padding:
+      0 14px;
+
+    font-size:
+      14px;
+
+    letter-spacing:
+      0.08em;
+   }
+  } 
+`;
 
     document.head.appendChild(
       style
