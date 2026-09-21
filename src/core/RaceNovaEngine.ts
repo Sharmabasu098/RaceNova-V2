@@ -1594,6 +1594,95 @@ export class RaceNovaEngine {
   }
 
   // =========================================================
+// M8.4 — Car Selection & Race Readiness Gate
+// =========================================================
+
+private isRaceReady(): boolean {
+
+  const selectedCarId =
+    this.garageManager.getSelectedCarId();
+
+  const selectedCar =
+    this.garageManager.getSelectedCar();
+
+  // -------------------------------------------------------
+  // Selected car must resolve correctly.
+  // Prevent GarageManager fallback from hiding
+  // an invalid selected-car state.
+  // -------------------------------------------------------
+
+  if (
+    !selectedCar ||
+    selectedCar.id !== selectedCarId
+  ) {
+    return false;
+  }
+
+  // -------------------------------------------------------
+  // Selected car must be owned.
+  // -------------------------------------------------------
+
+  if (
+    !this.garageManager.ownsCar(
+      selectedCarId
+    )
+  ) {
+    return false;
+  }
+
+  // -------------------------------------------------------
+  // Upgraded stats must be valid.
+  // -------------------------------------------------------
+
+  const stats =
+    this.upgradeSystem.getStats(
+      selectedCarId
+    );
+
+  if (
+    !Number.isFinite(
+      stats.maxSpeed
+    ) ||
+    stats.maxSpeed <= 0
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      stats.acceleration
+    ) ||
+    stats.acceleration <= 0
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      stats.handling
+    ) ||
+    stats.handling <= 0
+  ) {
+    return false;
+  }
+
+  // -------------------------------------------------------
+  // Car model asset reference must exist.
+  // -------------------------------------------------------
+
+  if (
+    typeof selectedCar.modelPath !==
+      "string" ||
+    selectedCar.modelPath.trim()
+      .length === 0
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+  // =========================================================
   // Start
   // M7.9.13 — Fresh Race Start
   // =========================================================
@@ -1623,23 +1712,25 @@ export class RaceNovaEngine {
     this.resetRaceState();
 
 // =======================================================
-// M8.1 — Race Type Routing
-// =======================================================
-//
-// Route the selected race through the correct race flow.
-//
-// IMPORTANT:
-// - Normal race  → startNormalRace()
-// - Boss race    → startSelectedRace() → startBossEncounter()
-// - RACE_DEFINITIONS is authoritative for isBoss.
-// - No reward logic here.
-// - No save logic here.
-// - No progression completion here.
+// M8.4 — Car Selection & Race Readiness Gate
 // =======================================================
 
-        if (!this.startSelectedRace()) {
-      return;
-    }
+if (
+  !this.isRaceReady()
+) {
+  this.openGarage();
+  return;
+}
+
+// =======================================================
+// M8.1 — Race Type Routing
+// =======================================================
+
+if (
+  !this.startSelectedRace()
+) {
+  return;
+}
 
     // =======================================================
     // M8.5 — Restart Race Music
