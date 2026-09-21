@@ -233,6 +233,9 @@ export class RaceHUD {
 
         height: "100%",
 
+        display:
+           "none",
+
         pointerEvents:
           "none",
 
@@ -1066,6 +1069,11 @@ export class RaceHUD {
       raceActive:
         raceActive
     };
+
+    this.root.style.display =
+  raceActive
+    ? "block"
+    : "none";
 
     this.distanceValue.textContent =
       `${Math.floor(
