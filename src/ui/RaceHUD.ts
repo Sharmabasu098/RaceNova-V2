@@ -267,7 +267,7 @@ export class RaceHUD {
 
         bottom: "18px",
 
-        minWidth: "100px",
+        minWidth: "108px",
 
         padding:
           "8px 12px",
@@ -308,10 +308,10 @@ export class RaceHUD {
       this.speedValue.style,
       {
         fontSize:
-          "30px",
+          "34px",
 
         lineHeight:
-          "32px",
+          "36px",
 
         fontWeight:
           "800",
@@ -385,7 +385,7 @@ export class RaceHUD {
 
         right: "16px",
 
-        minWidth: "92px",
+        minWidth: "100px",
 
         padding:
           "8px 12px",
@@ -443,10 +443,10 @@ export class RaceHUD {
           "center",
 
         width:
-          "24px",
+          "26px",
 
         height:
-          "24px",
+          "26px",
 
         borderRadius:
           "50%",
@@ -468,7 +468,7 @@ export class RaceHUD {
       }
     );
 
-    this.coinIcon.textContent =
+        this.coinIcon.textContent =
       "C";
 
     // =====================================================
@@ -484,10 +484,10 @@ export class RaceHUD {
       this.coinValue.style,
       {
         fontSize:
-          "19px",
+          "21px",
 
         lineHeight:
-          "24px",
+          "26px",
 
         fontWeight:
           "800",
@@ -574,10 +574,10 @@ export class RaceHUD {
       this.levelValue.style,
       {
         fontSize:
-          "16px",
+          "17px",
 
         lineHeight:
-          "20px",
+          "22px",
 
         fontWeight:
           "900",
@@ -659,10 +659,10 @@ export class RaceHUD {
           "translateX(-50%)",
 
         minWidth:
-          "150px",
+          "160px",
 
         padding:
-          "7px 14px",
+          "8px 16px",
 
         borderRadius:
           "14px",
@@ -703,10 +703,10 @@ export class RaceHUD {
       this.distanceValue.style,
       {
         fontSize:
-          "16px",
+          "18px",
 
         lineHeight:
-          "20px",
+          "22px",
 
         fontWeight:
           "900",
@@ -938,8 +938,7 @@ export class RaceHUD {
 
         fontWeight:
           "700",
-
-        opacity:
+                opacity:
           "0.9"
       }
     );
@@ -1143,7 +1142,7 @@ export class RaceHUD {
 
   // ========================================================
   // Update
-  // =========================================================
+  // ========================================================
 
   public update(): void {
 
@@ -1407,4 +1406,3 @@ export class RaceHUD {
     }
   }
 }
- 
