@@ -192,7 +192,7 @@ export class CoinSpawner {
       (() => {});
   }
 
-  // =========================================================
+    // =========================================================
   // Update
   // =========================================================
 
@@ -212,7 +212,7 @@ export class CoinSpawner {
     // Initial spawn
     // -------------------------------------------------------
 
-        if (
+    if (
       !this.initialized
     ) {
       this.nextSpawnZ =
@@ -256,7 +256,7 @@ export class CoinSpawner {
         deltaTime
       );
 
-            if (
+      if (
         coin.checkCollectionAlongPath(
           previousPlayerPosition,
           playerPosition
@@ -265,19 +265,20 @@ export class CoinSpawner {
         this.collectCoin(
           coin
         );
-            }
+      }
+    }
 
     // -------------------------------------------------------
     // Remove old coins
     // -------------------------------------------------------
 
-        this.despawnBehind(
+    this.despawnBehind(
       playerPosition.z
     );
 
     this.previousPlayerPosition =
       playerPosition.clone();
-    }
+  }
 
   // =========================================================
   // Spawn Ahead
@@ -496,7 +497,7 @@ export class CoinSpawner {
     return count;
   }
 
-  // =========================================================
+    // =========================================================
   // Reset
   // =========================================================
 
@@ -514,7 +515,7 @@ export class CoinSpawner {
     this.coins.length =
       0;
 
-        this.nextSpawnZ =
+    this.nextSpawnZ =
       0;
 
     this.previousPlayerPosition =
@@ -522,6 +523,7 @@ export class CoinSpawner {
 
     this.initialized =
       false;
+      }
 
   // =========================================================
   // Dispose
