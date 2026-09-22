@@ -89,6 +89,17 @@ export class CoinSpawner {
 
   private initialized = false;
 
+    // =========================================================
+  // Previous Player Position
+  // =========================================================
+
+  /**
+   * Previous frame position used for
+   * swept-path coin collection.
+   */
+  private previousPlayerPosition:
+    THREE.Vector3 | null = null;
+
   // =========================================================
   // Constructor
   // =========================================================
@@ -201,16 +212,24 @@ export class CoinSpawner {
     // Initial spawn
     // -------------------------------------------------------
 
-    if (
+        if (
       !this.initialized
     ) {
       this.nextSpawnZ =
         playerPosition.z -
         this.coinSpacing;
 
+      this.previousPlayerPosition =
+        playerPosition.clone();
+
       this.initialized =
         true;
     }
+
+    const previousPlayerPosition =
+      this.previousPlayerPosition
+        ? this.previousPlayerPosition.clone()
+        : playerPosition.clone();
 
     // -------------------------------------------------------
     // Spawn ahead
@@ -237,25 +256,28 @@ export class CoinSpawner {
         deltaTime
       );
 
-      if (
-        coin.checkCollection(
+            if (
+        coin.checkCollectionAlongPath(
+          previousPlayerPosition,
           playerPosition
         )
       ) {
         this.collectCoin(
           coin
         );
-      }
-    }
+            }
 
     // -------------------------------------------------------
     // Remove old coins
     // -------------------------------------------------------
 
-    this.despawnBehind(
+        this.despawnBehind(
       playerPosition.z
     );
-  }
+
+    this.previousPlayerPosition =
+      playerPosition.clone();
+    }
 
   // =========================================================
   // Spawn Ahead
@@ -492,12 +514,14 @@ export class CoinSpawner {
     this.coins.length =
       0;
 
-    this.nextSpawnZ =
+        this.nextSpawnZ =
       0;
+
+    this.previousPlayerPosition =
+      null;
 
     this.initialized =
       false;
-  }
 
   // =========================================================
   // Dispose
