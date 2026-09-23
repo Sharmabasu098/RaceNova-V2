@@ -89,6 +89,9 @@ export class CoinSpawner {
 
   private initialized = false;
 
+  private initialCoinRows =
+    0;
+
     // =========================================================
   // Previous Player Position
   // =========================================================
@@ -316,7 +319,15 @@ export class CoinSpawner {
     worldZ: number
   ): void {
     const lane =
-      this.getRandomLane();
+  this.initialCoinRows < 3
+    ? 1
+    : this.getRandomLane();
+
+if (
+  this.initialCoinRows < 3
+) {
+  this.initialCoinRows++;
+}
 
     const roadCenterX =
       this.getRoadCenterX(
@@ -516,14 +527,16 @@ export class CoinSpawner {
       0;
 
     this.nextSpawnZ =
-      0;
+  0;
 
-    this.previousPlayerPosition =
-      null;
+this.previousPlayerPosition =
+  null;
 
-    this.initialized =
-      false;
-      }
+this.initialCoinRows =
+  0;
+
+this.initialized =
+  false;
 
   // =========================================================
   // Dispose
