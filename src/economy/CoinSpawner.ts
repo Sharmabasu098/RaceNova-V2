@@ -19,6 +19,14 @@
  * - Adds onCoinCollected callback
  * - Does NOT directly depend on SaveSystem
  * - SaveSystem remains outside CoinSpawner
+ *
+ * Coin Collection Fix:
+ * - Uses previous player position for swept-path detection
+ * - Prevents high-speed / Nitro coin skipping
+ *
+ * Initial Coin UX:
+ * - First 3 spawned coin rows use center lane
+ * - Later rows return to random lane spawning
  * ============================================================
  */
 
@@ -89,16 +97,17 @@ export class CoinSpawner {
 
   private initialized = false;
 
-  private initialCoinRows =
-    0;
-
-    // =========================================================
-  // Previous Player Position
-  // =========================================================
+  /**
+   * Number of initial coin rows that have been
+   * forced into the center lane.
+   */
+  private initialCoinRows = 0;
 
   /**
-   * Previous frame position used for
-   * swept-path coin collection.
+   * Previous frame player position.
+   *
+   * Used by CoinPickup.checkCollectionAlongPath()
+   * to prevent high-speed / Nitro coin skipping.
    */
   private previousPlayerPosition:
     THREE.Vector3 | null = null;
@@ -190,12 +199,13 @@ export class CoinSpawner {
      *      ↓
      * SaveSystem
      */
+
     this.onCoinCollected =
       config.onCoinCollected ??
       (() => {});
   }
 
-    // =========================================================
+  // =========================================================
   // Update
   // =========================================================
 
@@ -318,16 +328,23 @@ export class CoinSpawner {
   private spawnCoinRow(
     worldZ: number
   ): void {
+    /*
+     * First 3 coin rows are guaranteed
+     * to appear in the center lane.
+     *
+     * After that, normal random lane
+     * spawning resumes.
+     */
     const lane =
-  this.initialCoinRows < 3
-    ? 1
-    : this.getRandomLane();
+      this.initialCoinRows < 3
+        ? 1
+        : this.getRandomLane();
 
-if (
-  this.initialCoinRows < 3
-) {
-  this.initialCoinRows++;
-}
+    if (
+      this.initialCoinRows < 3
+    ) {
+      this.initialCoinRows++;
+    }
 
     const roadCenterX =
       this.getRoadCenterX(
@@ -381,6 +398,7 @@ if (
      * Only continue when EconomyManager
      * successfully accepts the reward.
      */
+
     if (!success) {
       return;
     }
@@ -404,6 +422,7 @@ if (
      * RaceNovaEngine decides how the
      * persistent save is handled.
      */
+
     this.onCoinCollected(
       value
     );
@@ -434,6 +453,7 @@ if (
        * Coins behind the player
        * therefore have a larger Z.
        */
+
       if (
         coinZ >
         playerZ +
@@ -508,7 +528,7 @@ if (
     return count;
   }
 
-    // =========================================================
+  // =========================================================
   // Reset
   // =========================================================
 
@@ -527,16 +547,17 @@ if (
       0;
 
     this.nextSpawnZ =
-  0;
+      0;
 
-this.previousPlayerPosition =
-  null;
+    this.previousPlayerPosition =
+      null;
 
-this.initialCoinRows =
-  0;
+    this.initialCoinRows =
+      0;
 
-this.initialized =
-  false;
+    this.initialized =
+      false;
+  }
 
   // =========================================================
   // Dispose
@@ -545,4 +566,4 @@ this.initialized =
   public dispose(): void {
     this.clear();
   }
-}
+      }
