@@ -321,20 +321,24 @@ export class CoinSpawner {
     }
   }
 
-  // =========================================================
+    // =========================================================
   // Spawn Coin Row
   // =========================================================
 
   private spawnCoinRow(
     worldZ: number
   ): void {
+
     /*
-     * First 3 coin rows are guaranteed
-     * to appear in the center lane.
+     * First 3 coin rows:
      *
-     * After that, normal random lane
-     * spawning resumes.
+     * Keep them aligned with the road center
+     * so the player can see and collect coins
+     * immediately after race start.
+     *
+     * Later rows use normal random lanes.
      */
+
     const lane =
       this.initialCoinRows < 3
         ? 1
