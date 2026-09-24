@@ -133,11 +133,15 @@ export class CoinPickup {
     /*
      * Cylinder default axis is Y.
      *
-     * Rotate it so the coin face
-     * is visible from the player's
-     * forward direction.
+     * Rotate the coin face toward
+     * the player's forward direction.
+     *
+     * IMPORTANT:
+     * X-axis rotation is used here so
+     * the coin is not presented edge-on
+     * to the chase camera.
      */
-    this.coinMesh.rotation.z =
+    this.coinMesh.rotation.x =
       Math.PI / 2;
 
     this.coinMesh.castShadow =
@@ -284,6 +288,7 @@ export class CoinPickup {
 
     return true;
   }
+
   // =========================================================
   // Collect
   // =========================================================
