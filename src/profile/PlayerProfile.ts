@@ -200,12 +200,13 @@ export function isValidPlayerProfile(
   // ----------------------------------------------------------
 
   if (
-    !Number.isFinite(
-      profile.createdAt
-    ) ||
-    profile.createdAt <= 0
-  ) {
-    return false;
+  typeof profile.createdAt !== "number" ||
+  !Number.isFinite(
+    profile.createdAt
+  ) ||
+  profile.createdAt <= 0
+) {
+  return false;
   }
 
   // ----------------------------------------------------------
@@ -213,14 +214,15 @@ export function isValidPlayerProfile(
   // ----------------------------------------------------------
 
   if (
-    !Number.isFinite(
-      profile.updatedAt
-    ) ||
-    profile.updatedAt <= 0
-  ) {
-    return false;
+  typeof profile.updatedAt !== "number" ||
+  !Number.isFinite(
+    profile.updatedAt
+  ) ||
+  profile.updatedAt <= 0
+) {
+  return false;
   }
-
+  
   // ----------------------------------------------------------
   // Save Data
   // ----------------------------------------------------------
