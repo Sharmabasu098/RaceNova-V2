@@ -133,15 +133,11 @@ export class CoinPickup {
     /*
      * Cylinder default axis is Y.
      *
-     * Rotate the coin face toward
-     * the player's forward direction.
-     *
-     * IMPORTANT:
-     * X-axis rotation is used here so
-     * the coin is not presented edge-on
-     * to the chase camera.
+     * Rotate it so the coin face
+     * is visible from the player's
+     * forward direction.
      */
-    this.coinMesh.rotation.x =
+    this.coinMesh.rotation.z =
       Math.PI / 2;
 
     this.coinMesh.castShadow =
@@ -219,62 +215,6 @@ export class CoinPickup {
     const distance =
       this.group.position.distanceTo(
         playerPosition
-      );
-
-    if (
-      distance >
-      this.radius
-    ) {
-      return false;
-    }
-
-    this.collect();
-
-    return true;
-  }
-
-  // =========================================================
-  // Swept-Path Collection
-  // =========================================================
-
-  /**
-   * Detect collection anywhere along the
-   * player's movement path between two frames.
-   *
-   * This prevents high-speed / Nitro movement
-   * from skipping a coin between sampled
-   * player positions.
-   */
-  public checkCollectionAlongPath(
-    previousPlayerPosition: THREE.Vector3,
-    playerPosition: THREE.Vector3
-  ): boolean {
-    if (
-      this.collected ||
-      !previousPlayerPosition ||
-      !playerPosition
-    ) {
-      return false;
-    }
-
-    const movementLine =
-      new THREE.Line3(
-        previousPlayerPosition,
-        playerPosition
-      );
-
-    const closestPoint =
-      new THREE.Vector3();
-
-    movementLine.closestPointToPoint(
-      this.group.position,
-      true,
-      closestPoint
-    );
-
-    const distance =
-      this.group.position.distanceTo(
-        closestPoint
       );
 
     if (
