@@ -19,14 +19,6 @@
  * - Adds onCoinCollected callback
  * - Does NOT directly depend on SaveSystem
  * - SaveSystem remains outside CoinSpawner
- *
- * Coin Collection Fix:
- * - Uses previous player position for swept-path detection
- * - Prevents high-speed / Nitro coin skipping
- *
- * Initial Coin UX:
- * - First 3 spawned coin rows use center lane
- * - Later rows return to random lane spawning
  * ============================================================
  */
 
@@ -96,21 +88,6 @@ export class CoinSpawner {
   private nextSpawnZ = 0;
 
   private initialized = false;
-
-  /**
-   * Number of initial coin rows that have been
-   * forced into the center lane.
-   */
-  private initialCoinRows = 0;
-
-  /**
-   * Previous frame player position.
-   *
-   * Used by CoinPickup.checkCollectionAlongPath()
-   * to prevent high-speed / Nitro coin skipping.
-   */
-  private previousPlayerPosition:
-    THREE.Vector3 | null = null;
 
   // =========================================================
   // Constructor
@@ -199,7 +176,6 @@ export class CoinSpawner {
      *      ↓
      * SaveSystem
      */
-
     this.onCoinCollected =
       config.onCoinCollected ??
       (() => {});
@@ -232,17 +208,9 @@ export class CoinSpawner {
         playerPosition.z -
         this.coinSpacing;
 
-      this.previousPlayerPosition =
-        playerPosition.clone();
-
       this.initialized =
         true;
     }
-
-    const previousPlayerPosition =
-      this.previousPlayerPosition
-        ? this.previousPlayerPosition.clone()
-        : playerPosition.clone();
 
     // -------------------------------------------------------
     // Spawn ahead
@@ -270,8 +238,7 @@ export class CoinSpawner {
       );
 
       if (
-        coin.checkCollectionAlongPath(
-          previousPlayerPosition,
+        coin.checkCollection(
           playerPosition
         )
       ) {
@@ -288,9 +255,6 @@ export class CoinSpawner {
     this.despawnBehind(
       playerPosition.z
     );
-
-    this.previousPlayerPosition =
-      playerPosition.clone();
   }
 
   // =========================================================
@@ -321,34 +285,15 @@ export class CoinSpawner {
     }
   }
 
-    // =========================================================
+  // =========================================================
   // Spawn Coin Row
   // =========================================================
 
   private spawnCoinRow(
     worldZ: number
   ): void {
-
-    /*
-     * First 3 coin rows:
-     *
-     * Keep them aligned with the road center
-     * so the player can see and collect coins
-     * immediately after race start.
-     *
-     * Later rows use normal random lanes.
-     */
-
     const lane =
-      this.initialCoinRows < 3
-        ? 1
-        : this.getRandomLane();
-
-    if (
-      this.initialCoinRows < 3
-    ) {
-      this.initialCoinRows++;
-    }
+      this.getRandomLane();
 
     const roadCenterX =
       this.getRoadCenterX(
@@ -402,7 +347,6 @@ export class CoinSpawner {
      * Only continue when EconomyManager
      * successfully accepts the reward.
      */
-
     if (!success) {
       return;
     }
@@ -426,7 +370,6 @@ export class CoinSpawner {
      * RaceNovaEngine decides how the
      * persistent save is handled.
      */
-
     this.onCoinCollected(
       value
     );
@@ -457,7 +400,6 @@ export class CoinSpawner {
        * Coins behind the player
        * therefore have a larger Z.
        */
-
       if (
         coinZ >
         playerZ +
@@ -553,12 +495,6 @@ export class CoinSpawner {
     this.nextSpawnZ =
       0;
 
-    this.previousPlayerPosition =
-      null;
-
-    this.initialCoinRows =
-      0;
-
     this.initialized =
       false;
   }
@@ -570,4 +506,4 @@ export class CoinSpawner {
   public dispose(): void {
     this.clear();
   }
-      }
+}
