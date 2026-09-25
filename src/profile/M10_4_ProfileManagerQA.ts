@@ -26,6 +26,18 @@ import type {
 } from "./PersistenceRepository";
 
 import {
+  EconomyManager
+} from "../economy/EconomyManager";
+
+import {
+  GarageManager
+} from "../garage/GarageManager";
+
+import {
+  UpgradeSystem
+} from "../garage/UpgradeSystem";
+
+import {
   createDefaultPlayerSaveData
 } from "../save/PlayerSaveData";
 
@@ -146,8 +158,27 @@ export function runM10_4ProfileManagerQA():
     // Test Save Data
     // --------------------------------------------------------
 
-    const saveData =
-      createDefaultPlayerSaveData();
+    const economyManager =
+  new EconomyManager({
+    initialCoins: 0
+  });
+
+const garageManager =
+  new GarageManager(
+    economyManager
+  );
+
+const upgradeSystem =
+  new UpgradeSystem(
+    economyManager
+  );
+
+const saveData =
+  createDefaultPlayerSaveData(
+    economyManager.getState(),
+    garageManager.getState(),
+    upgradeSystem.getState()
+  );
 
     // --------------------------------------------------------
     // 1. No profile initially
