@@ -50,8 +50,9 @@ import type {
   PersistenceRepository
 } from "./PersistenceRepository";
 
-import type {
-  PlayerSaveData
+import {
+  type PlayerSaveData,
+  clonePlayerSaveData
 } from "../save/PlayerSaveData";
 
 // ============================================================
@@ -303,6 +304,105 @@ export class PlayerProfileManager {
       this.currentProfile
     );
   }
+
+  // ==========================================================
+// M10.5 — Get Current Save Data
+// ==========================================================
+
+/**
+ * Returns a defensive clone of the
+ * PlayerSaveData stored inside the
+ * current PlayerProfile.
+ *
+ * The returned object can be safely
+ * modified by the caller without
+ * mutating the active profile.
+ */
+public getSaveData():
+  PlayerSaveData | null {
+
+  if (
+    !this.currentProfile
+  ) {
+    return null;
+  }
+
+  return clonePlayerSaveData(
+    this.currentProfile.saveData
+  );
+}
+
+// ==========================================================
+// M10.5 — Synchronize Save Data
+// ==========================================================
+
+/**
+ * Replaces the PlayerSaveData stored
+ * inside the current PlayerProfile.
+ *
+ * The updated profile is persisted
+ * through PersistenceRepository.
+ *
+ * SaveSystem remains the storage owner.
+ */
+public syncSaveData(
+  saveData: PlayerSaveData
+): boolean {
+
+  if (
+    !this.currentProfile
+  ) {
+    return false;
+  }
+
+  if (
+    !saveData
+  ) {
+    return false;
+  }
+
+  const updatedProfile:
+    PlayerProfile = {
+
+    ...this.currentProfile,
+
+    saveData:
+      clonePlayerSaveData(
+        saveData
+      )
+  };
+
+  if (
+    !isValidPlayerProfile(
+      updatedProfile
+    )
+  ) {
+    return false;
+  }
+
+  const timestampedProfile =
+    touchPlayerProfile(
+      updatedProfile
+    );
+
+  const saved =
+    this.repository.save(
+      timestampedProfile
+    );
+
+  if (
+    !saved
+  ) {
+    return false;
+  }
+
+  this.currentProfile =
+    clonePlayerProfile(
+      timestampedProfile
+    );
+
+  return true;
+}
 
   // ==========================================================
   // Has Current Profile
