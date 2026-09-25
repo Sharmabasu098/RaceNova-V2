@@ -39,6 +39,10 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
+import {
+  runM10_4ProfileManagerQA
+} from "./profile/M10_4_ProfileManagerQA";
+
 // ============================================================
 // App Container
 // ============================================================
@@ -426,3 +430,9 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
+
+// ============================================================
+// M10.4 — TEMPORARY FUNCTIONAL QA
+// ============================================================
+
+runM10_4ProfileManagerQA();
