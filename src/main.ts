@@ -39,10 +39,6 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
-import {
-  runM10_6_1_ProfileValidationQA
-} from "./profile/M10_6_1_ProfileValidationQA";
-
 // ============================================================
 // App Container
 // ============================================================
@@ -430,36 +426,3 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
-
-// ============================================================
-// M10.6.1 — Temporary Profile Validation QA
-// ============================================================
-
-try {
-
-  const qaPassed =
-    runM10_6_1_ProfileValidationQA();
-
-  if (
-    qaPassed
-  ) {
-
-    window.alert(
-      "M10.6.1 Profile Validation QA — PASS ✅"
-    );
-  }
-
-} catch (
-  error
-) {
-
-  console.error(
-    "M10.6.1 Profile Validation QA — FAILED",
-    error
-  );
-
-  window.alert(
-    "M10.6.1 Profile Validation QA — FAILED ❌"
-  );
-}
-
