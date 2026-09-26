@@ -72,21 +72,69 @@ function createValidTestSaveData():
 
     upgrades: {
 
-      upgrades: {
+  upgrades: {
 
-        starter: {
+    starter: {
 
-          speed:
-            0,
+      speed:
+        0,
 
-          acceleration:
-            0,
+      acceleration:
+        0,
 
-          handling:
-            0
-        }
-      }
+      handling:
+        0
     },
+
+    sport: {
+
+      speed:
+        0,
+
+      acceleration:
+        0,
+
+      handling:
+        0
+    },
+
+    muscle: {
+
+      speed:
+        0,
+
+      acceleration:
+        0,
+
+      handling:
+        0
+    },
+
+    super: {
+
+      speed:
+        0,
+
+      acceleration:
+        0,
+
+      handling:
+        0
+    },
+
+    hyper: {
+
+      speed:
+        0,
+
+      acceleration:
+        0,
+
+      handling:
+        0
+    }
+  }
+},
 
     progress: {
 
