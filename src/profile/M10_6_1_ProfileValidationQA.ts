@@ -62,15 +62,30 @@ function createValidTestSaveData():
 
     garage: {
 
-      ownedCars: [],
+      ownedCars: [
+        "starter"
+      ],
 
       selectedCar:
-        ""
+        "starter"
     },
 
     upgrades: {
 
-      upgrades: {}
+      upgrades: {
+
+        starter: {
+
+          speed:
+            0,
+
+          acceleration:
+            0,
+
+          handling:
+            0
+        }
+      }
     },
 
     progress: {
@@ -171,7 +186,8 @@ export function runM10_6_1_ProfileValidationQA():
   const invalidProfileId =
     {
       ...validProfile,
-      profileId: ""
+      profileId:
+        ""
     };
 
   assertQA(
@@ -224,6 +240,7 @@ export function runM10_6_1_ProfileValidationQA():
   const invalidNestedSaveData =
     {
       ...validProfile,
+
       saveData: {
 
         ...validProfile.saveData,
@@ -247,6 +264,7 @@ export function runM10_6_1_ProfileValidationQA():
   const unsupportedSaveVersion =
     {
       ...validProfile,
+
       saveData: {
 
         ...validProfile.saveData,
