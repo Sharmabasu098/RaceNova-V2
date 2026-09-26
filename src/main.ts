@@ -39,9 +39,7 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
-import {
-  runM10_7_1_RuntimeProfileBridgeQA
-} from "./profile/M10_7_1_RuntimeProfileBridgeQA";
+
 
 // ============================================================
 // App Container
@@ -430,36 +428,3 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
-
-// ============================================================
-// M10.7.1 — Temporary Runtime Profile Bridge QA
-// ============================================================
-
-try {
-
-  const qaPassed =
-    runM10_7_1_RuntimeProfileBridgeQA();
-
-  if (
-    qaPassed
-  ) {
-
-    window.alert(
-      "M10.7.1 Runtime Profile Bridge QA — PASS ✅"
-    );
-  }
-
-} catch (
-  error
-) {
-
-  console.error(
-    "M10.7.1 Runtime Profile Bridge QA — FAILED",
-    error
-  );
-
-  window.alert(
-    "M10.7.1 Runtime Profile Bridge QA — FAILED ❌"
-  );
-}
-
