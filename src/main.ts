@@ -39,6 +39,10 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
+import {
+  runM10_5ProfileSaveSyncQA
+} from "./profile/M10_5_ProfileSaveSyncQA";
+
 // ============================================================
 // App Container
 // ============================================================
@@ -426,3 +430,9 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
+
+// ============================================================
+// M10.5 — TEMPORARY FUNCTIONAL QA
+// ============================================================
+
+runM10_5ProfileSaveSyncQA();
