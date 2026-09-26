@@ -2,12 +2,13 @@
  * ============================================================
  * RaceNova V2
  * Player Profile
- * M10.1 — Profile Data Model
+ * M10.6.1 — Profile Validation Hardening
  * ============================================================
  *
  * Purpose:
  * - Define the persistent player-profile boundary
  * - Wrap existing PlayerSaveData
+ * - Validate nested PlayerSaveData
  * - Prepare the profile for future local/cloud persistence
  *
  * IMPORTANT:
@@ -18,13 +19,18 @@
  * - No Pi / Google login logic
  * - No Three.js dependency
  *
- * M10.1 = DATA MODEL ONLY
+ * M10.6.1:
+ * - Harden PlayerProfile validation
+ * - Validate nested PlayerSaveData
+ * - Validate supported PlayerSaveData version
  * ============================================================
  */
 
 import {
   type PlayerSaveData,
-  clonePlayerSaveData
+  clonePlayerSaveData,
+  isValidPlayerSaveData,
+  isSupportedPlayerSaveVersion
 } from "../save/PlayerSaveData";
 
 // ============================================================
@@ -200,13 +206,13 @@ export function isValidPlayerProfile(
   // ----------------------------------------------------------
 
   if (
-  typeof profile.createdAt !== "number" ||
-  !Number.isFinite(
-    profile.createdAt
-  ) ||
-  profile.createdAt <= 0
-) {
-  return false;
+    typeof profile.createdAt !== "number" ||
+    !Number.isFinite(
+      profile.createdAt
+    ) ||
+    profile.createdAt <= 0
+  ) {
+    return false;
   }
 
   // ----------------------------------------------------------
@@ -214,15 +220,15 @@ export function isValidPlayerProfile(
   // ----------------------------------------------------------
 
   if (
-  typeof profile.updatedAt !== "number" ||
-  !Number.isFinite(
-    profile.updatedAt
-  ) ||
-  profile.updatedAt <= 0
-) {
-  return false;
+    typeof profile.updatedAt !== "number" ||
+    !Number.isFinite(
+      profile.updatedAt
+    ) ||
+    profile.updatedAt <= 0
+  ) {
+    return false;
   }
-  
+
   // ----------------------------------------------------------
   // Save Data
   // ----------------------------------------------------------
@@ -230,6 +236,30 @@ export function isValidPlayerProfile(
   if (
     !profile.saveData ||
     typeof profile.saveData !== "object"
+  ) {
+    return false;
+  }
+
+  // ----------------------------------------------------------
+  // Nested PlayerSaveData Validation
+  // ----------------------------------------------------------
+
+  if (
+    !isValidPlayerSaveData(
+      profile.saveData
+    )
+  ) {
+    return false;
+  }
+
+  // ----------------------------------------------------------
+  // PlayerSaveData Version Validation
+  // ----------------------------------------------------------
+
+  if (
+    !isSupportedPlayerSaveVersion(
+      profile.saveData.version
+    )
   ) {
     return false;
   }
