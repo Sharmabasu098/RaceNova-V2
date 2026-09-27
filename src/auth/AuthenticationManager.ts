@@ -51,7 +51,7 @@ import {
   type AuthenticationResult,
   type AuthenticationSession,
   AuthenticationStatus
-} from "./auth/AuthenticationBoundary";
+} from "./AuthenticationBoundary";
 // ============================================================
 // Authentication Manager
 // ============================================================
