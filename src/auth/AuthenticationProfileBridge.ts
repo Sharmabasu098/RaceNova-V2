@@ -222,24 +222,24 @@ export class AuthenticationProfileBridge {
   // Save Profile
   // ==========================================================
 
-  private saveProfile(
+    private saveProfile(
     profile:
       PlayerProfile
   ):
     PlayerProfile | null {
 
-    /*
-     * RuntimeProfileBridge intentionally exposes
-     * save-data synchronization only.
-     *
-     * M11.4 must not bypass the existing
-     * PlayerProfileManager boundary.
-     *
-     * Therefore identity binding is completed
-     * by the profile manager in the next
-     * integration step.
-     */
+    const saved =
+      this.runtimeProfileBridge
+        .saveProfile(
+          profile
+        );
 
-    return profile;
-  }
-}
+    if (
+      !saved
+    ) {
+      return null;
+    }
+
+    return this.runtimeProfileBridge
+      .getCurrentProfile();
+    }
