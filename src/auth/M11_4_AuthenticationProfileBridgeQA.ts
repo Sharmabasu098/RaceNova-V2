@@ -57,15 +57,17 @@ import {
 } from "../economy/EconomyTypes";
 
 import {
-  getStarterCar
-} from "../garage/CarDefinitions";
+  getStarterCar,
+  type CarId
+} from "../garage/CarData";
 
 import type {
   GarageState
 } from "../garage/GarageManager";
 
 import type {
-  UpgradeState
+  UpgradeState,
+  CarUpgradeLevels
 } from "../garage/UpgradeSystem";
 
 // ============================================================
@@ -236,11 +238,42 @@ function createTestSaveData() {
       starterCar.id
   };
 
-  const upgrades:
-    UpgradeState = {
+  const zeroUpgrade:
+  CarUpgradeLevels = {
 
-    upgrades: {}
-  };
+  speed: 0,
+
+  acceleration: 0,
+
+  handling: 0
+};
+
+const upgrades:
+  UpgradeState = {
+
+  upgrades: {
+
+    starter: {
+      ...zeroUpgrade
+    },
+
+    sport: {
+      ...zeroUpgrade
+    },
+
+    muscle: {
+      ...zeroUpgrade
+    },
+
+    super: {
+      ...zeroUpgrade
+    },
+
+    hyper: {
+      ...zeroUpgrade
+    }
+  }
+};
 
   const saveData =
     createDefaultPlayerSaveData(
