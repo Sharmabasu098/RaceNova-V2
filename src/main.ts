@@ -39,6 +39,10 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
+import {
+  runM11_3_ProviderAdapterQA
+} from "./auth/M11_3_ProviderAdapterQA";
+
 // ============================================================
 // App Container
 // ============================================================
@@ -426,3 +430,5 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
+
+void runM11_3_ProviderAdapterQA();
