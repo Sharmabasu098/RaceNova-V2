@@ -49,14 +49,12 @@ import {
   RuntimeProfileBridge
 } from "../profile/RuntimeProfileBridge";
 
-
 // ============================================================
 // Local Profile Identity
 // ============================================================
 
 const LOCAL_PROFILE_ID =
   "racenova-local-player";
-
 
 // ============================================================
 // Authentication ↔ Profile Bridge
@@ -66,7 +64,6 @@ export class AuthenticationProfileBridge {
 
   private readonly runtimeProfileBridge:
     RuntimeProfileBridge;
-
 
   // ==========================================================
   // Constructor
@@ -80,7 +77,6 @@ export class AuthenticationProfileBridge {
     this.runtimeProfileBridge =
       runtimeProfileBridge;
   }
-
 
   // ==========================================================
   // Bind Authenticated Identity
@@ -187,7 +183,6 @@ export class AuthenticationProfileBridge {
     );
   }
 
-
   // ==========================================================
   // Get Current Profile
   // ==========================================================
@@ -198,7 +193,6 @@ export class AuthenticationProfileBridge {
     return this.runtimeProfileBridge
       .getCurrentProfile();
   }
-
 
   // ==========================================================
   // Dispose
@@ -211,18 +205,18 @@ export class AuthenticationProfileBridge {
    */
   public dispose():
     void {
+
     // Intentionally empty.
     //
     // RuntimeProfileBridge owns
     // runtime profile lifecycle.
   }
 
-
   // ==========================================================
   // Save Profile
   // ==========================================================
 
-    private saveProfile(
+  private saveProfile(
     profile:
       PlayerProfile
   ):
@@ -242,4 +236,5 @@ export class AuthenticationProfileBridge {
 
     return this.runtimeProfileBridge
       .getCurrentProfile();
-    }
+  }
+}
