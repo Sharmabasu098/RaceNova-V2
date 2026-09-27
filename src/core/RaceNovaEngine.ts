@@ -34,6 +34,18 @@ import { UpgradeSystem } from "../garage/UpgradeSystem";
 
 import { SaveSystem } from "../save/SaveSystem";
 
+import {
+  PlayerProfileManager
+} from "../profile/PlayerProfileManager";
+
+import {
+  LocalPersistenceRepository
+} from "../profile/LocalPersistenceRepository";
+
+import {
+  RuntimeProfileBridge
+} from "../profile/RuntimeProfileBridge";
+
 import { AudioManager } from "../audio/AudioManager";
 
 
@@ -217,6 +229,19 @@ export class RaceNovaEngine {
 
   private readonly saveSystem:
     SaveSystem;
+
+  // =========================================================
+// M10.7.2 — Runtime Profile Integration
+// =========================================================
+
+private readonly profileManager:
+  PlayerProfileManager;
+
+private readonly runtimeProfileBridge:
+  RuntimeProfileBridge;
+
+private static readonly LOCAL_PROFILE_ID =
+  "racenova-local-player";
 
   // =========================================================
   // Player Progress
@@ -567,25 +592,94 @@ export class RaceNovaEngine {
       );
 
     // =======================================================
-    // Restore Save
+// M10.7.2 — Runtime Profile Integration
+// =======================================================
+
+const profileRepository =
+  new LocalPersistenceRepository(
+    this.saveSystem
+  );
+
+this.profileManager =
+  new PlayerProfileManager(
+    profileRepository
+  );
+
+this.runtimeProfileBridge =
+  new RuntimeProfileBridge(
+    this.profileManager
+  );
+
     // =======================================================
+// Restore Save
+// M10.7.2 — Runtime Profile Integration
+// =======================================================
 
-    if (
-      this.saveSystem.load()
-    ) {
+const saveLoaded =
+  this.saveSystem.load();
 
-      const savedData =
-        this.saveSystem.readSave();
+if (
+  saveLoaded
+) {
 
-      if (
-        savedData
-      ) {
+  const savedData =
+    this.saveSystem.readSave();
 
-        this.setPlayerProgress(
-          savedData.progress
-        );
-      }
-    }
+  if (
+    savedData
+  ) {
+
+    this.setPlayerProgress(
+      savedData.progress
+    );
+  }
+}
+
+// ---------------------------------------------------------
+// Ensure a valid PlayerSaveData snapshot exists
+// ---------------------------------------------------------
+
+if (
+  !this.saveSystem.readSave()
+) {
+
+  this.saveSystem.save();
+}
+
+// ---------------------------------------------------------
+// Runtime Profile Initialization
+// ---------------------------------------------------------
+
+const runtimeSaveData =
+  this.saveSystem.readSave();
+
+if (
+  runtimeSaveData
+) {
+
+  const initializedProfile =
+    this.runtimeProfileBridge.initialize(
+      RaceNovaEngine.LOCAL_PROFILE_ID,
+      runtimeSaveData,
+      ""
+    );
+
+  if (
+    initializedProfile
+  ) {
+
+    // -----------------------------------------------------
+    // PlayerSaveData remains authoritative.
+    // Synchronize the current gameplay save into
+    // the active runtime profile.
+    // -----------------------------------------------------
+
+    this.runtimeProfileBridge
+      .syncSaveData(
+        runtimeSaveData
+      );
+  }
+}
 
     // =======================================================
     // Selected Car
@@ -3327,25 +3421,60 @@ private finishNormalRace(): void {
     // Save Player Data
     // =========================================================
 
-    private savePlayerData(): void {
+    // =========================================================
+// M10.7.2 — Save Player Data + Runtime Profile Sync
+// =========================================================
 
-    try {
+private savePlayerData(): void {
 
+  try {
+
+    const saved =
       this.saveSystem.save(
         this.playerProgress
       );
 
-    } catch (
-      error
+    if (
+      !saved
     ) {
 
-      console.error(
-        "[RaceNova] Save failed:",
-        error
+      return;
+    }
+
+    // ------------------------------------------------------
+    // Read the authoritative gameplay save
+    // ------------------------------------------------------
+
+    const saveData =
+      this.saveSystem.readSave();
+
+    if (
+      !saveData
+    ) {
+
+      return;
+    }
+
+    // ------------------------------------------------------
+    // Synchronize PlayerSaveData into
+    // the active runtime PlayerProfile.
+    // ------------------------------------------------------
+
+    this.runtimeProfileBridge
+      .syncSaveData(
+        saveData
       );
 
-    }
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "[RaceNova] Save/Profile sync failed:",
+      error
+    );
   }
+}
 
   // =========================================================
   // Reset Race State
@@ -3528,6 +3657,16 @@ private finishNormalRace(): void {
 
     this.running =
       false;
+
+    // =========================================================
+// M10.7.2 — Runtime Profile Cleanup
+// =========================================================
+
+this.runtimeProfileBridge
+  .dispose();
+
+this.profileManager
+  .dispose();
 
     this.clock.stop();
 
