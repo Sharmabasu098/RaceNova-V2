@@ -39,6 +39,10 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
+import {
+  runM11_4_AuthenticationProfileBridgeQA
+} from "./auth/M11_4_AuthenticationProfileBridgeQA";
+
 // ============================================================
 // App Container
 // ============================================================
@@ -53,6 +57,53 @@ if (!app) {
   throw new Error(
     "RaceNova: #app element not found."
   );
+}
+
+// ============================================================
+// TEMPORARY M11.4 QA INVOCATION
+// ============================================================
+//
+// Run only when URL contains:
+//
+// ?m11_4_qa=1
+//
+// Example:
+// https://sharmabasu098.github.io/RaceNova-V2/?m11_4_qa=1
+//
+// TEMPORARY ONLY.
+// Remove after M11.4 QA PASS.
+// ============================================================
+
+const m11_4QaEnabled =
+  new URLSearchParams(
+    window.location.search
+  ).get(
+    "m11_4_qa"
+  ) === "1";
+
+if (
+  m11_4QaEnabled
+) {
+
+  console.log(
+    "[M11.4 QA] INVOCATION ENABLED"
+  );
+
+  try {
+
+    runM11_4_AuthenticationProfileBridgeQA();
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "[M11.4 QA] FAIL",
+      error
+    );
+
+    throw error;
+  }
 }
 
 // ============================================================
