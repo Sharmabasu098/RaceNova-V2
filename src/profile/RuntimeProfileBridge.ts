@@ -130,6 +130,24 @@ export class RuntimeProfileBridge {
       .syncSaveData(
         saveData
       );
+    // ==========================================================
+  // Save Profile
+  // ==========================================================
+
+  /**
+   * Replaces and persists the active PlayerProfile.
+   *
+   * AuthenticationProfileBridge uses this method
+   * as the runtime-safe persistence boundary.
+   */
+  public saveProfile(
+    profile: PlayerProfile
+  ): boolean {
+
+    return this.profileManager
+      .saveProfile(
+        profile
+      );
   }
 
   // ==========================================================
