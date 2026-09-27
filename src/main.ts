@@ -39,10 +39,6 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
-import {
-  runM10_7_2_RuntimeEngineIntegrationQA
-} from "./profile/M10_7_2_RuntimeEngineIntegrationQA";
-
 // ============================================================
 // App Container
 // ============================================================
@@ -430,22 +426,3 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
-
-refreshMainMenuProgress();
-
-mainMenu.show();
-
-// ============================================================
-// M10.7.2 — TEMPORARY Runtime Engine Integration QA
-// ============================================================
-
-window.setTimeout(
-  () => {
-
-    runM10_7_2_RuntimeEngineIntegrationQA(
-      engine
-    );
-
-  },
-  300
-);
