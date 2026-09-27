@@ -124,14 +124,16 @@ export class RuntimeProfileBridge {
    */
   public syncSaveData(
     saveData: PlayerSaveData
-  ): boolean {
+  ):
+    boolean {
 
     return this.profileManager
       .syncSaveData(
         saveData
       );
   }
-    // ==========================================================
+
+  // ==========================================================
   // Save Profile
   // ==========================================================
 
@@ -143,7 +145,8 @@ export class RuntimeProfileBridge {
    */
   public saveProfile(
     profile: PlayerProfile
-  ): boolean {
+  ):
+    boolean {
 
     return this.profileManager
       .saveProfile(
