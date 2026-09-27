@@ -39,10 +39,6 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
-import {
-  runM11_2_AuthenticationManagerQA
-} from "./auth/M11_2_AuthenticationManagerQA";
-
 // ============================================================
 // App Container
 // ============================================================
@@ -430,5 +426,3 @@ window.addEventListener(
 refreshMainMenuProgress();
 
 mainMenu.show();
-
-void runM11_2_AuthenticationManagerQA();
