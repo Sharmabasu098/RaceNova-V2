@@ -26,17 +26,13 @@
  * - RaceResultUI remains responsible for result UI
  * - No save logic here
  *
- * M11.6:
- * - REAL Pi SDK
+ * M11.6.1:
  * - REAL Pi authentication
+ * - Pi Login UI callback
  * - No Google authentication
  * - No wallet passphrase
  * - No secret phrase
- * - No authentication token persistence
- *
- * NOTE:
- * - Pi accessToken is received only in memory.
- * - Production identity verification must happen server-side.
+ * - No token persistence
  * ============================================================
  */
 
@@ -67,19 +63,28 @@ import {
 // ============================================================
 
 interface PiUser {
-  uid: string;
-  username?: string;
+
+  uid:
+    string;
+
+  username?:
+    string;
 }
 
 interface PiAuthResult {
-  user: PiUser;
-  accessToken: string;
+
+  user:
+    PiUser;
+
+  accessToken:
+    string;
 }
 
 interface PiAuthenticationCallbacks {
 
   onIncompletePaymentFound?: (
-    payment: unknown
+    payment:
+      unknown
   ) => void;
 }
 
@@ -87,22 +92,31 @@ interface PiSdk {
 
   init(
     options: {
-      version: string;
-      sandbox: boolean;
+      version:
+        string;
+
+      sandbox:
+        boolean;
     }
-  ): void;
+  ):
+    void;
 
   authenticate(
-    scopes: string[],
-    callbacks?: PiAuthenticationCallbacks
-  ): Promise<PiAuthResult>;
+    scopes:
+      string[],
+
+    callbacks?:
+      PiAuthenticationCallbacks
+  ):
+    Promise<PiAuthResult>;
 }
 
 declare global {
 
   interface Window {
 
-    Pi?: PiSdk;
+    Pi?:
+      PiSdk;
   }
 }
 
@@ -162,7 +176,8 @@ const loadPiSdk =
 
             },
             {
-              once: true
+              once:
+                true
             }
           );
 
@@ -182,7 +197,8 @@ const loadPiSdk =
 
             },
             {
-              once: true
+              once:
+                true
             }
           );
         }
@@ -255,7 +271,9 @@ const app =
     "app"
   );
 
-if (!app) {
+if (
+  !app
+) {
 
   throw new Error(
     "RaceNova: #app element not found."
@@ -265,19 +283,6 @@ if (!app) {
 
 // ============================================================
 // M11.6 — REAL Pi Authentication Runtime
-// ============================================================
-//
-// REAL Pi SDK authentication.
-//
-// IMPORTANT:
-// - No Google SDK
-// - No fake authentication
-// - No localStorage
-// - No token persistence
-// - No wallet passphrase
-// - No secret phrase
-// - No gameplay dependency
-//
 // ============================================================
 
 const authenticationRuntime =
@@ -300,10 +305,6 @@ const authenticationRuntime =
             const Pi =
               await loadPiSdk();
 
-            // ------------------------------------------------
-            // Pi SDK initialization
-            // ------------------------------------------------
-
             Pi.init({
 
               version:
@@ -312,10 +313,6 @@ const authenticationRuntime =
               sandbox:
                 true
             });
-
-            // ------------------------------------------------
-            // REAL Pi authentication
-            // ------------------------------------------------
 
             const auth =
               await Pi.authenticate(
@@ -336,10 +333,6 @@ const authenticationRuntime =
                     }
                 }
               );
-
-            // ------------------------------------------------
-            // Validate returned identity
-            // ------------------------------------------------
 
             if (
               !auth ||
@@ -366,16 +359,6 @@ const authenticationRuntime =
               };
             }
 
-            // ------------------------------------------------
-            // IMPORTANT
-            //
-            // accessToken is intentionally NOT persisted.
-            //
-            // Production backend verification must verify
-            // this token with Pi before treating the identity
-            // as trusted.
-            // ------------------------------------------------
-
             if (
               !auth.accessToken
             ) {
@@ -399,33 +382,29 @@ const authenticationRuntime =
               };
             }
 
-            // ------------------------------------------------
-            // REAL authenticated session
-            // ------------------------------------------------
-
             return {
 
               success:
                 true,
 
-                session: {
+              session: {
 
-                  status:
-                    AuthenticationStatus.AUTHENTICATED,
+                status:
+                  AuthenticationStatus.AUTHENTICATED,
 
-                  identity: {
+                identity: {
 
-                    subject:
-                      auth.user.uid,
+                  subject:
+                    auth.user.uid,
 
-                    provider:
-                      AuthenticationProvider.PI,
+                  provider:
+                    AuthenticationProvider.PI,
 
-                    displayName:
-                      auth.user.username ||
-                      "Pi User"
-                  }
+                  displayName:
+                    auth.user.username ||
+                    "Pi User"
                 }
+              }
             };
 
           } catch (
@@ -442,24 +421,24 @@ const authenticationRuntime =
               success:
                 false,
 
-                session: {
+              session: {
 
-                  status:
-                    AuthenticationStatus.ERROR,
+                status:
+                  AuthenticationStatus.ERROR,
 
-                  identity:
-                    null
-                },
+                identity:
+                  null
+              },
 
-                message:
-                  "Pi authentication failed."
+              message:
+                "Pi authentication failed."
             };
           }
         },
 
 
       // ======================================================
-      // PI SIGN OUT
+      // SIGN OUT
       // ======================================================
 
       signOut:
@@ -534,50 +513,53 @@ const mainMenu =
       // START RACE
       // ======================================================
 
-      onStartRace: () => {
+      onStartRace:
+        () => {
 
-        if (
-          campaignMenu
-        ) {
+          if (
+            campaignMenu
+          ) {
 
-          campaignMenu.hide();
-        }
+            campaignMenu.hide();
+          }
 
-        engine.start();
-      },
+          engine.start();
+        },
 
 
       // ======================================================
       // CAMPAIGN
       // ======================================================
 
-      onCampaign: () => {
+      onCampaign:
+        () => {
 
-        mainMenu.hide();
+          mainMenu.hide();
 
-        if (
-          campaignMenu
-        ) {
+          if (
+            campaignMenu
+          ) {
 
-          campaignMenu.setProgress(
-            engine.getPlayerProgress()
-          );
+            campaignMenu.setProgress(
+              engine.getPlayerProgress()
+            );
 
-          campaignMenu.show();
-        }
-      },
+            campaignMenu.show();
+          }
+        },
 
 
       // ======================================================
       // GARAGE
       // ======================================================
 
-      onGarage: () => {
+      onGarage:
+        () => {
 
-        mainMenu.hide();
+          mainMenu.hide();
 
-        engine.openGarage();
-      },
+          engine.openGarage();
+        },
 
 
       // ======================================================
@@ -588,7 +570,7 @@ const mainMenu =
         async () => {
 
           // --------------------------------------------------
-          // Already authenticated → sign out
+          // Already authenticated
           // --------------------------------------------------
 
           if (
@@ -621,7 +603,9 @@ const mainMenu =
 
             mainMenu.setAuthenticationState(
               true,
-              result.session.identity.displayName
+
+              result.session.identity
+                .displayName
             );
 
             return;
@@ -642,16 +626,6 @@ const mainMenu =
 
 // ============================================================
 // M8.8 — Main Menu Progress Refresh
-// ============================================================
-//
-// Keeps Main Menu NEXT RACE card synchronized with
-// authoritative PlayerProgress.
-//
-// IMPORTANT:
-// - No gameplay logic.
-// - No save logic.
-// - No progression mutation.
-// - MainMenu only receives progress and displays it.
 // ============================================================
 
 const refreshMainMenuProgress =
@@ -676,99 +650,78 @@ campaignMenu =
       // BACK TO MAIN MENU
       // ======================================================
 
-      onBack: () => {
+      onBack:
+        () => {
 
-        campaignMenu?.hide();
+          campaignMenu?.hide();
 
-        refreshMainMenuProgress();
+          refreshMainMenuProgress();
 
-        mainMenu.resetStartState();
+          mainMenu.resetStartState();
 
-        mainMenu.show();
-      },
+          mainMenu.show();
+        },
 
 
       // ======================================================
       // START SELECTED CAMPAIGN RACE
       // ======================================================
 
-      onStartRace: (
-        raceId: string
-      ) => {
+      onStartRace:
+        (
+          raceId:
+            string
+        ) => {
 
-        if (
-          !raceId
-        ) {
+          if (
+            !raceId
+          ) {
 
-          return;
-        }
+            return;
+          }
 
-        // ----------------------------------------------------
-        // Get current player progress
-        // ----------------------------------------------------
+          const progress =
+            engine.getPlayerProgress();
 
-        const progress =
-          engine.getPlayerProgress();
+          const updatedProgress = {
 
-        // ----------------------------------------------------
-        // Update selected race
-        // ----------------------------------------------------
-
-        const updatedProgress = {
-
-          ...progress,
-
-          selectedRaceId:
-            raceId,
-
-          raceProgression: {
-
-            ...progress.raceProgression,
+            ...progress,
 
             selectedRaceId:
               raceId,
 
-            races:
-              progress
-                .raceProgression
-                .races
-                .map(
-                  (
-                    race
-                  ) => ({
+            raceProgression: {
 
-                    ...race
-                  })
-                )
-          }
-        };
+              ...progress.raceProgression,
 
-        // ----------------------------------------------------
-        // Give updated progression back to engine
-        // ----------------------------------------------------
+              selectedRaceId:
+                raceId,
 
-        engine.setPlayerProgress(
-          updatedProgress
-        );
+              races:
+                progress
+                  .raceProgression
+                  .races
+                  .map(
+                    (
+                      race
+                    ) => ({
 
-        // ----------------------------------------------------
-        // Close campaign UI
-        // ----------------------------------------------------
+                      ...race
+                    })
+                  )
+            }
+          };
 
-        campaignMenu?.hide();
+          engine.setPlayerProgress(
+            updatedProgress
+          );
 
-        // ----------------------------------------------------
-        // Reset Main Menu button state
-        // ----------------------------------------------------
+          campaignMenu?.hide();
 
-        mainMenu.resetStartState();
+          mainMenu.resetStartState();
 
-        // ----------------------------------------------------
-        // Start engine
-        // ----------------------------------------------------
-
-        engine.start();
-      }
+          engine.start();
+        }
     }
   );
 
@@ -791,43 +744,21 @@ campaignMenu.hide();
 
 // ============================================================
 // Traffic Crash → Main Menu
-// M7.9.11
 // ============================================================
 
 const handleTrafficCrash =
   (): void => {
 
-    // --------------------------------------------------------
-    // Close Campaign UI
-    // --------------------------------------------------------
-
     campaignMenu?.hide();
-
-    // --------------------------------------------------------
-    // Re-enable Main Menu
-    // --------------------------------------------------------
 
     mainMenu.resetStartState();
 
-    // --------------------------------------------------------
-    // M8.8 — Refresh Main Menu Progress
-    // --------------------------------------------------------
-
     refreshMainMenuProgress();
-
-    // --------------------------------------------------------
-    // Show Main Menu FIRST
-    // --------------------------------------------------------
 
     mainMenu.show();
 
-    // --------------------------------------------------------
-    // Reset active race runtime
-    // --------------------------------------------------------
-
     engine.resetRaceState();
   };
-
 
 window.addEventListener(
   "racenova:traffic-crash",
@@ -837,43 +768,21 @@ window.addEventListener(
 
 // ============================================================
 // Race Result → Main Menu
-// M8.3
 // ============================================================
 
 const handleRaceResultMenu =
   (): void => {
 
-    // --------------------------------------------------------
-    // Close Campaign UI
-    // --------------------------------------------------------
-
     campaignMenu?.hide();
-
-    // --------------------------------------------------------
-    // Reset Main Menu button state
-    // --------------------------------------------------------
 
     mainMenu.resetStartState();
 
-    // --------------------------------------------------------
-    // Refresh Main Menu progress
-    // --------------------------------------------------------
-
     refreshMainMenuProgress();
-
-    // --------------------------------------------------------
-    // Reset active race runtime
-    // --------------------------------------------------------
 
     engine.resetRaceState();
 
-    // --------------------------------------------------------
-    // Show Main Menu
-    // --------------------------------------------------------
-
     mainMenu.show();
   };
-
 
 window.addEventListener(
   "racenova:race-result-menu",
@@ -888,25 +797,12 @@ window.addEventListener(
 const handleGarageClose =
   (): void => {
 
-    // --------------------------------------------------------
-    // Refresh Main Menu progress
-    // --------------------------------------------------------
-
     refreshMainMenuProgress();
-
-    // --------------------------------------------------------
-    // Reset Main Menu button state
-    // --------------------------------------------------------
 
     mainMenu.resetStartState();
 
-    // --------------------------------------------------------
-    // Show Main Menu
-    // --------------------------------------------------------
-
     mainMenu.show();
   };
-
 
 window.addEventListener(
   "racenova:garage-close",
@@ -917,11 +813,6 @@ window.addEventListener(
 // ============================================================
 // Initial Main Menu
 // ============================================================
-//
-// M8.8:
-// Always load the saved/current player progress before
-// displaying the Main Menu.
-// ============================================================
 
 refreshMainMenuProgress();
 
@@ -929,17 +820,7 @@ mainMenu.show();
 
 
 // ============================================================
-// M11.6.1 — Authentication Runtime Availability
-// ============================================================
-//
-// Authentication runtime is composed at application level.
-// Actual Pi sign-in is intentionally NOT triggered on startup.
-//
-// Login UI will explicitly call:
-//
-// authenticationRuntime.signIn()
-//
-// in the authentication UI integration.
+// M11.6.1 — Runtime Availability
 // ============================================================
 
 void authenticationRuntime;
