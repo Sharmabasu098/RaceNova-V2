@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Main Menu
- * M8.8.1
+ * M11.6.1 — Pi Login UI Integration
  * ============================================================
  *
  * Main start screen.
@@ -13,10 +13,12 @@
  * - START RACE button
  * - CAMPAIGN button
  * - GARAGE button
+ * - REAL Pi Login button
  * - Mobile responsive UI
  * - Start race callback
  * - Campaign callback
  * - Garage callback
+ * - Pi Login callback
  * - Safe start-state reset for race restart
  * - Dynamic campaign progress display
  *
@@ -24,6 +26,8 @@
  * - No Three.js dependency
  * - No gameplay dependency
  * - No save logic
+ * - No authentication logic
+ * - Authentication is delegated to onPiLogin callback
  * - RACE_DEFINITIONS is authoritative for race metadata
  * ============================================================
  */
@@ -36,11 +40,22 @@ import {
   RACE_DEFINITIONS
 } from "../race/RaceDefinitions";
 
+
 export interface MainMenuConfig {
-  onStartRace: () => void;
-  onCampaign: () => void;
-  onGarage: () => void;
+
+  onStartRace:
+    () => void;
+
+  onCampaign:
+    () => void;
+
+  onGarage:
+    () => void;
+
+  onPiLogin:
+    () => Promise<void>;
 }
+
 
 export class MainMenu {
 
@@ -55,6 +70,10 @@ export class MainMenu {
 
   private readonly garageButton:
     HTMLButtonElement;
+
+  private readonly piLoginButton:
+    HTMLButtonElement;
+
 
   // =========================================================
   // M8.8 — Dynamic Next Race UI References
@@ -72,6 +91,11 @@ export class MainMenu {
   private readonly raceMetaRight:
     HTMLSpanElement;
 
+
+  // =========================================================
+  // Callbacks
+  // =========================================================
+
   private readonly onStartRace:
     () => void;
 
@@ -81,12 +105,20 @@ export class MainMenu {
   private readonly onGarage:
     () => void;
 
+  private readonly onPiLogin:
+    () => Promise<void>;
+
+
   private started =
     false;
 
+
   constructor(
-    container: HTMLElement,
-    config: MainMenuConfig
+    container:
+      HTMLElement,
+
+    config:
+      MainMenuConfig
   ) {
 
     this.onStartRace =
@@ -98,6 +130,14 @@ export class MainMenu {
     this.onGarage =
       config.onGarage;
 
+    this.onPiLogin =
+      config.onPiLogin;
+
+
+    // =======================================================
+    // Root
+    // =======================================================
+
     this.root =
       document.createElement(
         "div"
@@ -105,6 +145,11 @@ export class MainMenu {
 
     this.root.className =
       "racenova-main-menu";
+
+
+    // =======================================================
+    // Main Menu HTML
+    // =======================================================
 
     this.root.innerHTML = `
 
@@ -116,15 +161,30 @@ export class MainMenu {
         class="racenova-menu-content"
       >
 
+        <!-- ================================================
+             M11.6.1 — Pi Login
+             ================================================ -->
+
+        <button
+          class="racenova-pi-login-button"
+          type="button"
+          aria-label="Login with Pi"
+        >
+          LOGIN WITH PI
+        </button>
+
+
         <div
           class="racenova-kicker"
         >
           ARCADE RACING
         </div>
 
+
         <div
           class="racenova-logo"
         >
+
           <span
             class="racenova-logo-light"
           >
@@ -136,7 +196,9 @@ export class MainMenu {
           >
             NOVA
           </span>
+
         </div>
+
 
         <div
           class="racenova-tagline"
@@ -146,6 +208,7 @@ export class MainMenu {
           <br />
           through the neon highway.
         </div>
+
 
         <div
           class="racenova-race-card"
@@ -157,11 +220,13 @@ export class MainMenu {
             NEXT RACE
           </div>
 
+
           <div
             class="racenova-race-name"
           >
             DESERT RUN
           </div>
+
 
           <div
             class="racenova-race-class"
@@ -169,13 +234,16 @@ export class MainMenu {
             CAMPAIGN
           </div>
 
+
           <div
             class="racenova-card-divider"
           ></div>
 
+
           <div
             class="racenova-race-meta"
           >
+
             <span
               class="racenova-race-meta-left"
             >
@@ -187,9 +255,11 @@ export class MainMenu {
             >
               0/8 CLEARED
             </span>
+
           </div>
 
         </div>
+
 
         <button
           class="racenova-start-button"
@@ -197,6 +267,7 @@ export class MainMenu {
         >
           START RACE
         </button>
+
 
         <div
           class="racenova-menu-secondary"
@@ -209,6 +280,7 @@ export class MainMenu {
             CAMPAIGN
           </button>
 
+
           <button
             type="button"
             class="racenova-secondary-button"
@@ -217,6 +289,7 @@ export class MainMenu {
           </button>
 
         </div>
+
 
         <div
           class="racenova-controls-hint"
@@ -231,9 +304,11 @@ export class MainMenu {
       </div>
     `;
 
+
     container.appendChild(
       this.root
     );
+
 
     // =======================================================
     // Existing Buttons
@@ -244,15 +319,28 @@ export class MainMenu {
         ".racenova-start-button"
       );
 
+
     const campaignButton =
       this.root.querySelector<HTMLButtonElement>(
         ".racenova-secondary-button:nth-child(1)"
       );
 
+
     const garageButton =
       this.root.querySelector<HTMLButtonElement>(
         ".racenova-secondary-button:nth-child(2)"
       );
+
+
+    // =======================================================
+    // M11.6.1 — Pi Login Button
+    // =======================================================
+
+    const piLoginButton =
+      this.root.querySelector<HTMLButtonElement>(
+        ".racenova-pi-login-button"
+      );
+
 
     // =======================================================
     // M8.8 — Dynamic Race Card Elements
@@ -263,113 +351,277 @@ export class MainMenu {
         ".racenova-race-name"
       );
 
+
     const raceClassValue =
       this.root.querySelector<HTMLDivElement>(
         ".racenova-race-class"
       );
+
 
     const raceMetaLeft =
       this.root.querySelector<HTMLSpanElement>(
         ".racenova-race-meta-left"
       );
 
+
     const raceMetaRight =
       this.root.querySelector<HTMLSpanElement>(
         ".racenova-race-meta-right"
       );
 
-    if (!startButton) {
+
+    // =======================================================
+    // Required Element Validation
+    // =======================================================
+
+    if (
+      !startButton
+    ) {
 
       throw new Error(
         "RaceNova: START RACE button not found."
       );
     }
 
-    if (!campaignButton) {
+
+    if (
+      !campaignButton
+    ) {
 
       throw new Error(
         "RaceNova: CAMPAIGN button not found."
       );
     }
 
-    if (!garageButton) {
+
+    if (
+      !garageButton
+    ) {
 
       throw new Error(
         "RaceNova: GARAGE button not found."
       );
     }
 
-    if (!raceNameValue) {
+
+    if (
+      !piLoginButton
+    ) {
+
+      throw new Error(
+        "RaceNova: Pi login button not found."
+      );
+    }
+
+
+    if (
+      !raceNameValue
+    ) {
 
       throw new Error(
         "RaceNova: Race name element not found."
       );
     }
 
-    if (!raceClassValue) {
+
+    if (
+      !raceClassValue
+    ) {
 
       throw new Error(
         "RaceNova: Race class element not found."
       );
     }
 
-    if (!raceMetaLeft) {
+
+    if (
+      !raceMetaLeft
+    ) {
 
       throw new Error(
         "RaceNova: Race meta left element not found."
       );
     }
 
-    if (!raceMetaRight) {
+
+    if (
+      !raceMetaRight
+    ) {
 
       throw new Error(
         "RaceNova: Race meta right element not found."
       );
     }
 
+
+    // =======================================================
+    // Store References
+    // =======================================================
+
     this.startButton =
       startButton;
+
 
     this.campaignButton =
       campaignButton;
 
+
     this.garageButton =
       garageButton;
+
+
+    this.piLoginButton =
+      piLoginButton;
+
 
     this.raceNameValue =
       raceNameValue;
 
+
     this.raceClassValue =
       raceClassValue;
+
 
     this.raceMetaLeft =
       raceMetaLeft;
 
+
     this.raceMetaRight =
       raceMetaRight;
 
+
+    // =======================================================
+    // Styles
+    // =======================================================
+
     this.injectStyles();
+
+
+    // =======================================================
+    // Event Listeners
+    // =======================================================
 
     this.startButton.addEventListener(
       "click",
       this.handleStart
     );
 
+
     this.campaignButton.addEventListener(
       "click",
       this.handleCampaign
     );
+
 
     this.garageButton.addEventListener(
       "click",
       this.handleGarage
     );
 
+
+    this.piLoginButton.addEventListener(
+      "click",
+      this.handlePiLogin
+    );
+
+
     this.root.setAttribute(
       "aria-hidden",
       "false"
     );
   }
+
+
+  // =========================================================
+  // M11.6.1 — Pi Login Handler
+  // =========================================================
+
+  private readonly handlePiLogin =
+    async (): Promise<void> => {
+
+      if (
+        this.piLoginButton.disabled
+      ) {
+
+        return;
+      }
+
+
+      this.piLoginButton.disabled =
+        true;
+
+
+      try {
+
+        await this.onPiLogin();
+
+      } finally {
+
+        this.piLoginButton.disabled =
+          false;
+      }
+    };
+
+
+  // =========================================================
+  // M11.6.1 — Authentication State
+  // =========================================================
+  //
+  // MainMenu does not perform authentication.
+  //
+  // It only displays the state supplied by the
+  // application authentication runtime.
+  // =========================================================
+
+  public setAuthenticationState(
+    authenticated:
+      boolean,
+
+    displayName?:
+      string
+  ):
+    void {
+
+    if (
+      authenticated
+    ) {
+
+      this.piLoginButton.textContent =
+        displayName
+          ? `PI: ${displayName}`
+          : "PI ACCOUNT";
+
+
+      this.piLoginButton.setAttribute(
+        "aria-label",
+        "Pi account"
+      );
+
+
+      this.piLoginButton.classList.add(
+        "is-authenticated"
+      );
+
+
+      return;
+    }
+
+
+    this.piLoginButton.textContent =
+      "LOGIN WITH PI";
+
+
+    this.piLoginButton.setAttribute(
+      "aria-label",
+      "Login with Pi"
+    );
+
+
+    this.piLoginButton.classList.remove(
+      "is-authenticated"
+    );
+  }
+
 
   // =========================================================
   // M8.8 — Dynamic Campaign Progress
@@ -386,11 +638,14 @@ export class MainMenu {
   // =========================================================
 
   public setProgress(
-    progress: PlayerProgress
-  ): void {
+    progress:
+      PlayerProgress
+  ):
+    void {
 
     const progression =
       progress.raceProgression;
+
 
     // -------------------------------------------------------
     // Count completed races
@@ -398,13 +653,17 @@ export class MainMenu {
 
     const completedCount =
       progression.races.filter(
-        (race) =>
+        (
+          race
+        ) =>
           race.status ===
           "completed"
       ).length;
 
+
     const totalRaces =
       progression.races.length;
+
 
     // -------------------------------------------------------
     // Find next available race
@@ -412,10 +671,13 @@ export class MainMenu {
 
     const nextRace =
       progression.races.find(
-        (race) =>
+        (
+          race
+        ) =>
           race.status ===
           "available"
       );
+
 
     // -------------------------------------------------------
     // Resolve authoritative definition
@@ -424,32 +686,43 @@ export class MainMenu {
     const nextDefinition =
       nextRace
         ? RACE_DEFINITIONS.find(
-            (definition) =>
+            (
+              definition
+            ) =>
               definition.id ===
               nextRace.raceId
           )
         : undefined;
 
+
     // -------------------------------------------------------
     // Campaign complete
     // -------------------------------------------------------
 
-    if (!nextRace || !nextDefinition) {
+    if (
+      !nextRace ||
+      !nextDefinition
+    ) {
 
       this.raceNameValue.textContent =
         "CAMPAIGN COMPLETE";
 
+
       this.raceClassValue.textContent =
         "ALL RACES CLEARED";
+
 
       this.raceMetaLeft.textContent =
         "CAMPAIGN COMPLETE";
 
+
       this.raceMetaRight.textContent =
         `${completedCount}/${totalRaces} CLEARED`;
 
+
       return;
     }
+
 
     // -------------------------------------------------------
     // Dynamic race information
@@ -458,17 +731,21 @@ export class MainMenu {
     this.raceNameValue.textContent =
       nextDefinition.name;
 
+
     this.raceClassValue.textContent =
       nextDefinition.isBoss
         ? "BOSS"
         : "CAMPAIGN";
 
+
     this.raceMetaLeft.textContent =
       `LEVEL ${nextDefinition.level}`;
+
 
     this.raceMetaRight.textContent =
       `${completedCount}/${totalRaces} CLEARED`;
   }
+
 
   // =========================================================
   // START RACE
@@ -480,24 +757,35 @@ export class MainMenu {
       if (
         this.started
       ) {
+
         return;
       }
+
 
       this.started =
         true;
 
+
       this.startButton.disabled =
         true;
+
 
       this.campaignButton.disabled =
         true;
 
+
       this.garageButton.disabled =
         true;
+
+
+      this.piLoginButton.disabled =
+        true;
+
 
       this.startButton.classList.add(
         "is-pressed"
       );
+
 
       window.setTimeout(
         () => {
@@ -511,6 +799,7 @@ export class MainMenu {
       );
     };
 
+
   // =========================================================
   // CAMPAIGN
   // =========================================================
@@ -521,11 +810,14 @@ export class MainMenu {
       if (
         this.started
       ) {
+
         return;
       }
 
+
       this.onCampaign();
     };
+
 
   // =========================================================
   // GARAGE
@@ -537,11 +829,14 @@ export class MainMenu {
       if (
         this.started
       ) {
+
         return;
       }
 
+
       this.onGarage();
     };
+
 
   // =========================================================
   // RESET START STATE
@@ -551,7 +846,7 @@ export class MainMenu {
    * Re-arms the Main Menu after a race crash/end.
    *
    * This does not start gameplay.
-   * It only makes START RACE available again.
+   * It only makes the Main Menu available again.
    */
   public resetStartState():
     void {
@@ -559,19 +854,28 @@ export class MainMenu {
     this.started =
       false;
 
+
     this.startButton.disabled =
       false;
+
 
     this.campaignButton.disabled =
       false;
 
+
     this.garageButton.disabled =
       false;
+
+
+    this.piLoginButton.disabled =
+      false;
+
 
     this.startButton.classList.remove(
       "is-pressed"
     );
   }
+
 
   // =========================================================
   // SHOW
@@ -584,11 +888,13 @@ export class MainMenu {
       "is-hidden"
     );
 
+
     this.root.setAttribute(
       "aria-hidden",
       "false"
     );
   }
+
 
   // =========================================================
   // HIDE
@@ -601,11 +907,13 @@ export class MainMenu {
       "is-hidden"
     );
 
+
     this.root.setAttribute(
       "aria-hidden",
       "true"
     );
   }
+
 
   // =========================================================
   // VISIBILITY
@@ -619,6 +927,7 @@ export class MainMenu {
     );
   }
 
+
   // =========================================================
   // DISPOSE
   // =========================================================
@@ -631,18 +940,28 @@ export class MainMenu {
       this.handleStart
     );
 
+
     this.campaignButton.removeEventListener(
       "click",
       this.handleCampaign
     );
+
 
     this.garageButton.removeEventListener(
       "click",
       this.handleGarage
     );
 
+
+    this.piLoginButton.removeEventListener(
+      "click",
+      this.handlePiLogin
+    );
+
+
     this.root.remove();
   }
+
 
   // =========================================================
   // STYLES
@@ -654,41 +973,54 @@ export class MainMenu {
     const styleId =
       "racenova-main-menu-styles";
 
+
     if (
       document.getElementById(
         styleId
       )
     ) {
+
       return;
     }
+
 
     const style =
       document.createElement(
         "style"
       );
 
+
     style.id =
       styleId;
+
 
     style.textContent = `
 
       .racenova-main-menu {
 
-        position: fixed;
+        position:
+          fixed;
 
-        inset: 0;
+        inset:
+          0;
 
-        z-index: 10000;
+        z-index:
+          10000;
 
-        overflow: hidden;
+        overflow:
+          hidden;
 
-        display: flex;
+        display:
+          flex;
 
-        align-items: stretch;
+        align-items:
+          stretch;
 
-        justify-content: center;
+        justify-content:
+          center;
 
-        box-sizing: border-box;
+        box-sizing:
+          border-box;
 
         background:
           #070c18;
@@ -710,8 +1042,8 @@ export class MainMenu {
         transition:
           opacity 180ms ease,
           visibility 180ms ease;
-
       }
+
 
       .racenova-main-menu.is-hidden {
 
@@ -723,8 +1055,8 @@ export class MainMenu {
 
         pointer-events:
           none;
-
       }
+
 
       .racenova-menu-background {
 
@@ -753,8 +1085,8 @@ export class MainMenu {
             #09101d 48%,
             #060a14 100%
           );
-
       }
+
 
       .racenova-menu-background::before {
 
@@ -821,9 +1153,10 @@ export class MainMenu {
             )
           );
 
-        opacity:
+                opacity:
           0.5;
       }
+
 
       .racenova-menu-content {
 
@@ -867,8 +1200,121 @@ export class MainMenu {
 
         text-align:
           center;
-
       }
+
+
+      /* =====================================================
+         M11.6.1 — Pi Login Button
+         ===================================================== */
+
+      .racenova-pi-login-button {
+
+        align-self:
+          flex-end;
+
+        min-height:
+          46px;
+
+        padding:
+          0 18px;
+
+        border:
+          1px solid
+          rgba(
+            228,
+            184,
+            63,
+            0.48
+          );
+
+        border-radius:
+          999px;
+
+        background:
+          rgba(
+            16,
+            24,
+            39,
+            0.78
+          );
+
+        color:
+          #f4f7ff;
+
+        font:
+          inherit;
+
+        font-size:
+          12px;
+
+        font-weight:
+          800;
+
+        letter-spacing:
+          0.10em;
+
+        cursor:
+          pointer;
+
+        touch-action:
+          manipulation;
+
+        -webkit-tap-highlight-color:
+          transparent;
+
+        backdrop-filter:
+          blur(8px);
+
+        transition:
+          transform 90ms ease,
+          filter 120ms ease,
+          background 120ms ease,
+          border-color 120ms ease;
+      }
+
+
+      .racenova-pi-login-button:hover {
+
+        filter:
+          brightness(
+            1.08
+          );
+      }
+
+
+      .racenova-pi-login-button:active {
+
+        transform:
+          scale(
+            0.98
+          );
+      }
+
+
+      .racenova-pi-login-button:disabled {
+
+        cursor:
+          default;
+
+        opacity:
+          0.55;
+      }
+
+
+      .racenova-pi-login-button.is-authenticated {
+
+        border-color:
+          rgba(
+            85,
+            214,
+            135,
+            0.58
+          );
+
+        color:
+          #8df0b0;
+      }
+
 
       .racenova-kicker {
 
@@ -892,6 +1338,7 @@ export class MainMenu {
           24px;
       }
 
+
       .racenova-logo {
 
         font-size:
@@ -914,17 +1361,20 @@ export class MainMenu {
           nowrap;
       }
 
+
       .racenova-logo-light {
 
         color:
           #f1f4fb;
       }
 
+
       .racenova-logo-red {
 
         color:
           #ff3030;
       }
+
 
       .racenova-tagline {
 
@@ -945,7 +1395,7 @@ export class MainMenu {
           1.5;
       }
 
-      .racenova-race-card {
+            .racenova-race-card {
 
         width:
           min(
@@ -1007,6 +1457,7 @@ export class MainMenu {
           blur(9px);
       }
 
+
       .racenova-card-label {
 
         color:
@@ -1023,6 +1474,7 @@ export class MainMenu {
           0.35em;
       }
 
+
       .racenova-race-name {
 
         margin-top:
@@ -1038,6 +1490,7 @@ export class MainMenu {
         font-weight:
           900;
       }
+
 
       .racenova-race-class {
 
@@ -1058,6 +1511,7 @@ export class MainMenu {
           0.28em;
       }
 
+
       .racenova-card-divider {
 
         height:
@@ -1074,6 +1528,7 @@ export class MainMenu {
             0.18
           );
       }
+
 
       .racenova-race-meta {
 
@@ -1099,6 +1554,7 @@ export class MainMenu {
         letter-spacing:
           0.18em;
       }
+
 
       .racenova-start-button {
 
@@ -1151,7 +1607,7 @@ export class MainMenu {
         -webkit-tap-highlight-color:
           transparent;
 
-                opacity:
+        opacity:
           0.9;
 
         box-shadow:
@@ -1170,31 +1626,8 @@ export class MainMenu {
           border-color 120ms ease;
       }
 
-      .racenova-secondary-button:hover {
 
-        filter:
-          brightness(
-            1.08
-          );
-
-        background:
-          rgba(
-            28,
-            39,
-            60,
-            0.82
-          );
-
-        border-color:
-          rgba(
-            228,
-            184,
-            63,
-            0.48
-          );
-      }
-
-      .racenova-secondary-button:active {
+      .racenova-start-button:active {
 
         transform:
           scale(
@@ -1207,7 +1640,8 @@ export class MainMenu {
           );
       }
 
-      .racenova-secondary-button:disabled {
+
+      .racenova-start-button:disabled {
 
         cursor:
           default;
@@ -1216,98 +1650,6 @@ export class MainMenu {
           0.55;
       }
 
-      .racenova-controls-hint {
-
-        margin-top:
-          34px;
-
-        color:
-          #8995aa;
-
-        font-size:
-          clamp(
-            11px,
-            1.6vw,
-            18px
-          );
-
-        letter-spacing:
-          0.20em;
-      }
-
-      @media (
-        max-width: 600px
-      ) {
-
-        .racenova-menu-content {
-
-          width:
-            calc(
-              100% - 28px
-            );
-
-          padding-top:
-            30px;
-        }
-
-        .racenova-tagline br {
-
-          display:
-            none;
-        }
-
-        .racenova-race-card {
-
-          border-radius:
-            28px;
-
-          padding:
-            24px;
-        }
-
-        .racenova-race-meta {
-
-          letter-spacing:
-            0.08em;
-        }
-
-        .racenova-menu-secondary {
-
-          gap:
-            12px;
-        }
-
-        .racenova-secondary-button {
-
-          min-height:
-            64px;
-
-          padding:
-            0 14px;
-
-          font-size:
-            14px;
-
-          letter-spacing:
-            0.08em;
-        }
-
-        .racenova-start-button {
-
-          min-height:
-            82px;
-        }
-
-        .racenova-controls-hint {
-
-          letter-spacing:
-            0.06em;
-        }
-      }
-
-            /* =====================================================
-         M8.8 — Secondary Menu Buttons
-         ===================================================== */
 
       .racenova-menu-secondary {
 
@@ -1329,6 +1671,7 @@ export class MainMenu {
         margin-top:
           26px;
       }
+
 
       .racenova-secondary-button {
 
@@ -1420,6 +1763,7 @@ export class MainMenu {
           border-color 120ms ease;
       }
 
+
       .racenova-secondary-button:hover {
 
         filter:
@@ -1427,7 +1771,7 @@ export class MainMenu {
             1.08
           );
 
-        background:
+                  background:
           rgba(
             28,
             39,
@@ -1444,6 +1788,7 @@ export class MainMenu {
           );
       }
 
+
       .racenova-secondary-button:active {
 
         transform:
@@ -1457,6 +1802,7 @@ export class MainMenu {
           );
       }
 
+
       .racenova-secondary-button:disabled {
 
         cursor:
@@ -1466,6 +1812,121 @@ export class MainMenu {
           0.55;
       }
 
+
+      .racenova-controls-hint {
+
+        margin-top:
+          34px;
+
+        color:
+          #8995aa;
+
+        font-size:
+          clamp(
+            11px,
+            1.6vw,
+            18px
+          );
+
+        letter-spacing:
+          0.20em;
+      }
+
+
+      @media (
+        max-width: 600px
+      ) {
+
+        .racenova-menu-content {
+
+          width:
+            calc(
+              100% - 28px
+            );
+
+          padding-top:
+            18px;
+        }
+
+
+        .racenova-pi-login-button {
+
+          align-self:
+            flex-end;
+
+          min-height:
+            42px;
+
+          padding:
+            0 14px;
+
+          font-size:
+            11px;
+        }
+
+
+        .racenova-tagline br {
+
+          display:
+            none;
+        }
+
+
+        .racenova-race-card {
+
+          border-radius:
+            28px;
+
+          padding:
+            24px;
+        }
+
+
+        .racenova-race-meta {
+
+          letter-spacing:
+            0.08em;
+        }
+
+
+        .racenova-menu-secondary {
+
+          gap:
+            12px;
+        }
+
+
+        .racenova-secondary-button {
+
+          min-height:
+            64px;
+
+          padding:
+            0 14px;
+
+          font-size:
+            14px;
+
+          letter-spacing:
+            0.08em;
+        }
+
+
+        .racenova-start-button {
+
+          min-height:
+            82px;
+        }
+
+
+        .racenova-controls-hint {
+
+          letter-spacing:
+            0.06em;
+        }
+      }
+
+
       @media (
         max-height: 720px
       ) {
@@ -1473,11 +1934,12 @@ export class MainMenu {
         .racenova-menu-content {
 
           padding-top:
-            20px;
+            12px;
 
           padding-bottom:
             18px;
         }
+
 
         .racenova-tagline,
         .racenova-controls-hint {
@@ -1486,11 +1948,13 @@ export class MainMenu {
             none;
         }
 
+
         .racenova-race-card {
 
           margin-top:
             22px;
         }
+
 
         .racenova-start-button {
 
@@ -1501,32 +1965,12 @@ export class MainMenu {
             68px;
         }
       }
+    `;
 
-      /* =====================================================
-   M8.8 — Mobile Secondary Button Override
-   ===================================================== */
-
-@media (max-width: 600px) {
-
-  .racenova-secondary-button {
-
-    min-height:
-      64px;
-
-    padding:
-      0 14px;
-
-    font-size:
-      14px;
-
-    letter-spacing:
-      0.08em;
-   }
-  } 
-`;
 
     document.head.appendChild(
       style
     );
   }
 }
+    
