@@ -1973,4 +1973,3 @@ export class MainMenu {
     );
   }
 }
-    
