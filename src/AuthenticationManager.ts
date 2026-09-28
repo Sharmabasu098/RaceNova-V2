@@ -46,12 +46,15 @@
  */
 
 import {
-  type AuthenticationBoundary,
   type AuthenticationIdentity,
   type AuthenticationResult,
   type AuthenticationSession,
   AuthenticationStatus
 } from "./auth/AuthenticationBoundary";
+
+import type {
+  AuthenticationProviderAdapter
+} from "./auth/AuthenticationProviderAdapter";
 
 // ============================================================
 // Authentication Manager
@@ -59,8 +62,7 @@ import {
 
 export class AuthenticationManager {
 
-  private readonly boundary:
-    AuthenticationBoundary;
+  private readonly boundary: AuthenticationProviderAdapter;
 
   private currentSession:
     AuthenticationSession;
@@ -70,9 +72,8 @@ export class AuthenticationManager {
   // ==========================================================
 
   constructor(
-    boundary:
-      AuthenticationBoundary
-  ) {
+  boundary: AuthenticationProviderAdapter
+) {
 
     this.boundary =
       boundary;
