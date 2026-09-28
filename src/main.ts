@@ -39,6 +39,15 @@ import {
   CampaignMenu
 } from "./ui/CampaignMenu";
 
+import {
+  AuthenticationProvider,
+  AuthenticationStatus
+} from "./auth/AuthenticationBoundary";
+
+import {
+  AuthenticationRuntime
+} from "./auth/AuthenticationRuntime";
+
 // ============================================================
 // App Container
 // ============================================================
@@ -54,6 +63,77 @@ if (!app) {
     "RaceNova: #app element not found."
   );
 }
+
+// ============================================================
+// M11.5.3 — Authentication Runtime Integration
+// ============================================================
+//
+// Application-level authentication composition.
+//
+// IMPORTANT:
+// - No Pi SDK
+// - No Google SDK
+// - No network requests
+// - No login UI
+// - No token persistence
+// - No wallet passphrase
+// - No secret phrase
+// - Gameplay remains independent
+//
+// M11.5.3 = RUNTIME INTEGRATION ONLY.
+// ============================================================
+
+const authenticationRuntime =
+  AuthenticationRuntime.create({
+
+    provider:
+      AuthenticationProvider.GOOGLE,
+
+    handlers: {
+
+      signIn: async () => ({
+
+        success:
+          false,
+
+        session: {
+
+          status:
+            AuthenticationStatus.SIGNED_OUT,
+
+          identity:
+            null
+        },
+
+        message:
+          "Authentication provider is not configured yet."
+      }),
+
+      signOut: async () => ({
+
+        success:
+          true,
+
+        session: {
+
+          status:
+            AuthenticationStatus.SIGNED_OUT,
+
+          identity:
+            null
+        }
+      }),
+
+      getSession: () => ({
+
+        status:
+          AuthenticationStatus.SIGNED_OUT,
+
+        identity:
+          null
+      })
+    }
+  });
 
 // ============================================================
 // Engine
