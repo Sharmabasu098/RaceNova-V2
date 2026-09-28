@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Application Entry Point
- * M11.6 — REAL Pi Authentication
+ * M11.6.1 — Pi Login UI Integration
  * ============================================================
  *
  * Responsibilities:
@@ -461,13 +461,6 @@ const authenticationRuntime =
       // ======================================================
       // PI SIGN OUT
       // ======================================================
-      //
-      // Pi SDK does not provide a local credential/token
-      // persistence layer in RaceNova.
-      //
-      // Therefore RaceNova clears its in-memory session.
-      //
-      // ======================================================
 
       signOut:
         async () => {
@@ -584,7 +577,65 @@ const mainMenu =
         mainMenu.hide();
 
         engine.openGarage();
-      }
+      },
+
+
+      // ======================================================
+      // M11.6.1 — PI LOGIN
+      // ======================================================
+
+      onPiLogin:
+        async () => {
+
+          // --------------------------------------------------
+          // Already authenticated → sign out
+          // --------------------------------------------------
+
+          if (
+            authenticationRuntime
+              .isAuthenticated()
+          ) {
+
+            await authenticationRuntime
+              .signOut();
+
+            mainMenu.setAuthenticationState(
+              false
+            );
+
+            return;
+          }
+
+          // --------------------------------------------------
+          // Real Pi authentication
+          // --------------------------------------------------
+
+          const result =
+            await authenticationRuntime
+              .signIn();
+
+          if (
+            result.success &&
+            result.session.identity
+          ) {
+
+            mainMenu.setAuthenticationState(
+              true,
+              result.session.identity.displayName
+            );
+
+            return;
+          }
+
+          mainMenu.setAuthenticationState(
+            false
+          );
+
+          console.warn(
+            "[RaceNova] Pi login failed:",
+            result.message
+          );
+        }
     }
   );
 
@@ -629,10 +680,6 @@ campaignMenu =
 
         campaignMenu?.hide();
 
-        // ----------------------------------------------------
-        // M8.8 — Refresh Main Menu Progress
-        // ----------------------------------------------------
-
         refreshMainMenuProgress();
 
         mainMenu.resetStartState();
@@ -665,12 +712,6 @@ campaignMenu =
 
         // ----------------------------------------------------
         // Update selected race
-        //
-        // RaceNovaEngine uses:
-        //
-        // playerProgress
-        //   .raceProgression
-        //   .selectedRaceId
         // ----------------------------------------------------
 
         const updatedProgress = {
@@ -888,7 +929,7 @@ mainMenu.show();
 
 
 // ============================================================
-// M11.6 — Authentication Runtime Availability
+// M11.6.1 — Authentication Runtime Availability
 // ============================================================
 //
 // Authentication runtime is composed at application level.
