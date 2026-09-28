@@ -85,6 +85,74 @@ if (
   m11_4QaEnabled
 ) {
 
+  // =========================================================
+  // M11.4 QA — Visible Runtime Result Panel
+  // Temporary QA-only UI
+  // =========================================================
+
+  const qaOverlay =
+    document.createElement(
+      "div"
+    );
+
+  qaOverlay.id =
+    "m11-4-qa-overlay";
+
+  Object.assign(
+    qaOverlay.style,
+    {
+      position: "fixed",
+      top: "16px",
+      left: "16px",
+      right: "16px",
+      zIndex: "99999",
+
+      padding: "18px",
+
+      borderRadius: "12px",
+
+      border:
+        "2px solid #ffffff",
+
+      background:
+        "#1f2937",
+
+      color:
+        "#ffffff",
+
+      fontFamily:
+        "Arial, sans-serif",
+
+      fontSize:
+        "18px",
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        "1.5",
+
+      textAlign:
+        "center",
+
+      whiteSpace:
+        "pre-line",
+
+      boxShadow:
+        "0 8px 30px rgba(0,0,0,0.45)",
+
+      pointerEvents:
+        "none"
+    }
+  );
+
+  qaOverlay.textContent =
+    "M11.4 AUTH PROFILE QA\nRUNNING...";
+
+  document.body.appendChild(
+    qaOverlay
+  );
+
   console.log(
     "[M11.4 QA] INVOCATION ENABLED"
   );
@@ -93,16 +161,42 @@ if (
 
     runM11_4_AuthenticationProfileBridgeQA();
 
+    qaOverlay.textContent =
+      "M11.4 AUTH PROFILE QA\nPASS ✅";
+
+    qaOverlay.style.background =
+      "#166534";
+
+    qaOverlay.style.borderColor =
+      "#86efac";
+
+    console.log(
+      "[M11.4 QA] PASS"
+    );
+
   } catch (
     error
   ) {
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    qaOverlay.textContent =
+      "M11.4 AUTH PROFILE QA\nFAIL ❌\n" +
+      message;
+
+    qaOverlay.style.background =
+      "#991b1b";
+
+    qaOverlay.style.borderColor =
+      "#fca5a5";
 
     console.error(
       "[M11.4 QA] FAIL",
       error
     );
-
-    throw error;
   }
 }
 
