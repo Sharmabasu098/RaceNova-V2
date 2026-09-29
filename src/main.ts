@@ -122,7 +122,7 @@ declare global {
 // ============================================================
 
 const PI_CLIENT_ID =
-  IE4XWxaFCY63lGJLmjSkQZ91mtPU-4PKWCEswOaRheg
+  "IE4XWxaFCY63IGJLmjSkQZ91mtPU-4PKWCEswORheg";
 
 const PI_REDIRECT_URI =
   "https://sharmabasu098.github.io/RaceNova-V2/";
