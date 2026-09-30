@@ -781,23 +781,62 @@ if (
 }
 
 
-// ------------------------------------------------
-// Start Official Pi Sign-In OAuth
-// ------------------------------------------------
+// =========================================================
+// M11.6.3 — Temporary Direct OAuth Diagnostic
+// IMPORTANT:
+// - Temporary diagnostic only
+// - Uses official Pi OAuth authorize endpoint
+// - Does NOT handle wallet/passphrase
+// - Does NOT store access token
+// - Callback handling remains unchanged
+// =========================================================
 
-Pi.signIn({
-  clientId:
-    PI_CLIENT_ID,
+const oauthUrl = new URL(
+  "https://accounts.pinet.com/oauth/authorize"
+);
 
-  redirectUri:
-    PI_REDIRECT_URI,
+oauthUrl.searchParams.set(
+  "response_type",
+  "token"
+);
 
-  scopes:
-    PI_SCOPES,
+oauthUrl.searchParams.set(
+  "client_id",
+  PI_CLIENT_ID
+);
 
+oauthUrl.searchParams.set(
+  "redirect_uri",
+  PI_REDIRECT_URI
+);
+
+oauthUrl.searchParams.set(
+  "scope",
+  PI_SCOPES.join(" ")
+);
+
+oauthUrl.searchParams.set(
+  "state",
   state
-});
+);
 
+console.info(
+  "[RaceNova][Pi OAuth] Direct authorize request",
+  {
+    endpoint: "https://accounts.pinet.com/oauth/authorize",
+    clientIdConfigured: Boolean(PI_CLIENT_ID),
+    redirectUri: PI_REDIRECT_URI,
+    scopes: PI_SCOPES,
+    hasState: Boolean(state),
+    origin: window.location.origin,
+    pathname: window.location.pathname
+  }
+);
+
+// Start official Pi OAuth directly.
+window.location.assign(
+  oauthUrl.toString()
+);
 
             // ------------------------------------------------
             // Start Official Pi Sign-In OAuth
