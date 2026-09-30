@@ -736,11 +736,73 @@ const authenticationRuntime =
             piCallbackMessage =
               undefined;
 
+            // ------------------------------------------------
+// Runtime OAuth Diagnostics (TEMPORARY)
+// ------------------------------------------------
+
+console.info(
+  "[RaceNova][Pi OAuth] Runtime request",
+  {
+    sdkLoaded:
+      !!window.Pi,
+
+    sdkInitialized:
+      piSdkInitialized,
+
+    clientId:
+      PI_CLIENT_ID,
+
+    redirectUri:
+      PI_REDIRECT_URI,
+
+    scopes:
+      PI_SCOPES,
+
+    hasState:
+      Boolean(state),
+
+    origin:
+      window.location.origin,
+
+    pathname:
+      window.location.pathname
+  }
+);
+
+if (
+  window.location.origin !==
+  "https://sharmabasu098.github.io"
+) {
+
+  console.warn(
+    "[RaceNova][Pi OAuth] Unexpected origin:",
+    window.location.origin
+  );
+}
+
+
+// ------------------------------------------------
+// Start Official Pi Sign-In OAuth
+// ------------------------------------------------
+
+Pi.signIn({
+  clientId:
+    PI_CLIENT_ID,
+
+  redirectUri:
+    PI_REDIRECT_URI,
+
+  scopes:
+    PI_SCOPES,
+
+  state
+});
+
 
             // ------------------------------------------------
             // Start Official Pi Sign-In OAuth
             // ------------------------------------------------
-
+            
             Pi.signIn({
 
               clientId:
