@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Application Entry Point
- * M11.6.2 — Pi Sign-In OAuth Integration
+ * M11.6.4 — Pi Native Authentication Integration
  * ============================================================
  *
  * Responsibilities:
@@ -15,7 +15,7 @@
  * - Update Main Menu from PlayerProgress
  * - Handle Traffic Crash → Main Menu
  * - Handle Race Result → Main Menu
- * - Compose REAL Pi Sign-In OAuth authentication
+ * - Compose REAL Pi Native Authentication
  *
  * IMPORTANT:
  * - No Three.js code here
@@ -26,14 +26,14 @@
  * - RaceResultUI remains responsible for result UI
  * - No save logic here
  *
- * M11.6.2:
- * - REAL Pi Sign-In OAuth flow
- * - Pi OAuth redirect
- * - OAuth state verification
- * - Pi /v2/me identity verification
+ * M11.6.4:
+ * - REAL Pi Browser native authentication
+ * - Pi.authenticate(["username"])
  * - No Google authentication
  * - No wallet passphrase
  * - No secret phrase
+ * - No OAuth redirect
+ * - No OAuth state
  * - No token persistence
  * - Access token remains memory-only
  * ============================================================
@@ -64,23 +64,28 @@ import {
 
 
 // ============================================================
-// Pi Sign-In OAuth Types
+// Pi Native Authentication Types
 // ============================================================
 
-interface PiSignInOptions {
+interface PiAuthUser {
 
-  clientId:
+  uid:
     string;
 
-  redirectUri:
-    string;
-
-  scopes?:
-    string[];
-
-  state?:
+  username?:
     string;
 }
+
+
+interface PiAuthResult {
+
+  accessToken:
+    string;
+
+  user:
+    PiAuthUser;
+}
+
 
 interface PiSdk {
 
@@ -92,12 +97,18 @@ interface PiSdk {
   ):
     void;
 
-  signIn(
-    options:
-      PiSignInOptions
+  authenticate(
+    scopes:
+      string[],
+    onIncompletePaymentFound?:
+      (
+        payment:
+          unknown
+      ) => void
   ):
-    void;
+    Promise<PiAuthResult>;
 }
+
 
 declare global {
 
@@ -113,24 +124,17 @@ declare global {
 // Pi Configuration
 // ============================================================
 //
-// IMPORTANT:
-// Replace only PI_CLIENT_ID with the OAuth Client ID
-// from the Pi Developer Portal.
-//
-// The Client ID is public and belongs in frontend code.
+// M11.6.4:
+// - Native Pi Browser authentication
+// - No OAuth Client ID
+// - No redirect URI
+// - No OAuth state
 //
 // ============================================================
 
-const PI_CLIENT_ID =
-  "IE4XWxaFCY63IGJLmjSkQZ91mtPU-4PKWCEswORheg";
-
-const PI_REDIRECT_URI =
-  "https://sharmabasu098.github.io/RaceNova-V2/";
-
-const PI_SCOPES =
-  [
-    "username"
-  ];
+const PI_SCOPES = [
+  "username"
+];
 
 
 // ============================================================
@@ -140,9 +144,11 @@ const PI_SCOPES =
 let piSdkInitialized =
   false;
 
+
 let currentPiAccessToken:
   string | null =
     null;
+
 
 let currentPiSession:
   AuthenticationSession = {
@@ -154,16 +160,22 @@ let currentPiSession:
     null
 };
 
-let piCallbackMessage:
-  string | undefined;
-
 
 // ============================================================
 // Pi SDK Loader
 // ============================================================
+//
+// Pi Browser does not automatically provide window.Pi.
+// RaceNova loads the official Pi SDK explicitly.
+//
+// ============================================================
 
 const loadPiSdk =
   async (): Promise<PiSdk> => {
+
+    // --------------------------------------------------------
+    // SDK already available
+    // --------------------------------------------------------
 
     if (
       window.Pi
@@ -172,10 +184,16 @@ const loadPiSdk =
       return window.Pi;
     }
 
+
+    // --------------------------------------------------------
+    // Check for an existing RaceNova SDK script
+    // --------------------------------------------------------
+
     const existingScript =
       document.querySelector(
         'script[data-racenova-pi-sdk="true"]'
       );
+
 
     if (
       existingScript
@@ -201,6 +219,7 @@ const loadPiSdk =
               15000
             );
 
+
           existingScript.addEventListener(
             "load",
             () => {
@@ -217,6 +236,7 @@ const loadPiSdk =
                 true
             }
           );
+
 
           existingScript.addEventListener(
             "error",
@@ -238,10 +258,15 @@ const loadPiSdk =
                 true
             }
           );
+
         }
       );
 
     } else {
+
+      // ------------------------------------------------------
+      // Create official Pi SDK script
+      // ------------------------------------------------------
 
       await new Promise<void>(
         (
@@ -254,20 +279,26 @@ const loadPiSdk =
               "script"
             );
 
+
           script.src =
             "https://sdk.minepi.com/pi-sdk.js";
+
 
           script.async =
             true;
 
+
           script.dataset.racenovaPiSdk =
             "true";
+
 
           script.onload =
             () => {
 
               resolve();
+
             };
+
 
           script.onerror =
             () => {
@@ -277,14 +308,23 @@ const loadPiSdk =
                   "RaceNova: Unable to load Pi SDK."
                 )
               );
+
             };
+
 
           document.head.appendChild(
             script
           );
+
         }
       );
+
     }
+
+
+    // --------------------------------------------------------
+    // Validate SDK
+    // --------------------------------------------------------
 
     if (
       !window.Pi
@@ -295,327 +335,9 @@ const loadPiSdk =
       );
     }
 
+
     return window.Pi;
   };
-
-
-// ============================================================
-// Pi OAuth Fragment Cleanup
-// ============================================================
-
-const clearPiOAuthFragment =
-  (): void => {
-
-    window.history.replaceState(
-      null,
-      document.title,
-      window.location.pathname +
-        window.location.search
-    );
-  };
-
-
-// ============================================================
-// Pi OAuth Callback
-// ============================================================
-//
-// Pi Sign-In returns the OAuth result in the URL fragment:
-//
-// #access_token=...
-// &token_type=Bearer
-// &expires_in=3600
-// &state=...
-//
-// RaceNova:
-// 1. Reads state
-// 2. Verifies state
-// 3. Reads access token
-// 4. Calls Pi /v2/me
-// 5. Uses verified identity
-// 6. Removes OAuth fragment from URL
-//
-// ============================================================
-
-const processPiOAuthCallback =
-  async (): Promise<void> => {
-
-    const hash =
-      window.location.hash;
-
-    if (
-      !hash
-    ) {
-
-      return;
-    }
-
-
-    // ----------------------------------------------------------
-    // Parse OAuth Fragment
-    // ----------------------------------------------------------
-
-    const params =
-      new URLSearchParams(
-        hash.slice(1)
-      );
-
-
-    const state =
-      params.get(
-        "state"
-      );
-
-
-    const expectedState =
-      sessionStorage.getItem(
-        "pi_oauth_state"
-      );
-
-
-    // ----------------------------------------------------------
-    // State is single-use
-    // ----------------------------------------------------------
-
-    sessionStorage.removeItem(
-      "pi_oauth_state"
-    );
-
-
-    // ----------------------------------------------------------
-    // Verify OAuth State
-    // ----------------------------------------------------------
-
-    if (
-      !state ||
-      !expectedState ||
-      state !== expectedState
-    ) {
-
-      currentPiSession = {
-
-        status:
-          AuthenticationStatus.ERROR,
-
-        identity:
-          null
-      };
-
-      piCallbackMessage =
-        "Pi Sign-In state verification failed.";
-
-      clearPiOAuthFragment();
-
-      return;
-    }
-
-
-    // ----------------------------------------------------------
-    // OAuth Error
-    // ----------------------------------------------------------
-
-    const error =
-      params.get(
-        "error"
-      );
-
-    if (
-      error
-    ) {
-
-      currentPiSession = {
-
-        status:
-          AuthenticationStatus.ERROR,
-
-        identity:
-          null
-      };
-
-      piCallbackMessage =
-        `Pi Sign-In failed: ${error}`;
-
-      clearPiOAuthFragment();
-
-      return;
-    }
-
-
-    // ----------------------------------------------------------
-    // Access Token
-    // ----------------------------------------------------------
-
-    const accessToken =
-      params.get(
-        "access_token"
-      );
-
-    if (
-      !accessToken
-    ) {
-
-      currentPiSession = {
-
-        status:
-          AuthenticationStatus.ERROR,
-
-        identity:
-          null
-      };
-
-      piCallbackMessage =
-        "Pi Sign-In did not return an access token.";
-
-      clearPiOAuthFragment();
-
-      return;
-    }
-
-
-    // ----------------------------------------------------------
-    // Verify Token with Pi /v2/me
-    // ----------------------------------------------------------
-
-    try {
-
-      const response =
-        await fetch(
-          "https://api.minepi.com/v2/me",
-          {
-
-            method:
-              "GET",
-
-            headers: {
-
-              Authorization:
-                `Bearer ${accessToken}`
-            }
-          }
-        );
-
-
-      if (
-        !response.ok
-      ) {
-
-        throw new Error(
-          `Pi /me verification failed: HTTP ${response.status}`
-        );
-      }
-
-
-      const me =
-        await response.json() as {
-
-          uid?:
-            string;
-
-          username?:
-            string;
-        };
-
-
-      // --------------------------------------------------------
-      // Verified Pi Identity
-      // --------------------------------------------------------
-
-      if (
-        !me.uid
-      ) {
-
-        throw new Error(
-          "Pi /me response did not contain uid."
-        );
-      }
-
-
-      // --------------------------------------------------------
-      // Memory-only token
-      // --------------------------------------------------------
-
-      currentPiAccessToken =
-        accessToken;
-
-
-      // --------------------------------------------------------
-      // Authenticated Session
-      // --------------------------------------------------------
-
-      currentPiSession = {
-
-        status:
-          AuthenticationStatus.AUTHENTICATED,
-
-        identity: {
-
-          subject:
-            me.uid,
-
-          provider:
-            AuthenticationProvider.PI,
-
-          displayName:
-            me.username ||
-            "Pi User"
-        }
-      };
-
-
-      piCallbackMessage =
-        undefined;
-
-
-      // --------------------------------------------------------
-      // Remove access token from browser URL
-      // --------------------------------------------------------
-
-      clearPiOAuthFragment();
-
-    } catch (
-      error
-    ) {
-
-      currentPiAccessToken =
-        null;
-
-      currentPiSession = {
-
-        status:
-          AuthenticationStatus.ERROR,
-
-        identity:
-          null
-      };
-
-      piCallbackMessage =
-        error instanceof Error
-          ? error.message
-          : "Pi Sign-In verification failed.";
-
-      clearPiOAuthFragment();
-    }
-  };
-
-
-// ============================================================
-// Start OAuth Callback Processing
-// ============================================================
-//
-// This starts immediately when RaceNova loads.
-//
-// If this is a normal launch:
-// - no hash
-// - nothing happens
-//
-// If this is a Pi OAuth callback:
-// - callback is processed
-// - /v2/me is called
-// - authenticated session is created
-//
-// ============================================================
-
-const piOAuthCallbackPromise =
-  processPiOAuthCallback();
 
 
 // ============================================================
@@ -626,6 +348,7 @@ const app =
   document.getElementById(
     "app"
   );
+
 
 if (
   !app
@@ -638,7 +361,7 @@ if (
 
 
 // ============================================================
-// M11.6.2 — REAL Pi Sign-In Authentication Runtime
+// M11.6.4 — Authentication Runtime
 // ============================================================
 
 const authenticationRuntime =
@@ -650,7 +373,7 @@ const authenticationRuntime =
     handlers: {
 
       // ======================================================
-      // PI SIGN IN
+      // PI NATIVE SIGN IN
       // ======================================================
 
       signIn:
@@ -687,7 +410,7 @@ const authenticationRuntime =
 
 
             // ------------------------------------------------
-            // Initialize SDK once
+            // Initialize Pi SDK once
             // ------------------------------------------------
 
             if (
@@ -700,27 +423,14 @@ const authenticationRuntime =
                   "2.0"
               });
 
+
               piSdkInitialized =
                 true;
             }
 
 
             // ------------------------------------------------
-            // Generate OAuth State
-            // ------------------------------------------------
-
-            const state =
-              crypto.randomUUID();
-
-
-            sessionStorage.setItem(
-              "pi_oauth_state",
-              state
-            );
-
-
-            // ------------------------------------------------
-            // Set Authentication State
+            // Set authenticating state
             // ------------------------------------------------
 
             currentPiSession = {
@@ -733,154 +443,183 @@ const authenticationRuntime =
             };
 
 
-            piCallbackMessage =
-              undefined;
+            // ------------------------------------------------
+            // Runtime diagnostics
+            // ------------------------------------------------
+
+            console.info(
+              "[RaceNova][Pi Auth] Starting Pi.authenticate()",
+              {
+
+                sdkLoaded:
+                  !!window.Pi,
+
+                sdkInitialized:
+                  piSdkInitialized,
+
+                scopes:
+                  PI_SCOPES,
+
+                origin:
+                  window.location.origin,
+
+                pathname:
+                  window.location.pathname
+              }
+            );
+
 
             // ------------------------------------------------
-// Runtime OAuth Diagnostics (TEMPORARY)
-// ------------------------------------------------
-
-console.info(
-  "[RaceNova][Pi OAuth] Runtime request",
-  {
-    sdkLoaded:
-      !!window.Pi,
-
-    sdkInitialized:
-      piSdkInitialized,
-
-    clientId:
-      PI_CLIENT_ID,
-
-    redirectUri:
-      PI_REDIRECT_URI,
-
-    scopes:
-      PI_SCOPES,
-
-    hasState:
-      Boolean(state),
-
-    origin:
-      window.location.origin,
-
-    pathname:
-      window.location.pathname
-  }
-);
-
-if (
-  window.location.origin !==
-  "https://sharmabasu098.github.io"
-) {
-
-  console.warn(
-    "[RaceNova][Pi OAuth] Unexpected origin:",
-    window.location.origin
-  );
-}
-
-
-// =========================================================
-// M11.6.3 — Temporary Direct OAuth Diagnostic
-// IMPORTANT:
-// - Temporary diagnostic only
-// - Uses official Pi OAuth authorize endpoint
-// - Does NOT handle wallet/passphrase
-// - Does NOT store access token
-// - Callback handling remains unchanged
-// =========================================================
-
-const oauthUrl = new URL(
-  "https://accounts.pinet.com/oauth/authorize"
-);
-
-oauthUrl.searchParams.set(
-  "response_type",
-  "token"
-);
-
-oauthUrl.searchParams.set(
-  "client_id",
-  PI_CLIENT_ID
-);
-
-oauthUrl.searchParams.set(
-  "redirect_uri",
-  PI_REDIRECT_URI
-);
-
-oauthUrl.searchParams.set(
-  "scope",
-  PI_SCOPES.join(" ")
-);
-
-oauthUrl.searchParams.set(
-  "state",
-  state
-);
-
-console.info(
-  "[RaceNova][Pi OAuth] Direct authorize request",
-  {
-    endpoint: "https://accounts.pinet.com/oauth/authorize",
-    clientIdConfigured: Boolean(PI_CLIENT_ID),
-    redirectUri: PI_REDIRECT_URI,
-    scopes: PI_SCOPES,
-    hasState: Boolean(state),
-    origin: window.location.origin,
-    pathname: window.location.pathname
-  }
-);
-
-// Start official Pi OAuth directly.
-window.location.assign(
-  oauthUrl.toString()
-);
-
+            // Native Pi Browser authentication
             // ------------------------------------------------
-            // Start Official Pi Sign-In OAuth
-            // ------------------------------------------------
-            
-            Pi.signIn({
 
-              clientId:
-                PI_CLIENT_ID,
-
-              redirectUri:
-                PI_REDIRECT_URI,
-
-              scopes:
+            const auth =
+              await Pi.authenticate(
                 PI_SCOPES,
 
-              state
-            });
+                (
+                  payment:
+                    unknown
+                ) => {
+
+                  console.warn(
+                    "[RaceNova][Pi Auth] Incomplete payment found:",
+                    payment
+                  );
+
+                }
+              );
 
 
             // ------------------------------------------------
-            // Browser will redirect to Pi.
+            // Validate authentication response
+            // ------------------------------------------------
+
+            if (
+              !auth
+            ) {
+
+              throw new Error(
+                "Pi authentication returned no result."
+              );
+            }
+
+
+            if (
+              !auth.accessToken
+            ) {
+
+              throw new Error(
+                "Pi authentication returned no access token."
+              );
+            }
+
+
+            if (
+              !auth.user
+            ) {
+
+              throw new Error(
+                "Pi authentication returned no user."
+              );
+            }
+
+
+            if (
+              !auth.user.uid
+            ) {
+
+              throw new Error(
+                "Pi authentication returned no user UID."
+              );
+            }
+
+
+            // ------------------------------------------------
+            // Memory-only access token
+            // ------------------------------------------------
+
+            currentPiAccessToken =
+              auth.accessToken;
+
+
+            // ------------------------------------------------
+            // Create authenticated session
+            // ------------------------------------------------
+
+            currentPiSession = {
+
+              status:
+                AuthenticationStatus.AUTHENTICATED,
+
+              identity: {
+
+                subject:
+                  auth.user.uid,
+
+                provider:
+                  AuthenticationProvider.PI,
+
+                displayName:
+                  auth.user.username ||
+                  "Pi User"
+              }
+            };
+
+
+            // ------------------------------------------------
+            // Success diagnostics
+            // ------------------------------------------------
+
+            console.info(
+              "[RaceNova][Pi Auth] Authentication successful",
+              {
+
+                uid:
+                  auth.user.uid,
+
+                username:
+                  auth.user.username ||
+                  "Pi User",
+
+                hasAccessToken:
+                  Boolean(
+                    auth.accessToken
+                  )
+              }
+            );
+
+
+            // ------------------------------------------------
+            // Return authentication result
             // ------------------------------------------------
 
             return {
 
               success:
-                false,
+                true,
 
               session:
-                currentPiSession,
-
-              message:
-                "Redirecting to Pi Sign-In..."
+                currentPiSession
             };
+
 
           } catch (
             error
           ) {
 
+            // ------------------------------------------------
+            // Authentication failed
+            // ------------------------------------------------
+
             console.error(
-              "[RaceNova] Pi Sign-In failed:",
+              "[RaceNova][Pi Auth] Authentication failed:",
               error
             );
+
+
+            currentPiAccessToken =
+              null;
 
 
             currentPiSession = {
@@ -904,9 +643,11 @@ window.location.assign(
               message:
                 error instanceof Error
                   ? error.message
-                  : "Pi Sign-In failed."
+                  : "Pi authentication failed."
             };
+
           }
+
         },
 
 
@@ -923,15 +664,6 @@ window.location.assign(
 
           currentPiAccessToken =
             null;
-
-
-          // --------------------------------------------------
-          // Clear OAuth state
-          // --------------------------------------------------
-
-          sessionStorage.removeItem(
-            "pi_oauth_state"
-          );
 
 
           // --------------------------------------------------
@@ -956,6 +688,7 @@ window.location.assign(
             session:
               currentPiSession
           };
+
         },
 
 
@@ -968,7 +701,9 @@ window.location.assign(
 
           return currentPiSession;
         }
+
     }
+
   });
 
 
@@ -1014,6 +749,7 @@ const mainMenu =
             campaignMenu.hide();
           }
 
+
           engine.start();
         },
 
@@ -1027,6 +763,7 @@ const mainMenu =
 
           mainMenu.hide();
 
+
           if (
             campaignMenu
           ) {
@@ -1035,8 +772,10 @@ const mainMenu =
               engine.getPlayerProgress()
             );
 
+
             campaignMenu.show();
           }
+
         },
 
 
@@ -1054,7 +793,7 @@ const mainMenu =
 
 
       // ======================================================
-      // M11.6.2 — PI LOGIN
+      // M11.6.4 — PI LOGIN
       // ======================================================
 
       onPiLogin:
@@ -1077,12 +816,13 @@ const mainMenu =
               false
             );
 
+
             return;
           }
 
 
           // --------------------------------------------------
-          // Start Pi OAuth Sign-In
+          // Start Pi Native Sign-In
           // --------------------------------------------------
 
           const result =
@@ -1091,22 +831,6 @@ const mainMenu =
 
 
           // --------------------------------------------------
-          // OAuth redirect is starting
-          //
-          // Do NOT mark login as failed.
-          // Browser is going to Pi.
-          // --------------------------------------------------
-
-          if (
-            result.session.status ===
-              AuthenticationStatus.AUTHENTICATING
-          ) {
-
-            return;
-          }
-
-
-                    // --------------------------------------------------
           // Successful authentication
           // --------------------------------------------------
 
@@ -1121,6 +845,7 @@ const mainMenu =
               result.session.identity
                 .displayName
             );
+
 
             return;
           }
@@ -1139,7 +864,9 @@ const mainMenu =
             "[RaceNova] Pi login failed:",
             result.message
           );
+
         }
+
     }
   );
 
@@ -1154,6 +881,7 @@ const refreshMainMenuProgress =
     mainMenu.setProgress(
       engine.getPlayerProgress()
     );
+
   };
 
 
@@ -1175,11 +903,15 @@ campaignMenu =
 
           campaignMenu?.hide();
 
+
           refreshMainMenuProgress();
+
 
           mainMenu.resetStartState();
 
+
           mainMenu.show();
+
         },
 
 
@@ -1231,7 +963,9 @@ campaignMenu =
                       ...race
                     })
                   )
+
             }
+
           };
 
 
@@ -1242,10 +976,14 @@ campaignMenu =
 
           campaignMenu?.hide();
 
+
           mainMenu.resetStartState();
 
+
           engine.start();
+
         }
+
     }
   );
 
@@ -1275,13 +1013,18 @@ const handleTrafficCrash =
 
     campaignMenu?.hide();
 
+
     mainMenu.resetStartState();
+
 
     refreshMainMenuProgress();
 
+
     mainMenu.show();
 
+
     engine.resetRaceState();
+
   };
 
 
@@ -1289,6 +1032,7 @@ window.addEventListener(
   "racenova:traffic-crash",
   handleTrafficCrash
 );
+
 
 // ============================================================
 // Race Result → Main Menu
@@ -1299,13 +1043,18 @@ const handleRaceResultMenu =
 
     campaignMenu?.hide();
 
+
     mainMenu.resetStartState();
+
 
     refreshMainMenuProgress();
 
+
     engine.resetRaceState();
 
+
     mainMenu.show();
+
   };
 
 
@@ -1313,7 +1062,6 @@ window.addEventListener(
   "racenova:race-result-menu",
   handleRaceResultMenu
 );
-
 
 // ============================================================
 // M8.8 — Garage → Main Menu
@@ -1324,9 +1072,12 @@ const handleGarageClose =
 
     refreshMainMenuProgress();
 
+
     mainMenu.resetStartState();
 
+
     mainMenu.show();
+
   };
 
 
@@ -1342,65 +1093,15 @@ window.addEventListener(
 
 refreshMainMenuProgress();
 
+
 mainMenu.show();
 
 
 // ============================================================
-// M11.6.2 — Apply Pi OAuth Callback Result
+// M11.6.4 — Runtime Availability
 // ============================================================
 //
-// When returning from Pi:
-//
-// Pi Browser
-//      ↓
-// RaceNova callback
-//      ↓
-// /v2/me
-//      ↓
-// currentPiSession
-//      ↓
-// MainMenu authentication state
-//
-// ============================================================
-
-void piOAuthCallbackPromise.then(
-  () => {
-
-    if (
-      currentPiSession.status ===
-        AuthenticationStatus.AUTHENTICATED &&
-      currentPiSession.identity
-    ) {
-
-      mainMenu.setAuthenticationState(
-        true,
-
-        currentPiSession.identity
-          .displayName
-      );
-
-      return;
-    }
-
-
-    if (
-      piCallbackMessage
-    ) {
-
-      console.warn(
-        "[RaceNova] Pi OAuth callback:",
-        piCallbackMessage
-      );
-    }
-  }
-);
-
-
-// ============================================================
-// M11.6.2 — Runtime Availability
-// ============================================================
-//
-// Keep AuthenticationRuntime alive for application lifetime.
+// Keep AuthenticationRuntime alive for the application lifetime.
 //
 // ============================================================
 
@@ -1410,3 +1111,4 @@ void authenticationRuntime;
 // ============================================================
 // END OF APPLICATION ENTRY POINT
 // ============================================================
+```0
