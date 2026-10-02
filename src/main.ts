@@ -600,10 +600,8 @@ if (
 // Read verified identity
 // ------------------------------------------------
 
-const verified =
-  await verifyResponse.json()
-    as PiVerifiedIdentityResponse;
-
+const verified: PiVerifiedIdentityResponse =
+  await verifyResponse.json();
 
 if (
   !verified.success
