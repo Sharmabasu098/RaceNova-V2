@@ -809,7 +809,7 @@ const authenticationRuntime =
           return currentPiSession;
         }
     }
-  );
+ });
 
 
 // ============================================================
