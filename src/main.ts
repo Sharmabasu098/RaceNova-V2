@@ -76,7 +76,6 @@ interface PiAuthUser {
     string;
 }
 
-
 interface PiAuthResult {
 
   accessToken:
@@ -84,6 +83,22 @@ interface PiAuthResult {
 
   user:
     PiAuthUser;
+}
+
+
+interface PiVerifiedIdentityResponse {
+
+  success:
+    boolean;
+
+  uid?:
+    string;
+
+  username?:
+    string;
+
+  message?:
+    string;
 }
 
 
@@ -135,6 +150,13 @@ declare global {
 const PI_SCOPES = [
   "username"
 ];
+
+// ============================================================
+// M11.6.5 — Pi Identity Verification Worker
+// ============================================================
+
+const PI_AUTH_VERIFY_URL =
+  "https://racenova-auth-api.sharmabasu098.workers.dev/api/auth/verify";
 
 
 // ============================================================
@@ -536,59 +558,128 @@ const authenticationRuntime =
 
 
             // ------------------------------------------------
-            // Memory-only access token
-            // ------------------------------------------------
+// M11.6.5 — Server-side Pi identity verification
+// ------------------------------------------------
 
-            currentPiAccessToken =
-              auth.accessToken;
+const verifyResponse =
+  await fetch(
+    PI_AUTH_VERIFY_URL,
+    {
+      method:
+        "POST",
 
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
 
-            // ------------------------------------------------
-            // Create authenticated session
-            // ------------------------------------------------
-
-            currentPiSession = {
-
-              status:
-                AuthenticationStatus.AUTHENTICATED,
-
-              identity: {
-
-                subject:
-                  auth.user.uid,
-
-                provider:
-                  AuthenticationProvider.PI,
-
-                displayName:
-                  auth.user.username ||
-                  "Pi User"
-              }
-            };
+      body:
+        JSON.stringify({
+          accessToken:
+            auth.accessToken
+        })
+    }
+  );
 
 
-            // ------------------------------------------------
-            // Success diagnostics
-            // ------------------------------------------------
+// ------------------------------------------------
+// Verify Worker response
+// ------------------------------------------------
 
-            console.info(
-              "[RaceNova][Pi Auth] Authentication successful",
-              {
+if (
+  !verifyResponse.ok
+) {
 
-                uid:
-                  auth.user.uid,
+  throw new Error(
+    "RaceNova: Pi server verification failed."
+  );
+}
 
-                username:
-                  auth.user.username ||
-                  "Pi User",
 
-                hasAccessToken:
-                  Boolean(
-                    auth.accessToken
-                  )
-              }
-            );
+// ------------------------------------------------
+// Read verified identity
+// ------------------------------------------------
 
+const verified =
+  await verifyResponse.json()
+    as PiVerifiedIdentityResponse;
+
+
+if (
+  !verified.success
+) {
+
+  throw new Error(
+    verified.message ||
+    "RaceNova: Pi identity could not be verified."
+  );
+}
+
+
+if (
+  !verified.uid
+) {
+
+  throw new Error(
+    "RaceNova: Pi verification returned no verified UID."
+  );
+}
+
+
+// ------------------------------------------------
+// Memory-only access token
+// ------------------------------------------------
+
+currentPiAccessToken =
+  auth.accessToken;
+
+
+// ------------------------------------------------
+// Create authenticated session
+// IMPORTANT: identity comes from verified Worker data
+// ------------------------------------------------
+
+currentPiSession = {
+
+  status:
+    AuthenticationStatus.AUTHENTICATED,
+
+  identity: {
+
+    subject:
+      verified.uid,
+
+    provider:
+      AuthenticationProvider.PI,
+
+    displayName:
+      verified.username ||
+      "Pi User"
+  }
+};
+
+
+// ------------------------------------------------
+// Success diagnostics
+// ------------------------------------------------
+
+console.info(
+  "[RaceNova][Pi Auth] Authentication + server verification successful",
+  {
+
+    uid:
+      verified.uid,
+
+    username:
+      verified.username ||
+      "Pi User",
+
+    hasAccessToken:
+      Boolean(
+        auth.accessToken
+      )
+  }
+);
 
             // ------------------------------------------------
             // Return authentication result
