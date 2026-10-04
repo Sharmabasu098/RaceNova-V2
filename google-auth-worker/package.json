@@ -1,0 +1,19 @@
+{
+  "name": "racenova-google-auth-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "types": "wrangler types",
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20261004.0"
+  }
+}
