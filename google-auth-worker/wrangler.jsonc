@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "racenova-google-auth-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-04",
+
+  "vars": {
+    "GOOGLE_CLIENT_ID": "REPLACE_WITH_RACENOVA_GOOGLE_WEB_CLIENT_ID",
+    "ALLOWED_ORIGIN": "https://sharmabasu098.github.io"
+  }
+}
