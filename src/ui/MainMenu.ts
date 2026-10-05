@@ -674,6 +674,100 @@ const googleSignOutButton =
     );
   }
 
+  private readonly handleGoogleSignOut =
+  async (): Promise<void> => {
+
+  if (
+    this.googleSignOutButton.disabled
+  ) {
+    return;
+  }
+
+  this.googleSignOutButton.disabled =
+    true;
+
+  try {
+
+    await this.onGoogleSignOut();
+
+  } finally {
+
+    this.googleSignOutButton.disabled =
+      false;
+  }
+};
+
+
+public getGoogleLoginContainer():
+  HTMLElement {
+
+  return this.googleLoginContainer;
+}
+
+
+public setGoogleAuthenticationState(
+  authenticated:
+    boolean,
+
+  displayName?:
+    string
+):
+  void {
+
+  this.googleLoginContainer.hidden =
+    authenticated;
+
+  this.googleSignOutButton.hidden =
+    !authenticated;
+
+  if (
+    authenticated
+  ) {
+
+    this.googleSignOutButton.textContent =
+      displayName
+        ? `GOOGLE: ${displayName}`
+        : "GOOGLE ACCOUNT";
+
+    this.googleSignOutButton.setAttribute(
+      "aria-label",
+      "Google account"
+    );
+
+    return;
+  }
+
+  this.googleSignOutButton.textContent =
+    "SIGN OUT GOOGLE";
+
+  this.googleSignOutButton.setAttribute(
+    "aria-label",
+    "Sign out of Google"
+  );
+}
+
+
+public setGoogleLoginDisabled(
+  disabled:
+    boolean
+):
+  void {
+
+  this.googleLoginContainer
+    .classList.toggle(
+      "is-disabled",
+      disabled
+    );
+
+  this.googleLoginContainer
+    .setAttribute(
+      "aria-disabled",
+      String(disabled)
+    );
+
+  this.googleSignOutButton.disabled =
+    disabled;
+}
 
   // =========================================================
   // M8.8 — Dynamic Campaign Progress
