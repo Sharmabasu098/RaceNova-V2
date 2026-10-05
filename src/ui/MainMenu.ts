@@ -143,6 +143,8 @@ export class MainMenu {
     this.onPiLogin =
       config.onPiLogin;
 
+    this.onGoogleSignOut =
+  config.onGoogleSignOut;
 
     // =======================================================
     // Root
@@ -183,8 +185,27 @@ export class MainMenu {
           LOGIN WITH PI
         </button>
 
-
         <div
+  class="racenova-google-auth-area"
+  aria-label="Google authentication"
+>
+
+  <div
+    class="racenova-google-login-container"
+  ></div>
+
+  <button
+    class="racenova-google-signout-button"
+    type="button"
+    aria-label="Sign out of Google"
+    hidden
+  >
+    SIGN OUT GOOGLE
+  </button>
+
+</div>
+
+       <div
           class="racenova-kicker"
         >
           ARCADE RACING
