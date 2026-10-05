@@ -372,6 +372,16 @@ export class MainMenu {
         ".racenova-pi-login-button"
       );
 
+    const googleLoginContainer =
+  this.root.querySelector<HTMLDivElement>(
+    ".racenova-google-login-container"
+  );
+
+const googleSignOutButton =
+  this.root.querySelector<HTMLButtonElement>(
+    ".racenova-google-signout-button"
+  );
+
 
     // =======================================================
     // M8.8 — Dynamic Race Card Elements
@@ -504,6 +514,12 @@ export class MainMenu {
     this.piLoginButton =
       piLoginButton;
 
+    this.googleLoginContainer =
+      googleLoginContainer;
+
+     this.googleSignOutButton =
+       googleSignOutButton;
+
 
     this.raceNameValue =
       raceNameValue;
@@ -554,6 +570,11 @@ export class MainMenu {
       "click",
       this.handlePiLogin
     );
+
+    this.googleSignOutButton.addEventListener(
+  "click",
+  this.handleGoogleSignOut
+);
 
 
     this.root.setAttribute(
