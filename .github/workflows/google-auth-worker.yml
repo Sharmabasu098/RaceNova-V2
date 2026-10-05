@@ -1,0 +1,55 @@
+name: RaceNova Google Auth Worker CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "google-auth-worker/**"
+      - ".github/workflows/google-auth-worker.yml"
+
+  pull_request:
+    paths:
+      - "google-auth-worker/**"
+      - ".github/workflows/google-auth-worker.yml"
+
+jobs:
+  validate-google-auth-worker:
+    name: Validate Google Auth Worker
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: google-auth-worker
+
+    steps:
+      - name: Checkout RaceNova V2
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: google-auth-worker/package-lock.json
+
+      - name: Install Worker dependencies
+        run: npm install
+
+      - name: TypeScript check
+        run: npm run check
+
+      - name: Verify Worker source files
+        run: |
+          test -f package.json
+          test -f tsconfig.json
+          test -f wrangler.json
+          test -f src/index.ts
+          test -f src/http.ts
+          test -f src/types.ts
+          test -f src/googleVerification.ts
+
+          echo "Google Auth Worker structure: PASS"
+
+      - name: Validate Wrangler configuration
+        run: npx wrangler deploy --dry-run
