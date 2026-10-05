@@ -1,0 +1,28 @@
+name: RaceNova Google Auth Worker Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-google-auth-worker:
+    name: Deploy Google Auth Worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout RaceNova V2
+        uses: actions/checkout@v6
+
+      - name: Deploy Google Auth Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: google-auth-worker
+          command: deploy
+          vars: |
+            GOOGLE_CLIENT_ID
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
