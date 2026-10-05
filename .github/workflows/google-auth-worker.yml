@@ -37,12 +37,12 @@ jobs:
       - name: TypeScript check
         run: npm run check
 
-            - name: Verify Worker source files
+      - name: Verify Worker source files
         working-directory: .
         run: |
           test -f google-auth-worker/package.json
           test -f google-auth-worker/tsconfig.json
-          test -f google-auth-worker/wrangler.json
+          test -f google-auth-worker/wrangler.jsonc
           test -f google-auth-worker/src/index.ts
           test -f google-auth-worker/src/http.ts
           test -f google-auth-worker/src/types.ts
