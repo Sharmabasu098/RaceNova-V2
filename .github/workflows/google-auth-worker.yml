@@ -37,18 +37,18 @@ jobs:
       - name: TypeScript check
         run: npm run check
 
-      - name: Verify Worker source files
-  working-directory: .
-  run: |
-    test -f google-auth-worker/package.json
-    test -f google-auth-worker/tsconfig.json
-    test -f google-auth-worker/wrangler.json
-    test -f google-auth-worker/src/index.ts
-    test -f google-auth-worker/src/http.ts
-    test -f google-auth-worker/src/types.ts
-    test -f google-auth-worker/src/googleVerification.ts
+            - name: Verify Worker source files
+        working-directory: .
+        run: |
+          test -f google-auth-worker/package.json
+          test -f google-auth-worker/tsconfig.json
+          test -f google-auth-worker/wrangler.json
+          test -f google-auth-worker/src/index.ts
+          test -f google-auth-worker/src/http.ts
+          test -f google-auth-worker/src/types.ts
+          test -f google-auth-worker/src/googleVerification.ts
 
-    echo "Google Auth Worker structure: PASS"
+          echo "Google Auth Worker structure: PASS"
 
       - name: Validate Wrangler configuration
         run: npx wrangler deploy --dry-run
