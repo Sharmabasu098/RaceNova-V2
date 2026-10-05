@@ -56,6 +56,8 @@ export interface MainMenuConfig {
     () => Promise<void>;
 }
 
+onGoogleSignOut:
+  () => Promise<void>;
 
 export class MainMenu {
 
@@ -74,6 +76,11 @@ export class MainMenu {
   private readonly piLoginButton:
     HTMLButtonElement;
 
+  private readonly googleLoginContainer:
+    HTMLDivElement;
+
+ private readonly googleSignOutButton:
+   HTMLButtonElement;
 
   // =========================================================
   // M8.8 — Dynamic Next Race UI References
@@ -107,6 +114,9 @@ export class MainMenu {
 
   private readonly onPiLogin:
     () => Promise<void>;
+
+  private readonly onGoogleSignOut:
+  () => Promise<void>;
 
 
   private started =
