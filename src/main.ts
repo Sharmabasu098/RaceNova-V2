@@ -138,7 +138,6 @@ let currentPiSession:
       null
   };
 
-
 // ============================================================
 // App Container
 // ============================================================
@@ -301,7 +300,6 @@ if (
     "[RaceNova][Pi Auth] Pi SDK unavailable."
   );
 }
-
 
 // ============================================================
 // Authentication Runtime
@@ -476,8 +474,7 @@ const authenticationRuntime =
                 }
               );
 
-
-            // ------------------------------------------------
+                        // ------------------------------------------------
             // Pi.authenticate returned
             // ------------------------------------------------
 
@@ -649,7 +646,7 @@ const authenticationRuntime =
             // Authenticated session
             // ------------------------------------------------
 
-            currentPiSession = {
+                       currentPiSession = {
 
               status:
                 AuthenticationStatus.AUTHENTICATED,
@@ -808,8 +805,7 @@ const authenticationRuntime =
           };
         },
 
-
-      // ======================================================
+            // ======================================================
       // CURRENT SESSION
       // ======================================================
 
@@ -918,36 +914,6 @@ const mainMenu =
             "2. Entering authentication..."
           );
 
-          onGoogleSignOut:
-  async () => {
-
-  if (
-    !googleAuthenticationProvider
-  ) {
-    return;
-  }
-
-  const result =
-    await googleAuthenticationProvider
-      .signOut();
-
-  if (
-    result.success
-  ) {
-
-    mainMenu.setGoogleAuthenticationState(
-      false
-    );
-
-    return;
-  }
-
-  console.warn(
-    "[RaceNova] Google sign-out failed:",
-    result.message
-  );
-  }
-
 
           // --------------------------------------------------
           // Authenticated → Sign Out
@@ -978,7 +944,7 @@ const mainMenu =
               .signIn();
 
 
-          // --------------------------------------------------
+                    // --------------------------------------------------
           // Success
           // --------------------------------------------------
 
@@ -1010,9 +976,52 @@ const mainMenu =
             "[RaceNova] Pi login failed:",
             result.message
           );
+        },
+
+
+      // ======================================================
+      // GOOGLE SIGN OUT
+      // ======================================================
+
+      onGoogleSignOut:
+        async () => {
+
+          if (
+            !googleAuthenticationProvider
+          ) {
+            return;
+          }
+
+
+          const result =
+            await googleAuthenticationProvider
+              .signOut();
+
+
+          if (
+            result.success
+          ) {
+
+            mainMenu.setGoogleAuthenticationState(
+              false
+            );
+
+            return;
+          }
+
+
+          console.warn(
+            "[RaceNova] Google sign-out failed:",
+            result.message
+          );
         }
     }
   );
+
+
+// ============================================================
+// M11.7.2-D — Google Authentication Provider
+// ============================================================
 
 const configuredGoogleAuthenticationProvider =
   new GoogleAuthenticationProvider({
@@ -1041,6 +1050,7 @@ const configuredGoogleAuthenticationProvider =
           return;
         }
 
+
         mainMenu.setGoogleAuthenticationState(
           false
         );
@@ -1062,7 +1072,6 @@ configuredGoogleAuthenticationProvider
   .renderButton(
     mainMenu.getGoogleLoginContainer()
   );
-
 
 // ============================================================
 // Main Menu Progress Refresh
