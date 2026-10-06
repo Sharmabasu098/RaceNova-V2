@@ -2111,7 +2111,109 @@ public setGoogleLoginDisabled(
             68px;
         }
       }
-    `;
+
+      .racenova-google-auth-area {
+  align-self:
+    flex-end;
+
+  min-height:
+    44px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    flex-end;
+
+  gap:
+    8px;
+}
+
+.racenova-google-login-container {
+  min-height:
+    40px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    flex-end;
+}
+
+.racenova-google-login-container.is-disabled {
+  opacity:
+    0.55;
+
+  pointer-events:
+    none;
+}
+
+.racenova-google-signout-button {
+  min-height:
+    40px;
+
+  max-width:
+    260px;
+
+  padding:
+    0 14px;
+
+  border:
+    1px solid
+    rgba(
+      85,
+      214,
+      135,
+      0.58
+    );
+
+  border-radius:
+    999px;
+
+  background:
+    rgba(
+      16,
+      24,
+      39,
+      0.78
+    );
+
+  color:
+    #8df0b0;
+
+  font:
+    inherit;
+
+  font-size:
+    11px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    0.08em;
+
+  cursor:
+    pointer;
+
+  touch-action:
+    manipulation;
+}
+
+.racenova-google-signout-button:disabled {
+  cursor:
+    default;
+
+  opacity:
+    0.55;
+}
+`;
 
 
     document.head.appendChild(
