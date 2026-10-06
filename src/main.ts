@@ -157,81 +157,18 @@ if (
 
 
 // ============================================================
-// TEMPORARY Pi Diagnostic
+// Pi Runtime Diagnostic
+// ============================================================
+//
+// Production UI: disabled.
+// Pi authentication logic remains unchanged.
 // ============================================================
 
 const updatePiDiagnostic =
   (
-    message: string
+    _message: string
   ): void => {
-
-    let panel =
-      document.getElementById(
-        "racenova-pi-diagnostic"
-      );
-
-    if (
-      !panel
-    ) {
-
-      panel =
-        document.createElement(
-          "div"
-        );
-
-      panel.id =
-        "racenova-pi-diagnostic";
-
-      panel.style.position =
-        "fixed";
-
-      panel.style.left =
-        "12px";
-
-      panel.style.right =
-        "12px";
-
-      panel.style.bottom =
-        "12px";
-
-      panel.style.zIndex =
-        "999999";
-
-      panel.style.padding =
-        "14px";
-
-      panel.style.borderRadius =
-        "10px";
-
-      panel.style.background =
-        "rgba(0,0,0,0.92)";
-
-      panel.style.color =
-        "#ffffff";
-
-      panel.style.fontFamily =
-        "monospace";
-
-      panel.style.fontSize =
-        "13px";
-
-      panel.style.lineHeight =
-        "1.5";
-
-      panel.style.whiteSpace =
-        "pre-wrap";
-
-      panel.style.pointerEvents =
-        "none";
-
-      document.body.appendChild(
-        panel
-      );
-    }
-
-    panel.textContent =
-      "RaceNova Pi Diagnostic\n\n" +
-      message;
+    // Production: no visible diagnostic UI.
   };
 
 
