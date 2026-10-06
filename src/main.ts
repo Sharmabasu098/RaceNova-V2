@@ -52,6 +52,10 @@ import {
   AuthenticationRuntime
 } from "./auth/AuthenticationRuntime";
 
+import {
+  GoogleAuthenticationProvider
+} from "./auth/GoogleAuthenticationProvider";
+
 
 // ============================================================
 // Pi Types
@@ -106,6 +110,12 @@ const PI_SCOPES = [
 
 const PI_AUTH_VERIFY_URL =
   "https://racenova-auth-api.sharmabasu098.workers.dev/api/auth/verify";
+
+const GOOGLE_CLIENT_ID =
+  "136956253270-dihc3vs0cgk9eueggl85of1cn7u3nh7c.apps.googleusercontent.com";
+
+const GOOGLE_AUTH_VERIFY_URL =
+  "https://racenova-google-auth-api.sharmabasu098.workers.dev/api/auth/google/verify";
 
 
 // ============================================================
@@ -830,6 +840,10 @@ let campaignMenu:
   CampaignMenu | null =
     null;
 
+let googleAuthenticationProvider:
+  GoogleAuthenticationProvider | null =
+    null;
+
 
 // ============================================================
 // Main Menu
@@ -904,6 +918,36 @@ const mainMenu =
             "2. Entering authentication..."
           );
 
+          onGoogleSignOut:
+  async () => {
+
+  if (
+    !googleAuthenticationProvider
+  ) {
+    return;
+  }
+
+  const result =
+    await googleAuthenticationProvider
+      .signOut();
+
+  if (
+    result.success
+  ) {
+
+    mainMenu.setGoogleAuthenticationState(
+      false
+    );
+
+    return;
+  }
+
+  console.warn(
+    "[RaceNova] Google sign-out failed:",
+    result.message
+  );
+  }
+
 
           // --------------------------------------------------
           // Authenticated → Sign Out
@@ -934,7 +978,7 @@ const mainMenu =
               .signIn();
 
 
-                    // --------------------------------------------------
+          // --------------------------------------------------
           // Success
           // --------------------------------------------------
 
@@ -968,6 +1012,55 @@ const mainMenu =
           );
         }
     }
+  );
+
+const configuredGoogleAuthenticationProvider =
+  new GoogleAuthenticationProvider({
+
+    clientId:
+      GOOGLE_CLIENT_ID,
+
+    verificationUrl:
+      GOOGLE_AUTH_VERIFY_URL,
+
+    onResult:
+      (
+        result
+      ) => {
+
+        if (
+          result.success &&
+          result.session.identity
+        ) {
+
+          mainMenu.setGoogleAuthenticationState(
+            true,
+            result.session.identity.displayName
+          );
+
+          return;
+        }
+
+        mainMenu.setGoogleAuthenticationState(
+          false
+        );
+
+        console.warn(
+          "[RaceNova] Google login failed:",
+          result.message
+        );
+      }
+  });
+
+googleAuthenticationProvider =
+  configuredGoogleAuthenticationProvider;
+
+configuredGoogleAuthenticationProvider
+  .initialize();
+
+configuredGoogleAuthenticationProvider
+  .renderButton(
+    mainMenu.getGoogleLoginContainer()
   );
 
 
