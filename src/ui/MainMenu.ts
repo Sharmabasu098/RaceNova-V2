@@ -19,6 +19,8 @@
  * - Campaign callback
  * - Garage callback
  * - Pi Login callback
+ * - Google authentication UI
+ * - Google sign-out callback
  * - Safe start-state reset for race restart
  * - Dynamic campaign progress display
  *
@@ -27,7 +29,7 @@
  * - No gameplay dependency
  * - No save logic
  * - No authentication logic
- * - Authentication is delegated to onPiLogin callback
+ * - Authentication is delegated to callbacks
  * - RACE_DEFINITIONS is authoritative for race metadata
  * ============================================================
  */
@@ -54,10 +56,11 @@ export interface MainMenuConfig {
 
   onPiLogin:
     () => Promise<void>;
+
+  onGoogleSignOut:
+    () => Promise<void>;
 }
 
-onGoogleSignOut:
-  () => Promise<void>;
 
 export class MainMenu {
 
@@ -79,8 +82,9 @@ export class MainMenu {
   private readonly googleLoginContainer:
     HTMLDivElement;
 
- private readonly googleSignOutButton:
-   HTMLButtonElement;
+  private readonly googleSignOutButton:
+    HTMLButtonElement;
+
 
   // =========================================================
   // M8.8 — Dynamic Next Race UI References
@@ -116,7 +120,7 @@ export class MainMenu {
     () => Promise<void>;
 
   private readonly onGoogleSignOut:
-  () => Promise<void>;
+    () => Promise<void>;
 
 
   private started =
@@ -144,7 +148,8 @@ export class MainMenu {
       config.onPiLogin;
 
     this.onGoogleSignOut =
-  config.onGoogleSignOut;
+      config.onGoogleSignOut;
+
 
     // =======================================================
     // Root
@@ -185,27 +190,29 @@ export class MainMenu {
           LOGIN WITH PI
         </button>
 
+
         <div
-  class="racenova-google-auth-area"
-  aria-label="Google authentication"
->
+          class="racenova-google-auth-area"
+          aria-label="Google authentication"
+        >
 
-  <div
-    class="racenova-google-login-container"
-  ></div>
+          <div
+            class="racenova-google-login-container"
+          ></div>
 
-  <button
-    class="racenova-google-signout-button"
-    type="button"
-    aria-label="Sign out of Google"
-    hidden
-  >
-    SIGN OUT GOOGLE
-  </button>
+          <button
+            class="racenova-google-signout-button"
+            type="button"
+            aria-label="Sign out of Google"
+            hidden
+          >
+            SIGN OUT GOOGLE
+          </button>
 
-</div>
+        </div>
 
-       <div
+
+        <div
           class="racenova-kicker"
         >
           ARCADE RACING
@@ -372,15 +379,17 @@ export class MainMenu {
         ".racenova-pi-login-button"
       );
 
-    const googleLoginContainer =
-  this.root.querySelector<HTMLDivElement>(
-    ".racenova-google-login-container"
-  );
 
-const googleSignOutButton =
-  this.root.querySelector<HTMLButtonElement>(
-    ".racenova-google-signout-button"
-  );
+    const googleLoginContainer =
+      this.root.querySelector<HTMLDivElement>(
+        ".racenova-google-login-container"
+      );
+
+
+    const googleSignOutButton =
+      this.root.querySelector<HTMLButtonElement>(
+        ".racenova-google-signout-button"
+      );
 
 
     // =======================================================
@@ -456,6 +465,26 @@ const googleSignOutButton =
 
 
     if (
+      !googleLoginContainer
+    ) {
+
+      throw new Error(
+        "RaceNova: Google login container not found."
+      );
+    }
+
+
+    if (
+      !googleSignOutButton
+    ) {
+
+      throw new Error(
+        "RaceNova: Google sign-out button not found."
+      );
+    }
+
+
+    if (
       !raceNameValue
     ) {
 
@@ -514,11 +543,13 @@ const googleSignOutButton =
     this.piLoginButton =
       piLoginButton;
 
+
     this.googleLoginContainer =
       googleLoginContainer;
 
-     this.googleSignOutButton =
-       googleSignOutButton;
+
+    this.googleSignOutButton =
+      googleSignOutButton;
 
 
     this.raceNameValue =
@@ -571,10 +602,11 @@ const googleSignOutButton =
       this.handlePiLogin
     );
 
+
     this.googleSignOutButton.addEventListener(
-  "click",
-  this.handleGoogleSignOut
-);
+      "click",
+      this.handleGoogleSignOut
+    );
 
 
     this.root.setAttribute(
@@ -616,6 +648,115 @@ const googleSignOutButton =
 
 
   // =========================================================
+  // M11.7.2-D — Google Sign Out Handler
+  // =========================================================
+
+  private readonly handleGoogleSignOut =
+    async (): Promise<void> => {
+
+    if (
+      this.googleSignOutButton.disabled
+    ) {
+
+      return;
+    }
+
+
+    this.googleSignOutButton.disabled =
+      true;
+
+
+    try {
+
+      await this.onGoogleSignOut();
+
+    } finally {
+
+      this.googleSignOutButton.disabled =
+        false;
+    }
+  };
+
+
+  // =========================================================
+  // M11.7.2-D — Google Authentication State
+  // =========================================================
+
+  public getGoogleLoginContainer():
+    HTMLElement {
+
+    return this.googleLoginContainer;
+  }
+
+
+  public setGoogleAuthenticationState(
+    authenticated:
+      boolean,
+
+    displayName?:
+      string
+  ):
+    void {
+
+    this.googleLoginContainer.hidden =
+      authenticated;
+
+    this.googleSignOutButton.hidden =
+      !authenticated;
+
+
+    if (
+      authenticated
+    ) {
+
+      this.googleSignOutButton.textContent =
+        displayName
+          ? `GOOGLE: ${displayName}`
+          : "GOOGLE ACCOUNT";
+
+      this.googleSignOutButton.setAttribute(
+        "aria-label",
+        "Google account"
+      );
+
+      return;
+    }
+
+
+    this.googleSignOutButton.textContent =
+      "SIGN OUT GOOGLE";
+
+    this.googleSignOutButton.setAttribute(
+      "aria-label",
+      "Sign out of Google"
+    );
+  }
+
+
+  public setGoogleLoginDisabled(
+    disabled:
+      boolean
+  ):
+    void {
+
+    this.googleLoginContainer
+      .classList.toggle(
+        "is-disabled",
+        disabled
+      );
+
+    this.googleLoginContainer
+      .setAttribute(
+        "aria-disabled",
+        String(disabled)
+      );
+
+    this.googleSignOutButton.disabled =
+      disabled;
+  }
+
+
+  // =========================================================
   // M11.6.1 — Authentication State
   // =========================================================
   //
@@ -637,8 +778,7 @@ const googleSignOutButton =
     if (
       authenticated
     ) {
-
-      this.piLoginButton.textContent =
+            this.piLoginButton.textContent =
         displayName
           ? `PI: ${displayName}`
           : "PI ACCOUNT";
@@ -674,100 +814,6 @@ const googleSignOutButton =
     );
   }
 
-  private readonly handleGoogleSignOut =
-  async (): Promise<void> => {
-
-  if (
-    this.googleSignOutButton.disabled
-  ) {
-    return;
-  }
-
-  this.googleSignOutButton.disabled =
-    true;
-
-  try {
-
-    await this.onGoogleSignOut();
-
-  } finally {
-
-    this.googleSignOutButton.disabled =
-      false;
-  }
-};
-
-
-public getGoogleLoginContainer():
-  HTMLElement {
-
-  return this.googleLoginContainer;
-}
-
-
-public setGoogleAuthenticationState(
-  authenticated:
-    boolean,
-
-  displayName?:
-    string
-):
-  void {
-
-  this.googleLoginContainer.hidden =
-    authenticated;
-
-  this.googleSignOutButton.hidden =
-    !authenticated;
-
-  if (
-    authenticated
-  ) {
-
-    this.googleSignOutButton.textContent =
-      displayName
-        ? `GOOGLE: ${displayName}`
-        : "GOOGLE ACCOUNT";
-
-    this.googleSignOutButton.setAttribute(
-      "aria-label",
-      "Google account"
-    );
-
-    return;
-  }
-
-  this.googleSignOutButton.textContent =
-    "SIGN OUT GOOGLE";
-
-  this.googleSignOutButton.setAttribute(
-    "aria-label",
-    "Sign out of Google"
-  );
-}
-
-
-public setGoogleLoginDisabled(
-  disabled:
-    boolean
-):
-  void {
-
-  this.googleLoginContainer
-    .classList.toggle(
-      "is-disabled",
-      disabled
-    );
-
-  this.googleLoginContainer
-    .setAttribute(
-      "aria-disabled",
-      String(disabled)
-    );
-
-  this.googleSignOutButton.disabled =
-    disabled;
-}
 
   // =========================================================
   // M8.8 — Dynamic Campaign Progress
@@ -928,6 +974,11 @@ public setGoogleLoginDisabled(
         true;
 
 
+      this.setGoogleLoginDisabled(
+        true
+      );
+
+
       this.startButton.classList.add(
         "is-pressed"
       );
@@ -1017,6 +1068,11 @@ public setGoogleLoginDisabled(
       false;
 
 
+    this.setGoogleLoginDisabled(
+      false
+    );
+
+
     this.startButton.classList.remove(
       "is-pressed"
     );
@@ -1102,6 +1158,12 @@ public setGoogleLoginDisabled(
     this.piLoginButton.removeEventListener(
       "click",
       this.handlePiLogin
+    );
+
+
+    this.googleSignOutButton.removeEventListener(
+      "click",
+      this.handleGoogleSignOut
     );
 
 
@@ -1459,6 +1521,131 @@ public setGoogleLoginDisabled(
 
         color:
           #8df0b0;
+      }
+
+
+      /* =====================================================
+         M11.7.2-D — Google Authentication UI
+         ===================================================== */
+
+      .racenova-google-auth-area {
+
+        align-self:
+          flex-end;
+
+        min-height:
+          44px;
+
+        display:
+          flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          flex-end;
+
+        gap:
+          8px;
+      }
+
+
+      .racenova-google-login-container {
+
+        min-height:
+          40px;
+
+        display:
+          flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          flex-end;
+
+                  align-items:
+          center;
+
+        justify-content:
+          flex-end;
+      }
+
+
+      .racenova-google-login-container.is-disabled {
+
+        opacity:
+          0.55;
+
+        pointer-events:
+          none;
+      }
+
+
+      .racenova-google-signout-button {
+
+        min-height:
+          40px;
+
+        max-width:
+          260px;
+
+        padding:
+          0 14px;
+
+        border:
+          1px solid
+          rgba(
+            85,
+            214,
+            135,
+            0.58
+          );
+
+        border-radius:
+          999px;
+
+        background:
+          rgba(
+            16,
+            24,
+            39,
+            0.78
+          );
+
+        color:
+          #8df0b0;
+
+        font:
+          inherit;
+
+        font-size:
+          11px;
+
+        font-weight:
+          800;
+
+        letter-spacing:
+          0.08em;
+
+        cursor:
+          pointer;
+
+        touch-action:
+          manipulation;
+
+        -webkit-tap-highlight-color:
+          transparent;
+      }
+
+
+      .racenova-google-signout-button:disabled {
+
+        cursor:
+          default;
+
+        opacity:
+          0.55;
       }
 
 
@@ -2011,6 +2198,36 @@ public setGoogleLoginDisabled(
         }
 
 
+        .racenova-google-auth-area {
+
+          align-self:
+            flex-end;
+
+          max-width:
+            100%;
+        }
+
+
+        .racenova-google-login-container {
+
+          max-width:
+            100%;
+
+          overflow:
+            hidden;
+        }
+
+
+        .racenova-google-signout-button {
+
+          max-width:
+            100%;
+
+          font-size:
+            10px;
+        }
+
+
         .racenova-tagline br {
 
           display:
@@ -2111,109 +2328,7 @@ public setGoogleLoginDisabled(
             68px;
         }
       }
-
-      .racenova-google-auth-area {
-  align-self:
-    flex-end;
-
-  min-height:
-    44px;
-
-  display:
-    flex;
-
-  align-items:
-    center;
-
-  justify-content:
-    flex-end;
-
-  gap:
-    8px;
-}
-
-.racenova-google-login-container {
-  min-height:
-    40px;
-
-  display:
-    flex;
-
-  align-items:
-    center;
-
-  justify-content:
-    flex-end;
-}
-
-.racenova-google-login-container.is-disabled {
-  opacity:
-    0.55;
-
-  pointer-events:
-    none;
-}
-
-.racenova-google-signout-button {
-  min-height:
-    40px;
-
-  max-width:
-    260px;
-
-  padding:
-    0 14px;
-
-  border:
-    1px solid
-    rgba(
-      85,
-      214,
-      135,
-      0.58
-    );
-
-  border-radius:
-    999px;
-
-  background:
-    rgba(
-      16,
-      24,
-      39,
-      0.78
-    );
-
-  color:
-    #8df0b0;
-
-  font:
-    inherit;
-
-  font-size:
-    11px;
-
-  font-weight:
-    800;
-
-  letter-spacing:
-    0.08em;
-
-  cursor:
-    pointer;
-
-  touch-action:
-    manipulation;
-}
-
-.racenova-google-signout-button:disabled {
-  cursor:
-    default;
-
-  opacity:
-    0.55;
-}
-`;
+    `;
 
 
     document.head.appendChild(
