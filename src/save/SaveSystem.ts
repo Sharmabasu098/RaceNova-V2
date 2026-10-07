@@ -3,6 +3,7 @@
  * RaceNova V2
  * Save System
  * M4.9
+ * M11.8.7 — Account Binding
  * ============================================================
  *
  * Responsibilities:
@@ -16,17 +17,27 @@
  * - Handle invalid/corrupt save data safely
  * - Handle save-data version checks
  * - Provide profile persistence boundary
+ * - Bind persistence to exactly one account
  *
  * IMPORTANT:
  * - No UI logic
  * - No Three.js dependency
  * - No Pi payment logic
  * - SaveSystem is the only layer that talks to browser storage
+ * - One SaveSystem instance belongs to one account
+ * - Account switching requires a new SaveSystem instance
  *
  * M10.3:
  * - Adds profile persistence methods
  * - Existing PlayerSaveData flow remains unchanged
  * - LocalPersistenceRepository will use these methods
+ *
+ * M11.8.7:
+ * - Removes global authenticated save/profile keys
+ * - Adds required accountId configuration
+ * - Derives account-scoped save/profile keys
+ * - Adds getAccountId() diagnostic getter
+ * - Legacy global keys are not migrated or deleted
  * ============================================================
  */
 
@@ -59,6 +70,10 @@ import {
   sanitizePlayerProgress
 } from "./PlayerSaveData";
 
+import {
+  AccountStorageKeyBuilder
+} from "./AccountStorageKeyBuilder";
+
 // ============================================================
 // Configuration
 // ============================================================
@@ -66,15 +81,16 @@ import {
 export interface SaveSystemConfig {
 
   /**
-   * Storage key used for the existing
-   * PlayerSaveData local save.
+   * Stable account identifier used to bind
+   * this SaveSystem instance to exactly
+   * one authenticated account.
+   *
+   * Example:
+   *
+   * google:<verified-google-sub>
+   * pi:<verified-pi-uid>
    */
-  storageKey?: string;
-
-  /**
-   * Storage key used for the M10 PlayerProfile.
-   */
-  profileStorageKey?: string;
+  accountId: string;
 
   /**
    * Automatically save when save() is called.
@@ -85,12 +101,6 @@ export interface SaveSystemConfig {
 // ============================================================
 // Default Configuration
 // ============================================================
-
-const DEFAULT_STORAGE_KEY =
-  "racenova-v2-player-save";
-
-const DEFAULT_PROFILE_STORAGE_KEY =
-  "racenova-v2-player-profile";
 
 const DEFAULT_ENABLED =
   true;
@@ -110,9 +120,24 @@ export class SaveSystem {
   private readonly upgrades:
     UpgradeSystem;
 
+  /**
+   * Stable account identifier.
+   *
+   * This SaveSystem instance is permanently
+   * bound to this account for its lifetime.
+   */
+  private readonly accountId:
+    string;
+
+  /**
+   * Account-scoped PlayerSaveData key.
+   */
   private readonly storageKey:
     string;
 
+  /**
+   * Account-scoped PlayerProfile key.
+   */
   private readonly profileStorageKey:
     string;
 
@@ -127,8 +152,35 @@ export class SaveSystem {
     economy: EconomyManager,
     garage: GarageManager,
     upgrades: UpgradeSystem,
-    config: SaveSystemConfig = {}
+    config: SaveSystemConfig
   ) {
+
+    // --------------------------------------------------------
+    // Account binding
+    // --------------------------------------------------------
+
+    this.accountId =
+      config.accountId;
+
+    // --------------------------------------------------------
+    // Derive account-scoped storage keys once.
+    //
+    // SaveSystem never rebinds to another account.
+    // --------------------------------------------------------
+
+    this.storageKey =
+      AccountStorageKeyBuilder.buildSaveKey(
+        this.accountId
+      );
+
+    this.profileStorageKey =
+      AccountStorageKeyBuilder.buildProfileKey(
+        this.accountId
+      );
+
+    // --------------------------------------------------------
+    // Connected gameplay systems
+    // --------------------------------------------------------
 
     this.economy =
       economy;
@@ -139,13 +191,9 @@ export class SaveSystem {
     this.upgrades =
       upgrades;
 
-    this.storageKey =
-      config.storageKey ??
-      DEFAULT_STORAGE_KEY;
-
-    this.profileStorageKey =
-      config.profileStorageKey ??
-      DEFAULT_PROFILE_STORAGE_KEY;
+    // --------------------------------------------------------
+    // Configuration
+    // --------------------------------------------------------
 
     this.enabled =
       config.enabled ??
@@ -183,7 +231,8 @@ export class SaveSystem {
 
   /**
    * Saves the current player state
-   * to browser localStorage.
+   * to this account's browser localStorage
+   * namespace.
    */
   public save(
     progressOverride?: Partial<
@@ -252,7 +301,7 @@ export class SaveSystem {
         );
 
       // ------------------------------------------------------
-      // Write
+      // Write to account-scoped key
       // ------------------------------------------------------
 
       window.localStorage.setItem(
@@ -278,8 +327,8 @@ export class SaveSystem {
   // ==========================================================
 
   /**
-   * Loads the player save from
-   * browser localStorage.
+   * Loads the player save from this
+   * account's browser localStorage namespace.
    *
    * Returns true when a valid save
    * was successfully restored.
@@ -497,7 +546,7 @@ export class SaveSystem {
         );
 
       // ------------------------------------------------------
-      // Write profile
+      // Write account-scoped profile
       // ------------------------------------------------------
 
       window.localStorage.setItem(
@@ -625,7 +674,8 @@ export class SaveSystem {
   // ==========================================================
 
   /**
-   * Checks whether a profile record exists.
+   * Checks whether a profile record exists
+   * for this account.
    *
    * This does not validate the entire
    * profile structure.
@@ -663,10 +713,11 @@ export class SaveSystem {
   // ==========================================================
 
   /**
-   * Deletes the stored PlayerProfile.
+   * Deletes the stored PlayerProfile
+   * for this account.
    *
-   * This does NOT delete the existing
-   * PlayerSaveData record.
+   * This does NOT delete the PlayerSaveData
+   * record.
    *
    * This does NOT reset gameplay managers.
    */
@@ -703,7 +754,8 @@ export class SaveSystem {
   // ==========================================================
 
   /**
-   * Checks whether a save exists.
+   * Checks whether a save exists
+   * for this account.
    *
    * This does not validate the entire
    * save structure.
@@ -742,7 +794,8 @@ export class SaveSystem {
 
   /**
    * Reads and validates the stored
-   * save without applying it.
+   * save for this account without
+   * applying it.
    *
    * Useful for debugging and future
    * profile/menu systems.
@@ -812,7 +865,8 @@ export class SaveSystem {
   // ==========================================================
 
   /**
-   * Deletes the stored player save.
+   * Deletes the stored player save
+   * for this account.
    *
    * This does NOT reset the managers.
    */
@@ -872,7 +926,7 @@ export class SaveSystem {
     this.upgrades.reset();
 
     // --------------------------------------------------------
-    // Remove stored save
+    // Remove account-scoped save
     // --------------------------------------------------------
 
     return this.deleteSave();
@@ -887,6 +941,20 @@ export class SaveSystem {
   }
 
   // ==========================================================
+  // Account ID
+  // ==========================================================
+
+  /**
+   * Returns the account identifier to which
+   * this SaveSystem instance is permanently bound.
+   *
+   * Diagnostic / QA use only.
+   */
+  public getAccountId(): string {
+    return this.accountId;
+  }
+
+    // ==========================================================
   // Storage Key
   // ==========================================================
 
