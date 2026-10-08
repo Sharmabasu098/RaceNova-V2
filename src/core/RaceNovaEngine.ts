@@ -584,11 +584,15 @@ private static readonly LOCAL_PROFILE_ID =
     // Save System
     // =======================================================
 
-    this.saveSystem =
+        this.saveSystem =
       new SaveSystem(
         this.economyManager,
         this.garageManager,
-        this.upgradeSystem
+        this.upgradeSystem,
+        {
+          accountId:
+            RaceNovaEngine.LOCAL_PROFILE_ID
+        }
       );
 
     // =======================================================
