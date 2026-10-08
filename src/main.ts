@@ -984,6 +984,20 @@ const mainMenu =
     }
   );
 
+// ============================================================
+// M11.8.8 — Mandatory Login Gate
+// ============================================================
+//
+// Fresh application load starts in locked gameplay state.
+//
+// Authentication buttons remain available.
+// Engine/gameplay controls remain locked until
+// verified authentication succeeds.
+// ============================================================
+
+mainMenu.setLoginGateRequired(
+  true
+);
 
 // ============================================================
 // M11.8.8 — Authenticated Engine Activation
@@ -1058,8 +1072,11 @@ const activateAuthenticatedEngine =
         app,
         accountId
       );
-
-
+    
+    mainMenu.setLoginGateRequired(
+  false
+);
+    
     // --------------------------------------------------------
     // Refresh account-bound progress.
     // --------------------------------------------------------
