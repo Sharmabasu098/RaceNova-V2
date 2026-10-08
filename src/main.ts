@@ -138,6 +138,7 @@ let currentPiSession:
       null
   };
 
+
 // ============================================================
 // App Container
 // ============================================================
@@ -237,6 +238,7 @@ if (
     "[RaceNova][Pi Auth] Pi SDK unavailable."
   );
 }
+
 
 // ============================================================
 // Authentication Runtime
@@ -411,7 +413,8 @@ const authenticationRuntime =
                 }
               );
 
-                        // ------------------------------------------------
+
+            // ------------------------------------------------
             // Pi.authenticate returned
             // ------------------------------------------------
 
@@ -583,7 +586,7 @@ const authenticationRuntime =
             // Authenticated session
             // ------------------------------------------------
 
-                       currentPiSession = {
+            currentPiSession = {
 
               status:
                 AuthenticationStatus.AUTHENTICATED,
@@ -742,7 +745,8 @@ const authenticationRuntime =
           };
         },
 
-            // ======================================================
+
+      // ======================================================
       // CURRENT SESSION
       // ======================================================
 
@@ -759,10 +763,13 @@ const authenticationRuntime =
 // Engine
 // ============================================================
 
-const engine =
-  new RaceNovaEngine(
-    app
-  );
+let engine:
+  RaceNovaEngine | null =
+    null;
+
+let activeAccountId:
+  string | null =
+    null;
 
 
 // ============================================================
@@ -795,6 +802,12 @@ const mainMenu =
         () => {
 
           if (
+            !engine
+          ) {
+            return;
+          }
+
+          if (
             campaignMenu
           ) {
             campaignMenu.hide();
@@ -810,6 +823,12 @@ const mainMenu =
 
       onCampaign:
         () => {
+
+          if (
+            !engine
+          ) {
+            return;
+          }
 
           mainMenu.hide();
 
@@ -832,6 +851,12 @@ const mainMenu =
 
       onGarage:
         () => {
+
+          if (
+            !engine
+          ) {
+            return;
+          }
 
           mainMenu.hide();
 
@@ -881,7 +906,7 @@ const mainMenu =
               .signIn();
 
 
-                    // --------------------------------------------------
+          // --------------------------------------------------
           // Success
           // --------------------------------------------------
 
@@ -895,6 +920,10 @@ const mainMenu =
 
               result.session.identity
                 .displayName
+            );
+
+            activateAuthenticatedEngine(
+              result.session
             );
 
             return;
@@ -957,6 +986,110 @@ const mainMenu =
 
 
 // ============================================================
+// M11.8.8 — Authenticated Engine Activation
+// ============================================================
+//
+// Engine is created only after verified authentication.
+//
+// Account IDs:
+// - Pi     → pi:<verified-uid>
+// - Google → google:<verified-sub>
+//
+// IMPORTANT:
+// - No local fallback account
+// - No localStorage auth
+// - No live account switching
+// - Authentication verification remains unchanged
+// ============================================================
+
+const activateAuthenticatedEngine =
+  (
+    session:
+      AuthenticationSession
+  ): void => {
+
+    if (
+      !session.identity
+    ) {
+      return;
+    }
+
+    const identity =
+      session.identity;
+
+    const accountId =
+      identity.provider ===
+        AuthenticationProvider.PI
+        ? `pi:${identity.subject}`
+        : `google:${identity.subject}`;
+
+
+    // --------------------------------------------------------
+    // Prevent live account switching.
+    // --------------------------------------------------------
+
+    if (
+      engine
+    ) {
+
+      if (
+        activeAccountId ===
+          accountId
+      ) {
+        return;
+      }
+
+      console.warn(
+        "[RaceNova] Engine already active for another account."
+      );
+
+      return;
+    }
+
+  // --------------------------------------------------------
+    // Bind verified account to Engine.
+    // --------------------------------------------------------
+
+    activeAccountId =
+      accountId;
+
+    engine =
+      new RaceNovaEngine(
+        app,
+        accountId
+      );
+
+
+    // --------------------------------------------------------
+    // Refresh account-bound progress.
+    // --------------------------------------------------------
+
+    refreshMainMenuProgress();
+
+    if (
+      campaignMenu
+    ) {
+
+      campaignMenu.setProgress(
+        engine.getPlayerProgress()
+      );
+    }
+
+
+    console.info(
+      "[RaceNova] Authenticated Engine activated.",
+      {
+        provider:
+          identity.provider,
+
+        accountId:
+          accountId
+      }
+    );
+  };
+
+
+// ============================================================
 // M11.7.2-D — Google Authentication Provider
 // ============================================================
 
@@ -984,6 +1117,10 @@ const configuredGoogleAuthenticationProvider =
             result.session.identity.displayName
           );
 
+          activateAuthenticatedEngine(
+            result.session
+          );
+
           return;
         }
 
@@ -999,16 +1136,20 @@ const configuredGoogleAuthenticationProvider =
       }
   });
 
+
 googleAuthenticationProvider =
   configuredGoogleAuthenticationProvider;
 
+
 configuredGoogleAuthenticationProvider
   .initialize();
+
 
 configuredGoogleAuthenticationProvider
   .renderButton(
     mainMenu.getGoogleLoginContainer()
   );
+
 
 // ============================================================
 // Main Menu Progress Refresh
@@ -1017,10 +1158,17 @@ configuredGoogleAuthenticationProvider
 const refreshMainMenuProgress =
   (): void => {
 
+    if (
+      !engine
+    ) {
+      return;
+    }
+
     mainMenu.setProgress(
       engine.getPlayerProgress()
     );
   };
+
 
 // ============================================================
 // RaceNova V2
@@ -1067,6 +1215,12 @@ campaignMenu =
 
           if (
             !raceId
+          ) {
+            return;
+          }
+
+          if (
+            !engine
           ) {
             return;
           }
@@ -1119,14 +1273,17 @@ campaignMenu =
     }
   );
 
-
-// ============================================================
+    // ============================================================
 // Initial Campaign Progress
 // ============================================================
 
-campaignMenu.setProgress(
-  engine.getPlayerProgress()
-);
+if (
+  engine
+) {
+  campaignMenu.setProgress(
+    engine.getPlayerProgress()
+  );
+}
 
 
 // ============================================================
@@ -1151,7 +1308,11 @@ const handleTrafficCrash =
 
     mainMenu.show();
 
-    engine.resetRaceState();
+    if (
+      engine
+    ) {
+      engine.resetRaceState();
+    }
   };
 
 
@@ -1174,7 +1335,11 @@ const handleRaceResultMenu =
 
     refreshMainMenuProgress();
 
-    engine.resetRaceState();
+    if (
+      engine
+    ) {
+      engine.resetRaceState();
+    }
 
     mainMenu.show();
   };
