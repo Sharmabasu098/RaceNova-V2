@@ -126,6 +126,8 @@ export class MainMenu {
   private started =
     false;
 
+  private loginRequired =
+  true;
 
   constructor(
     container:
@@ -1046,39 +1048,73 @@ export class MainMenu {
    * It only makes the Main Menu available again.
    */
   public resetStartState():
-    void {
+  void {
 
-    this.started =
-      false;
-
-
-    this.startButton.disabled =
-      false;
+  this.started =
+    false;
 
 
-    this.campaignButton.disabled =
-      false;
+  this.startButton.disabled =
+    this.loginRequired;
 
 
-    this.garageButton.disabled =
-      false;
+  this.campaignButton.disabled =
+    this.loginRequired;
 
 
-    this.piLoginButton.disabled =
-      false;
+  this.garageButton.disabled =
+    this.loginRequired;
 
 
-    this.setGoogleLoginDisabled(
-      false
-    );
+  this.piLoginButton.disabled =
+    false;
 
 
-    this.startButton.classList.remove(
-      "is-pressed"
-    );
+  this.setGoogleLoginDisabled(
+    false
+  );
+
+
+  this.startButton.classList.remove(
+    "is-pressed"
+  );
   }
 
+  // =========================================================
+// M11.8.8 — Mandatory Login Gate
+// =========================================================
+//
+// Login is required before gameplay becomes available.
+//
+// Authentication controls remain available.
+// Gameplay controls remain locked until a verified
+// authentication session activates the Engine.
+//
+// MainMenu remains UI-only.
+// =========================================================
 
+public setLoginGateRequired(
+  required:
+    boolean
+):
+  void {
+
+  this.loginRequired =
+    required;
+
+
+  this.startButton.disabled =
+    required;
+
+
+  this.campaignButton.disabled =
+    required;
+
+
+  this.garageButton.disabled =
+    required;
+}
+  
   // =========================================================
   // SHOW
   // =========================================================
