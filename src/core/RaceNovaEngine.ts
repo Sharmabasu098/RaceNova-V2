@@ -240,8 +240,8 @@ private readonly profileManager:
 private readonly runtimeProfileBridge:
   RuntimeProfileBridge;
 
-private static readonly LOCAL_PROFILE_ID =
-  "racenova-local-player";
+private readonly accountId:
+  string;
 
   // =========================================================
   // Player Progress
@@ -377,8 +377,9 @@ private static readonly LOCAL_PROFILE_ID =
   // =========================================================
 
   constructor(
-    container: HTMLElement
-  ) {
+  container: HTMLElement,
+  accountId: string
+) {
 
     // =======================================================
     // Scene
@@ -584,16 +585,19 @@ private static readonly LOCAL_PROFILE_ID =
     // Save System
     // =======================================================
 
-        this.saveSystem =
-      new SaveSystem(
-        this.economyManager,
-        this.garageManager,
-        this.upgradeSystem,
-        {
-          accountId:
-            RaceNovaEngine.LOCAL_PROFILE_ID
-        }
-      );
+        this.accountId =
+  accountId;
+
+this.saveSystem =
+  new SaveSystem(
+    this.economyManager,
+    this.garageManager,
+    this.upgradeSystem,
+    {
+      accountId:
+        this.accountId
+    }
+  );
 
     // =======================================================
 // M10.7.2 — Runtime Profile Integration
@@ -662,11 +666,11 @@ if (
 ) {
 
   const initializedProfile =
-    this.runtimeProfileBridge.initialize(
-      RaceNovaEngine.LOCAL_PROFILE_ID,
-      runtimeSaveData,
-      ""
-    );
+  this.runtimeProfileBridge.initialize(
+    this.accountId,
+    runtimeSaveData,
+    ""
+  );
 
   if (
     initializedProfile
