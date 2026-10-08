@@ -925,10 +925,16 @@ if (
           upgradeSystem:
             this.upgradeSystem,
 
-                    onUpgrade: (
+                              onUpgrade: (
             carId
           ) => {
-                          return;
+
+            if (
+              this.garageManager
+                .getSelectedCarId() !==
+              carId
+            ) {
+              return;
             }
 
             this.openUpgrades();
