@@ -2,7 +2,7 @@
  * ============================================================
  * RaceNova V2
  * Google Authentication Provider
- * M11.7.2-D — Google GIS Provider Integration
+ * M11.8.8 — Google UI Cleanup
  * ============================================================
  *
  * Responsibilities:
@@ -12,6 +12,8 @@
  * - Verify the credential through the RaceNova Google Worker
  * - Convert verified identity into AuthenticationSession
  * - Keep Google credential memory-only
+ * - Clear GIS login UI after successful verification
+ * - Restore GIS login UI after sign-out or verification failure
  *
  * IMPORTANT:
  * - No Google client secret
@@ -241,6 +243,12 @@ export class GoogleAuthenticationProvider {
           null
       };
 
+      // ------------------------------------------------------
+      // M11.8.8 — Restore Google Login UI
+      // ------------------------------------------------------
+
+      this.renderGoogleButton();
+
       const result:
         AuthenticationResult = {
         success:
@@ -345,12 +353,17 @@ export class GoogleAuthenticationProvider {
     );
   }
 
+  // ==========================================================
+  // Render Google Button
+  // ==========================================================
+
   private renderGoogleButton():
     void {
 
     if (
       !this.renderContainer ||
-      !window.google
+      !window.google ||
+      !this.googleReady
     ) {
       return;
     }
@@ -390,6 +403,8 @@ export class GoogleAuthenticationProvider {
           this.createErrorResult(
             "Google credential was not returned."
           );
+
+        this.renderGoogleButton();
 
         this.onResult?.(
           result
@@ -479,6 +494,17 @@ export class GoogleAuthenticationProvider {
           }
         };
 
+        // ----------------------------------------------------
+        // M11.8.8 — Clear GIS Login Button after verification
+        // ----------------------------------------------------
+
+        if (
+          this.renderContainer
+        ) {
+
+          this.renderContainer.replaceChildren();
+        }
+
         const result:
           AuthenticationResult = {
           success:
@@ -502,6 +528,12 @@ export class GoogleAuthenticationProvider {
               ? error.message
               : String(error)
           );
+
+        // ----------------------------------------------------
+        // M11.8.8 — Restore GIS UI after failure
+        // ----------------------------------------------------
+
+        this.renderGoogleButton();
 
         this.onResult?.(
           result
