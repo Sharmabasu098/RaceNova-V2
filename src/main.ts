@@ -771,6 +771,74 @@ let activeAccountId:
   string | null =
     null;
 
+// ============================================================
+// M11.8.8 — Safe Account Logout Lifecycle
+// ============================================================
+
+const logoutActiveAccount =
+  (): void => {
+
+    // --------------------------------------------------------
+    // Save the current account before disposing its Engine.
+    // --------------------------------------------------------
+
+    if (
+      engine
+    ) {
+
+      const saveSucceeded =
+        engine.getSaveSystem().save();
+
+      if (
+        !saveSucceeded
+      ) {
+
+        console.error(
+          "[RaceNova] Account save failed during logout."
+        );
+
+        // Do not silently discard the active session
+        // if the final save could not be confirmed.
+        return;
+      }
+
+      // ------------------------------------------------------
+      // Dispose the current account-bound Engine.
+      // ------------------------------------------------------
+
+      engine.dispose();
+
+      engine =
+        null;
+    }
+
+    // --------------------------------------------------------
+    // Clear the active account only after Engine cleanup.
+    // --------------------------------------------------------
+
+    activeAccountId =
+      null;
+
+    // --------------------------------------------------------
+    // Lock gameplay until another account is verified.
+    // --------------------------------------------------------
+
+    mainMenu.setLoginGateRequired(
+      true
+    );
+
+    mainMenu.resetStartState();
+
+    campaignMenu?.hide();
+
+    refreshMainMenuProgress();
+
+    mainMenu.show();
+
+    console.info(
+      "[RaceNova] Active account logged out safely."
+    );
+  };
 
 // ============================================================
 // Campaign Menu Reference
@@ -882,20 +950,36 @@ const mainMenu =
           // --------------------------------------------------
 
           if (
-            authenticationRuntime
-              .isAuthenticated()
-          ) {
+  authenticationRuntime
+    .isAuthenticated()
+) {
 
-            await authenticationRuntime
-              .signOut();
+  const signOutResult =
+    await authenticationRuntime.signOut();
 
-            mainMenu.setAuthenticationState(
-              false
-            );
+  if (
+    !signOutResult.success
+  ) {
 
-            return;
+    console.warn(
+      "[RaceNova] Pi sign-out failed:",
+      signOutResult.message
+    );
+
+    return;
+  }
+
+  currentPiAccessToken =
+    null;
+
+  mainMenu.setAuthenticationState(
+    false
+  );
+
+  logoutActiveAccount();
+
+  return;
           }
-
 
           // --------------------------------------------------
           // Sign In
@@ -965,14 +1049,16 @@ const mainMenu =
 
 
           if (
-            result.success
-          ) {
+  result.success
+) {
 
-            mainMenu.setGoogleAuthenticationState(
-              false
-            );
+  mainMenu.setGoogleAuthenticationState(
+    false
+  );
 
-            return;
+  logoutActiveAccount();
+
+  return;
           }
 
 
